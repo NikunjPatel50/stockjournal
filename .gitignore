@@ -37,10 +37,6 @@ yarn-error.log*
 # vercel
 .vercel
 
-# mobile apps (deploy web from repo root; see mobile/ and mobile-rn/ locally)
-/mobile/
-/mobile-rn/
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
