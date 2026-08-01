@@ -5,11 +5,12 @@ import {
   getListingMarket,
   yahooSymbolForListingMarket,
 } from "@/lib/equity-listing-markets";
+import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 
 const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
 
 function cleanTicker(ticker: string): string {
-  return ticker.trim().toUpperCase().replace(/^\$/, "");
+  return normalizeEquityTicker(ticker);
 }
 
 function yahooSymbol(ticker: string, equityExchange: EquityExchangeHint): string {

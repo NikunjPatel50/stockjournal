@@ -17,6 +17,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { formatSignedMoney } from "@/lib/journal-types";
 import {
   Select,
   SelectContent,
@@ -117,11 +118,7 @@ export function ChartsSection() {
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    formatter={(value) =>
-                      `$${Number(value).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                      })}`
-                    }
+                    formatter={(value) => formatSignedMoney(Number(value))}
                   />
                 }
               />

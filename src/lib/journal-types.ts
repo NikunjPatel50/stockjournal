@@ -1,9 +1,13 @@
+import type { AnalyticsTimeframe } from "@/lib/analytics";
+import { getAnalyticsTimeframeRange } from "@/lib/analytics";
+import { endOfDay, isAfter, isBefore, startOfDay } from "date-fns";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import {
   defaultListingMarketForCurrency,
   normalizeListingMarket,
 } from "@/lib/equity-listing-markets";
 import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
 
 export type AssetClass = "Equities" | "Options" | "Crypto" | "Forex";
 export type JournalDirection = "Long" | "Short";
@@ -53,8 +57,9 @@ export interface JournalTrade {
 
 export interface JournalFilters {
   search: string;
-  dateFrom: Date | undefined;
-  dateTo: Date | undefined;
+  timeframe: AnalyticsTimeframe;
+  customFrom?: Date;
+  customTo?: Date;
   assetClass: string;
   direction: string;
   outcome: string;
@@ -105,7 +110,7 @@ function normalizeAssetClass(value: unknown): AssetClass {
 
 export function normalizeJournalTrade(
   trade: JournalTrade,
-  defaultCurrency: CurrencyCode = "USD"
+  defaultCurrency: CurrencyCode = DEFAULT_CURRENCY
 ): JournalTrade {
   const status = trade.status === "Active" ? "Active" : "Closed";
   return {
@@ -125,17 +130,31 @@ export function isClosedTrade(trade: JournalTrade): boolean {
   return (trade.status ?? "Closed") === "Closed";
 }
 
-/** Outcome label in UI — active trades are not finalized yet. */
-export function displayTradeOutcome(trade: JournalTrade): string {
-  if ((trade.status ?? "Closed") === "Active") return "—";
+/** Map P&L to outcome label (used for live active rows). */
+export function outcomeFromPnl(pnl: number): JournalOutcome {
+  if (pnl > 0) return "Win";
+  if (pnl < 0) return "Loss";
+  return "Breakeven";
+}
+
+/** Outcome label in UI — active trades use live P&L when provided. */
+export function displayTradeOutcome(
+  trade: JournalTrade,
+  options?: { livePnl?: number }
+): string {
+  if ((trade.status ?? "Closed") === "Active") {
+    const pnl = options?.livePnl ?? trade.pnl;
+    return outcomeFromPnl(pnl);
+  }
   return trade.outcome;
 }
 
 export function emptyFilters(): JournalFilters {
   return {
     search: "",
-    dateFrom: undefined,
-    dateTo: undefined,
+    timeframe: "all",
+    customFrom: undefined,
+    customTo: undefined,
     assetClass: "all",
     direction: "all",
     outcome: "all",
@@ -179,13 +198,14 @@ export function filterJournalTrades(
       return false;
     }
 
+    const { from, to } = getAnalyticsTimeframeRange({
+      timeframe: filters.timeframe,
+      customFrom: filters.customFrom,
+      customTo: filters.customTo,
+    });
     const entry = new Date(trade.entryDate);
-    if (filters.dateFrom && entry < filters.dateFrom) return false;
-    if (filters.dateTo) {
-      const end = new Date(filters.dateTo);
-      end.setHours(23, 59, 59, 999);
-      if (entry > end) return false;
-    }
+    if (from && isBefore(entry, startOfDay(from))) return false;
+    if (to && isAfter(entry, endOfDay(to))) return false;
 
     return true;
   });
@@ -216,6 +236,10 @@ export function computeJournalSummary(trades: JournalTrade[]) {
       : trades.reduce((sum, t) => sum + t.holdTimeHours, 0) / trades.length;
 
   const totalVolume = trades.reduce((sum, t) => sum + t.quantity, 0);
+  const totalInvested = trades.reduce(
+    (sum, t) => sum + t.entryPrice * t.quantity,
+    0
+  );
   const losingTrades = losses.length;
   const decidedTrades = wins + losingTrades;
   const accuracyPercent = decidedTrades
@@ -229,6 +253,8 @@ export function computeJournalSummary(trades: JournalTrade[]) {
     profitFactor,
     avgHoldHours: avgHold,
     totalVolume,
+    totalInvested,
+    totalWin: grossProfit,
     totalLoss: grossLoss,
     winningTrades: wins,
     losingTrades,
@@ -236,18 +262,17 @@ export function computeJournalSummary(trades: JournalTrade[]) {
   };
 }
 
-export function formatCurrency(value: number) {
-  const prefix = value > 0 ? "+" : "";
-  return `${prefix}$${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+export function formatCurrency(
+  value: number,
+  currency: CurrencyCode = DEFAULT_CURRENCY
+) {
+  return formatSignedMoney(value, currency);
 }
 
 /** Display a market price with the user's currency symbol (not P&L signed format). */
 export function formatMarketPrice(
   value: number,
-  currency: "USD" | "EUR" | "GBP" | "INR" | "CAD" = "USD"
+  currency: CurrencyCode = DEFAULT_CURRENCY
 ) {
   const locale = currency === "INR" ? "en-IN" : "en-US";
   return new Intl.NumberFormat(locale, {
@@ -261,7 +286,7 @@ export function formatMarketPrice(
 /** Signed P&L with currency symbol (e.g. active / unrealized). */
 export function formatSignedMoney(
   value: number,
-  currency: "USD" | "EUR" | "GBP" | "INR" | "CAD" = "USD"
+  currency: CurrencyCode = DEFAULT_CURRENCY
 ) {
   const locale = currency === "INR" ? "en-IN" : "en-US";
   return new Intl.NumberFormat(locale, {

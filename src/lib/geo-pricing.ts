@@ -33,7 +33,7 @@ export function getFreePriceForCountry(
   countryCode?: string | null
 ): LocalizedPrice {
   const code = countryCode?.trim().toUpperCase() || "";
-  const currency: PricingCurrency = FREE_LABEL_BY_COUNTRY[code] ?? "USD";
+  const currency: PricingCurrency = FREE_LABEL_BY_COUNTRY[code] ?? "INR";
 
   return {
     amount: 0,

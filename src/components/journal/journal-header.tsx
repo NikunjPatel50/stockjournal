@@ -11,6 +11,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { TimeframeSegmentedControl } from "@/components/analytics/timeframe-segmented-control";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { AppPageHeader } from "@/components/app-page-header";
-import type { JournalFilters } from "@/lib/journal-types";
+import type { AnalyticsTimeframe } from "@/lib/analytics";
+import { emptyFilters, type JournalFilters } from "@/lib/journal-types";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -65,20 +67,61 @@ export function JournalHeader({
   const patch = (partial: Partial<JournalFilters>) =>
     onFiltersChange({ ...filters, ...partial });
 
-  const dateLabel =
-    filters.dateFrom || filters.dateTo
-      ? `${filters.dateFrom ? format(filters.dateFrom, "MMM d") : "…"} – ${
-          filters.dateTo ? format(filters.dateTo, "MMM d, yyyy") : "…"
-        }`
-      : "Date range";
-
   const statusLabel =
     filters.status === "all" ? "Status" : statusFilterLabel(filters.status);
 
+  const isCustom = filters.timeframe === "custom";
+  const customRangeLabel =
+    filters.customFrom || filters.customTo
+      ? `${filters.customFrom ? format(filters.customFrom, "MMM d, yyyy") : "Start"} – ${
+          filters.customTo ? format(filters.customTo, "MMM d, yyyy") : "End"
+        }`
+      : "Select dates";
+
+  const datePicker = isCustom ? (
+    <Popover open={dateOpen} onOpenChange={setDateOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              "h-10 gap-1.5 rounded-lg border-border bg-background px-2.5",
+              "text-xs font-medium shadow-none"
+            )}
+          />
+        }
+      >
+        <CalendarIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="max-w-[12rem] truncate sm:max-w-none">
+          {customRangeLabel}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto max-w-[calc(100vw-2rem)] p-0"
+        align={isMobile ? "center" : "start"}
+      >
+        <Calendar
+          mode="range"
+          numberOfMonths={isMobile ? 1 : 2}
+          selected={{
+            from: filters.customFrom,
+            to: filters.customTo,
+          }}
+          onSelect={(range) =>
+            patch({
+              customFrom: range?.from,
+              customTo: range?.to,
+            })
+          }
+        />
+      </PopoverContent>
+    </Popover>
+  ) : null;
+
   const hasActiveFilters =
     filters.search ||
-    filters.dateFrom ||
-    filters.dateTo ||
+    filters.timeframe !== "all" ||
     filters.outcome !== "all" ||
     filters.status !== "all";
 
@@ -90,127 +133,85 @@ export function JournalHeader({
         title="Trade journal"
       />
 
-      <div className="rounded-lg border border-border bg-card shadow-none">
-        <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:max-w-sm">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={filters.search}
-                onChange={(e) => patch({ search: e.target.value })}
-                placeholder="Search ticker, notes, tags…"
-                className="h-9 border-border bg-background pl-9"
+      <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-none">
+        <div className="flex flex-col gap-4 p-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center">
+              <div className="relative w-full min-w-0 xl:max-w-sm xl:shrink-0">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={filters.search}
+                  onChange={(e) => patch({ search: e.target.value })}
+                  placeholder="Search ticker, notes, tags…"
+                  className="h-9 border-border bg-background pl-9"
+                />
+              </div>
+              <Separator
+                orientation="vertical"
+                className="hidden h-8 xl:block"
               />
-            </div>
-            <Separator
-              orientation="vertical"
-              className="hidden h-8 sm:block"
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <Popover open={dateOpen} onOpenChange={setDateOpen}>
-                <PopoverTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-2 border-border bg-background font-normal"
-                    />
-                  }
-                >
-                  <CalendarIcon className="size-3.5 text-muted-foreground" />
-                  <span className="text-sm">{dateLabel}</span>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto max-w-[calc(100vw-2rem)] p-0"
-                  align="start"
-                >
-                  <Calendar
-                    mode="range"
-                    numberOfMonths={isMobile ? 1 : 2}
-                    selected={{
-                      from: filters.dateFrom,
-                      to: filters.dateTo,
-                    }}
-                    onSelect={(range) => {
-                      patch({
-                        dateFrom: range?.from,
-                        dateTo: range?.to,
-                      });
-                    }}
-                  />
-                  <div className="flex justify-end border-t border-border p-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        patch({ dateFrom: undefined, dateTo: undefined });
-                        setDateOpen(false);
-                      }}
+              <div className="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Select
+                    value={filters.status}
+                    onValueChange={(v) => v && patch({ status: v })}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        "h-9 w-full min-w-[9.5rem] gap-2 rounded-md border-border bg-background px-3 font-normal shadow-none hover:bg-muted/50 sm:w-auto",
+                        filters.status !== "all" &&
+                          "border-foreground/20 bg-muted/40"
+                      )}
                     >
-                      Clear
+                      <CircleDot className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="text-sm">{statusLabel}</span>
+                    </SelectTrigger>
+                    <SelectContent align="start" className="min-w-[11rem]">
+                      {STATUS_FILTER_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "size-2 shrink-0 rounded-full",
+                                option.dotClass
+                              )}
+                              aria-hidden
+                            />
+                            {option.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {hasActiveFilters ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 shrink-0 gap-1 text-muted-foreground"
+                      onClick={() => onFiltersChange(emptyFilters())}
+                    >
+                      <X className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Clear filters</span>
                     </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                  ) : null}
+                </div>
 
-              <Select
-                value={filters.status}
-                onValueChange={(v) => v && patch({ status: v })}
-              >
-                <SelectTrigger
-                  className={cn(
-                    "h-9 w-auto min-w-0 gap-2 rounded-md border-border bg-background px-3 font-normal shadow-none hover:bg-muted/50",
-                    filters.status !== "all" &&
-                      "border-foreground/20 bg-muted/40"
-                  )}
-                >
-                  <CircleDot className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="text-sm">{statusLabel}</span>
-                </SelectTrigger>
-                <SelectContent align="start" className="min-w-[11rem]">
-                  {STATUS_FILTER_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "size-2 shrink-0 rounded-full",
-                            option.dotClass
-                          )}
-                          aria-hidden
-                        />
-                        {option.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {hasActiveFilters ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 gap-1 text-muted-foreground"
-                  onClick={() =>
-                    onFiltersChange({
-                      search: "",
-                      dateFrom: undefined,
-                      dateTo: undefined,
-                      assetClass: "all",
-                      direction: "all",
-                      outcome: "all",
-                      status: "all",
-                      strategy: "all",
-                    })
-                  }
-                >
-                  <X className="size-3.5" />
-                  Clear filters
-                </Button>
-              ) : null}
+                <div className="relative z-20 min-w-0 w-full md:flex-1 md:overflow-x-auto md:overscroll-x-contain md:pb-0.5 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
+                  <TimeframeSegmentedControl
+                    value={filters.timeframe}
+                    onChange={(timeframe: AnalyticsTimeframe) =>
+                      patch({ timeframe })
+                    }
+                    trailing={datePicker}
+                    className="max-md:w-full"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end xl:pt-0.5">
             <Button
               variant="outline"
               size="sm"

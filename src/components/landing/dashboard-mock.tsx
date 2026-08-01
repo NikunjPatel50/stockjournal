@@ -208,15 +208,15 @@ function OvernightExposureMock() {
         </span>
       </div>
       <p className={cn("mt-1 text-sm font-semibold", mockValue)}>
-        $18,420 exposed (22% of account)
+        ₹18,420 exposed (22% of account)
       </p>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
         <div className="h-full w-[22%] rounded-full bg-emerald-500" />
       </div>
       <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
         <span className="font-mono font-medium text-foreground">NVDA</span>
-        <span>120 @ $142.50</span>
-        <span className={mockPositive}>$17,100</span>
+        <span>120 @ ₹142.50</span>
+        <span className={mockPositive}>₹17,100</span>
       </div>
     </div>
   );
@@ -235,9 +235,9 @@ function ShareTradeCardMock() {
         </span>
       </div>
       <p className={cn("mt-2 text-[11px] text-zinc-300", NUMERIC_CLASS)}>
-        $118.20 → $142.50
+        ₹118.20 → ₹142.50
       </p>
-      <p className={cn("mt-1 text-sm font-bold", mockPositive)}>+2.1R · +$842</p>
+      <p className={cn("mt-1 text-sm font-bold", mockPositive)}>+2.1R · +₹842</p>
       <p className="mt-1 text-[10px] text-zinc-500">Held 6 days · Long</p>
     </div>
   );
@@ -278,14 +278,14 @@ function DashboardPreview() {
   const kpis = [
     {
       title: "Net realized P&L",
-      value: "+$12,480",
+      value: "+₹12,480",
       footer: "Return +12.4%",
       tone: mockPositive,
     },
     {
       title: "Profit factor",
       value: "1.87",
-      footer: "Gross +$21.4k",
+      footer: "Gross +₹21.4k",
       tone: mockValue,
     },
     {
@@ -302,7 +302,7 @@ function DashboardPreview() {
     },
     {
       title: "Max drawdown",
-      value: "-$1,240",
+      value: "-₹1,240",
       footer: "-3.8%",
       tone: "text-orange-500 dark:text-orange-400",
     },
@@ -402,7 +402,7 @@ function DashboardPreview() {
               <div className="text-right">
                 <p className={mockLabel}>Net P&L</p>
                 <p className={cn("text-xs font-semibold", mockPositive)}>
-                  +$12,480
+                  +₹12,480
                 </p>
               </div>
             </div>
@@ -423,17 +423,17 @@ function DashboardPreview() {
 
 function JournalPreview() {
   const rows = [
-    { ticker: "NVDA", pnl: "+$842", outcome: "Win", date: "Jul 22" },
-    { ticker: "AAPL", pnl: "-$126", outcome: "Loss", date: "Jul 21" },
-    { ticker: "TSLA", pnl: "+$318", outcome: "Win", date: "Jul 18" },
-    { ticker: "SPY", pnl: "+$95", outcome: "Win", date: "Jul 15" },
+    { ticker: "NVDA", pnl: "+₹842", outcome: "Win", date: "Jul 22" },
+    { ticker: "AAPL", pnl: "-₹126", outcome: "Loss", date: "Jul 21" },
+    { ticker: "TSLA", pnl: "+₹318", outcome: "Win", date: "Jul 18" },
+    { ticker: "SPY", pnl: "+₹95", outcome: "Win", date: "Jul 15" },
   ];
 
   const summaryStats = [
-    { label: "Filtered P&L", value: "+$1,129", accent: "border-t-emerald-500", valueClass: mockPositive },
+    { label: "Filtered P&L", value: "+₹1,129", accent: "border-t-emerald-500", valueClass: mockPositive },
     { label: "Win rate", value: "75.0%", accent: "border-t-border", valueClass: mockValue },
     { label: "Avg hold time", value: "4.2d", accent: "border-t-border", valueClass: mockValue },
-    { label: "Total loss", value: "$126", accent: "border-t-rose-500", valueClass: mockNegative },
+    { label: "Total loss", value: "₹126", accent: "border-t-rose-500", valueClass: mockNegative },
   ];
 
   return (
@@ -545,13 +545,13 @@ function AnalyticsPreview() {
           <div className="rounded-lg border border-border bg-muted/30 p-2">
             <p className="text-[10px] text-muted-foreground">Best week</p>
             <p className={cn("mt-1 text-sm font-semibold", mockPositive)}>
-              +$2,140
+              +₹2,140
             </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/30 p-2">
             <p className="text-[10px] text-muted-foreground">Expectancy</p>
             <p className={cn("mt-1 text-sm font-semibold", mockValue)}>
-              +$126.40
+              +₹126.40
             </p>
           </div>
         </div>
@@ -588,7 +588,7 @@ function GoalsPreview() {
       </div>
       <div className="space-y-2">
         {[
-          { title: "Monthly P&L", progress: 72, value: "$1,440 / $2,000" },
+          { title: "Monthly P&L", progress: 72, value: "₹1,440 / ₹2,000" },
           { title: "Win rate target", progress: 61, value: "61% / 65%" },
           { title: "No overtrading streak", progress: 80, value: "16 / 20 days" },
         ].map((goal) => (

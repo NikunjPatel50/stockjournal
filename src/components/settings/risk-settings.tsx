@@ -115,7 +115,7 @@ export function RiskSettings() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="percent">% of Account</SelectItem>
-                  <SelectItem value="fixed">Fixed $ Amount</SelectItem>
+                  <SelectItem value="fixed">Fixed ₹ amount</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -157,7 +157,7 @@ export function RiskSettings() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percent">Percent %</SelectItem>
-                    <SelectItem value="fixed">Fixed $</SelectItem>
+                    <SelectItem value="fixed">Fixed ₹</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

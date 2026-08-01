@@ -1,4 +1,5 @@
 import type { JournalDirection, JournalOutcome } from "@/lib/journal-types";
+import { formatSignedMoney } from "@/lib/journal-types";
 
 export type ShareableTradePayload = {
   v: 1;
@@ -163,9 +164,5 @@ export function tradeCardImagePath(token: string): string {
 }
 
 export function formatSharePnl(pnl: number): string {
-  const prefix = pnl >= 0 ? "+" : "-";
-  return `${prefix}$${Math.abs(pnl).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatSignedMoney(pnl);
 }

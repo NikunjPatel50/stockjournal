@@ -4,6 +4,8 @@ import {
   isBefore,
   parseISO,
 } from "date-fns";
+import { formatSignedMoney } from "@/lib/journal-types";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
 
 export type GoalPeriod = "monthly" | "quarterly" | "annual" | "all";
 export type GoalCategory = "financial" | "risk" | "habit";
@@ -105,11 +107,7 @@ export function daysRemaining(endDate: string): number {
 
 export function formatGoalValue(value: number, metricType: MetricType, unit: string) {
   if (metricType === "profit" || metricType === "max_loss") {
-    const abs = Math.abs(value).toLocaleString("en-US", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-    return value < 0 ? `-$${abs}` : `$${abs}`;
+    return formatSignedMoney(value, DEFAULT_CURRENCY);
   }
   if (metricType === "win_rate") return `${value.toFixed(1)}%`;
   if (unit) return `${value}${unit.startsWith(" ") ? unit : ` ${unit}`}`;
@@ -121,7 +119,7 @@ export function pacingText(goal: Goal): string {
     const used = Math.abs(goal.currentValue);
     const limit = Math.abs(goal.targetValue);
     const left = Math.max(limit - used, 0);
-    return `$${left.toLocaleString()} risk budget remaining before limit`;
+    return `${formatSignedMoney(left, DEFAULT_CURRENCY)} risk budget remaining before limit`;
   }
 
   if (goal.currentValue >= goal.targetValue || goal.completed) {

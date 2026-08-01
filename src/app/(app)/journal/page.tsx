@@ -1,10 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { AddTradeModal } from "@/components/journal/add-trade-modal";
 import { JournalHeader } from "@/components/journal/journal-header";
 import { JournalSummaryBar } from "@/components/journal/journal-summary-bar";
 import { JournalTable } from "@/components/journal/journal-table";
+import { useSettings } from "@/components/settings/settings-provider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useMarketQuotes } from "@/hooks/use-market-quotes";
 import {
   computeJournalSummary,
   emptyFilters,
@@ -12,6 +27,8 @@ import {
   type JournalFilters,
   type JournalTrade,
 } from "@/lib/journal-types";
+import { computeLiveActivePnl, computeFilteredPnl } from "@/lib/trade-pnl";
+import { applyStopLossClosures } from "@/lib/close-trade";
 import { useJournalTrades } from "@/lib/trades-storage";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 
@@ -61,9 +78,11 @@ function tradesToCsv(trades: JournalTrade[]) {
 
 export default function JournalPage() {
   const { trades, setTrades } = useJournalTrades();
+  const { settings } = useSettings();
   const [filters, setFilters] = useState<JournalFilters>(emptyFilters);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTrade, setEditingTrade] = useState<JournalTrade | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string[] | null>(null);
 
   function openEditTrade(trade: JournalTrade) {
     setEditingTrade(trade);
@@ -74,7 +93,71 @@ export default function JournalPage() {
     () => filterJournalTrades(trades, filters),
     [trades, filters]
   );
+  const activeTrades = useMemo(
+    () => filtered.filter((t) => (t.status ?? "Closed") === "Active"),
+    [filtered]
+  );
+  const closedTrades = useMemo(
+    () => filtered.filter((t) => (t.status ?? "Closed") === "Closed"),
+    [filtered]
+  );
+  const activePoolCount = useMemo(
+    () => trades.filter((t) => (t.status ?? "Closed") === "Active").length,
+    [trades]
+  );
+  const closedPoolCount = useMemo(
+    () => trades.filter((t) => (t.status ?? "Closed") === "Closed").length,
+    [trades]
+  );
   const summary = useMemo(() => computeJournalSummary(filtered), [filtered]);
+
+  const activePool = useMemo(
+    () => trades.filter((t) => (t.status ?? "Closed") === "Active"),
+    [trades]
+  );
+
+  const { getQuote, loading: quotesLoading, fetchedAt } = useMarketQuotes(
+    activePool,
+    settings.profile.currency
+  );
+  const livePnl = useMemo(
+    () =>
+      computeLiveActivePnl(
+        activeTrades,
+        getQuote,
+        settings.profile.currency
+      ),
+    [activeTrades, getQuote, settings.profile.currency]
+  );
+  const filteredPnl = useMemo(
+    () =>
+      computeFilteredPnl(filtered, getQuote, settings.profile.currency),
+    [filtered, getQuote, settings.profile.currency]
+  );
+
+  const stoppedOutNotifiedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!fetchedAt || activePool.length === 0) return;
+
+    let closed: JournalTrade[] = [];
+    setTrades((prev) => {
+      const result = applyStopLossClosures(prev, getQuote);
+      closed = result.closed.filter(
+        (t) =>
+          (prev.find((p) => p.id === t.id)?.status ?? "Closed") === "Active"
+      );
+      return closed.length > 0 ? result.nextTrades : prev;
+    });
+
+    for (const trade of closed) {
+      if (stoppedOutNotifiedRef.current.has(trade.id)) continue;
+      stoppedOutNotifiedRef.current.add(trade.id);
+      toast.info(
+        `${trade.ticker} stopped out at ${trade.stopLoss.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`
+      );
+    }
+  }, [activePool.length, fetchedAt, getQuote, setTrades]);
 
   function handleSave(trade: JournalTrade) {
     setTrades((prev) => {
@@ -85,9 +168,45 @@ export default function JournalPage() {
   }
 
   function handleDelete(ids: string[]) {
-    if (!confirm(`Delete ${ids.length} trade(s)?`)) return;
-    setTrades((prev) => prev.filter((t) => !ids.includes(t.id)));
+    setDeleteTarget(ids);
   }
+
+  function confirmDelete() {
+    if (!deleteTarget?.length) return;
+
+    const removed = trades.filter((t) => deleteTarget.includes(t.id));
+    setTrades((prev) => prev.filter((t) => !deleteTarget.includes(t.id)));
+    setDeleteTarget(null);
+
+    if (removed.length === 1) {
+      toast.success(`${removed[0].ticker} removed from your journal`);
+      return;
+    }
+
+    toast.success(`${removed.length} trades removed from your journal`);
+  }
+
+  const deleteDialogCopy = useMemo(() => {
+    if (!deleteTarget?.length) {
+      return { title: "Delete trade?", description: "" };
+    }
+
+    if (deleteTarget.length === 1) {
+      const trade = trades.find((t) => t.id === deleteTarget[0]);
+      const label = trade?.ticker ?? "this trade";
+      return {
+        title: `Delete ${label}?`,
+        description:
+          "This trade will be permanently removed from your journal. You can't undo this action.",
+      };
+    }
+
+    return {
+      title: `Delete ${deleteTarget.length} trades?`,
+      description:
+        "These trades will be permanently removed from your journal. You can't undo this action.",
+    };
+  }, [deleteTarget, trades]);
 
   function handleDuplicate(trade: JournalTrade) {
     const copy: JournalTrade = {
@@ -201,15 +320,34 @@ export default function JournalPage() {
         onImportFile={handleImportFile}
       />
 
-      <JournalSummaryBar summary={summary} />
-
-      <JournalTable
-        trades={filtered}
-        totalTradeCount={trades.length}
-        onEdit={openEditTrade}
-        onDuplicate={handleDuplicate}
-        onDelete={handleDelete}
+      <JournalSummaryBar
+        summary={summary}
+        livePnl={livePnl}
+        filteredPnl={filteredPnl}
+        livePnlLoading={quotesLoading}
       />
+
+      <div className="space-y-6">
+        <JournalTable
+          title="Active trade log"
+          trades={activeTrades}
+          totalTradeCount={activePoolCount}
+          onEdit={openEditTrade}
+          onDuplicate={handleDuplicate}
+          onDelete={handleDelete}
+        />
+
+        {closedPoolCount > 0 ? (
+          <JournalTable
+            title="Closed trades"
+            trades={closedTrades}
+            totalTradeCount={closedPoolCount}
+            onEdit={openEditTrade}
+            onDuplicate={handleDuplicate}
+            onDelete={handleDelete}
+          />
+        ) : null}
+      </div>
 
       <AddTradeModal
         open={modalOpen}
@@ -220,6 +358,38 @@ export default function JournalPage() {
         initialTrade={editingTrade}
         onSave={handleSave}
       />
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-rose-500/10 text-rose-600">
+              <Trash2 />
+            </AlertDialogMedia>
+            <AlertDialogTitle>{deleteDialogCopy.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteDialogCopy.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {deleteTarget && deleteTarget.length > 1
+                ? "Keep trades"
+                : "Keep trade"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 text-white hover:bg-rose-600/90"
+              onClick={confirmDelete}
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

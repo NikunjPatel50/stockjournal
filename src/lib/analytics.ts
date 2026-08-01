@@ -1,6 +1,8 @@
 import {
+  addDays,
   endOfDay,
   endOfMonth,
+  endOfWeek,
   format,
   isAfter,
   isBefore,
@@ -11,7 +13,10 @@ import {
   subDays,
   subMonths,
 } from "date-fns";
+import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
 import type { JournalTrade } from "@/lib/journal-types";
+import { formatSignedMoney } from "@/lib/journal-types";
 
 export type AnalyticsTimeframe =
   | "today"
@@ -155,15 +160,28 @@ export interface MonthlyPerformancePoint {
   monthTitle: string;
   returnPct: number;
   monthPnl: number;
+  stats: PeriodTradeStats;
 }
+
+export interface PeriodTradeStats {
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  accuracyPct: number;
+  totalWinAmount: number;
+  totalLossAmount: number;
+  riskRewardLabel: string;
+}
+
+export type PerformanceGranularity = "monthly" | "weekly" | "daily";
 
 
 function tradeTime(trade: JournalTrade) {
   return parseISO(trade.exitDate || trade.entryDate);
 }
 
-function getRange(
-  filters: AnalyticsFilters,
+export function getAnalyticsTimeframeRange(
+  filters: Pick<AnalyticsFilters, "timeframe" | "customFrom" | "customTo">,
   now = new Date()
 ): { from?: Date; to?: Date } {
   if (filters.timeframe === "custom") {
@@ -189,7 +207,7 @@ export function filterAnalyticsTrades(
   trades: JournalTrade[],
   filters: AnalyticsFilters
 ): JournalTrade[] {
-  const { from, to } = getRange(filters);
+  const { from, to } = getAnalyticsTimeframeRange(filters);
 
   return trades.filter((trade) => {
     if (trade.status === "Active") return false;
@@ -435,37 +453,113 @@ export function computeMonthlyPerformance(
   return points;
 }
 
+function tradesClosedInPeriod(
+  trades: JournalTrade[],
+  periodStart: Date,
+  periodEnd: Date
+): JournalTrade[] {
+  return trades.filter((trade) => {
+    if (trade.status === "Active") return false;
+    const d = tradeTime(trade);
+    return !isBefore(d, periodStart) && !isAfter(d, periodEnd);
+  });
+}
+
+function formatPeriodRiskReward(periodTrades: JournalTrade[]): string {
+  const rrValues = periodTrades
+    .map((t) => parseRr(t.riskReward))
+    .filter((v): v is number => v !== null);
+  if (rrValues.length) {
+    const avg = rrValues.reduce((sum, v) => sum + v, 0) / rrValues.length;
+    return `1:${avg.toFixed(2)}`;
+  }
+  const wins = periodTrades.filter((t) => t.pnl > 0);
+  const losses = periodTrades.filter((t) => t.pnl < 0);
+  const grossWin = wins.reduce((s, t) => s + t.pnl, 0);
+  const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
+  if (grossLoss > 0 && grossWin > 0) {
+    return `1:${(grossWin / grossLoss).toFixed(2)}`;
+  }
+  return "—";
+}
+
+export function computePeriodTradeStats(
+  periodTrades: JournalTrade[]
+): PeriodTradeStats {
+  const winningTrades = periodTrades.filter((t) => t.outcome === "Win").length;
+  const losingTrades = periodTrades.filter((t) => t.outcome === "Loss").length;
+  const decided = winningTrades + losingTrades;
+  const totalWinAmount = periodTrades
+    .filter((t) => t.pnl > 0)
+    .reduce((s, t) => s + t.pnl, 0);
+  const totalLossAmount = Math.abs(
+    periodTrades.filter((t) => t.pnl < 0).reduce((s, t) => s + t.pnl, 0)
+  );
+
+  return {
+    totalTrades: periodTrades.length,
+    winningTrades,
+    losingTrades,
+    accuracyPct: decided ? (winningTrades / decided) * 100 : 0,
+    totalWinAmount: Math.round(totalWinAmount * 100) / 100,
+    totalLossAmount: Math.round(totalLossAmount * 100) / 100,
+    riskRewardLabel: formatPeriodRiskReward(periodTrades),
+  };
+}
+
+function buildPeriodPerformancePoint(
+  trades: JournalTrade[],
+  startingEquity: number,
+  periodStart: Date,
+  periodEnd: Date,
+  meta: { periodKey: string; label: string; periodTitle: string }
+): MonthlyPerformancePoint {
+  let equityBefore = startingEquity;
+  for (const trade of trades) {
+    const d = tradeTime(trade);
+    if (isBefore(d, periodStart)) equityBefore += trade.pnl;
+  }
+
+  let periodPnl = 0;
+  for (const trade of trades) {
+    const d = tradeTime(trade);
+    if (!isBefore(d, periodStart) && !isAfter(d, periodEnd)) {
+      periodPnl += trade.pnl;
+    }
+  }
+
+  const returnPct =
+    equityBefore > 0 ? (periodPnl / equityBefore) * 100 : 0;
+
+  const periodTrades = tradesClosedInPeriod(trades, periodStart, periodEnd);
+
+  return {
+    monthKey: meta.periodKey,
+    label: meta.label,
+    monthTitle: meta.periodTitle,
+    returnPct: Math.round(returnPct * 100) / 100,
+    monthPnl: Math.round(periodPnl * 100) / 100,
+    stats: computePeriodTradeStats(periodTrades),
+  };
+}
+
 function buildMonthlyPerformancePoint(
   trades: JournalTrade[],
   startingEquity: number,
   monthStart: Date
 ): MonthlyPerformancePoint {
   const monthEnd = endOfMonth(monthStart);
-
-  let equityBefore = startingEquity;
-  for (const trade of trades) {
-    const d = tradeTime(trade);
-    if (isBefore(d, monthStart)) equityBefore += trade.pnl;
-  }
-
-  let monthPnl = 0;
-  for (const trade of trades) {
-    const d = tradeTime(trade);
-    if (!isBefore(d, monthStart) && !isAfter(d, monthEnd)) {
-      monthPnl += trade.pnl;
+  return buildPeriodPerformancePoint(
+    trades,
+    startingEquity,
+    monthStart,
+    monthEnd,
+    {
+      periodKey: format(monthStart, "yyyy-MM"),
+      label: format(monthStart, "MMM ''yy"),
+      periodTitle: format(monthStart, "MMMM yyyy"),
     }
-  }
-
-  const returnPct =
-    equityBefore > 0 ? (monthPnl / equityBefore) * 100 : 0;
-
-  return {
-    monthKey: format(monthStart, "yyyy-MM"),
-    label: format(monthStart, "MMM ''yy"),
-    monthTitle: format(monthStart, "MMMM yyyy"),
-    returnPct: Math.round(returnPct * 100) / 100,
-    monthPnl: Math.round(monthPnl * 100) / 100,
-  };
+  );
 }
 
 export function getAnalyticsYears(
@@ -504,6 +598,149 @@ export function computeMonthlyPerformanceForYear(
   }
 
   return points;
+}
+
+function periodHasClosedTrades(
+  trades: JournalTrade[],
+  periodStart: Date,
+  periodEnd: Date
+): boolean {
+  return tradesClosedInPeriod(trades, periodStart, periodEnd).length > 0;
+}
+
+function periodBoundsFromKey(
+  key: string,
+  granularity: PerformanceGranularity
+): { start: Date; end: Date } {
+  if (granularity === "monthly") {
+    const [yearStr, monthStr] = key.split("-");
+    const start = startOfMonth(
+      new Date(Number(yearStr), Number(monthStr) - 1, 1)
+    );
+    return { start, end: endOfMonth(start) };
+  }
+  const start = startOfDay(parseISO(key));
+  if (granularity === "daily") {
+    return { start, end: endOfDay(start) };
+  }
+  return {
+    start,
+    end: endOfWeek(start, { weekStartsOn: 1 }),
+  };
+}
+
+function weeklyBoundsInYear(
+  key: string,
+  year: number,
+  now: Date
+): { start: Date; end: Date } {
+  const weekStart = startOfDay(parseISO(key));
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+  const yearStart = startOfDay(new Date(year, 0, 1));
+  const yearEnd = endOfDay(
+    year === now.getFullYear() ? now : new Date(year, 11, 31)
+  );
+  return {
+    start: isBefore(weekStart, yearStart) ? yearStart : weekStart,
+    end: isAfter(weekEnd, yearEnd) ? yearEnd : weekEnd,
+  };
+}
+
+function filterPerformancePeriodsWithTrades(
+  trades: JournalTrade[],
+  points: MonthlyPerformancePoint[],
+  granularity: PerformanceGranularity,
+  year: number,
+  now: Date
+): MonthlyPerformancePoint[] {
+  return points.filter((point) => {
+    const { start, end } =
+      granularity === "weekly"
+        ? weeklyBoundsInYear(point.monthKey, year, now)
+        : periodBoundsFromKey(point.monthKey, granularity);
+    return periodHasClosedTrades(trades, start, end);
+  });
+}
+
+export function computePerformanceForYear(
+  trades: JournalTrade[],
+  startingEquity: number,
+  year: number,
+  granularity: PerformanceGranularity,
+  now = new Date()
+): MonthlyPerformancePoint[] {
+  let points: MonthlyPerformancePoint[];
+
+  if (granularity === "monthly") {
+    points = computeMonthlyPerformanceForYear(
+      trades,
+      startingEquity,
+      year,
+      now
+    );
+  } else {
+    const yearStart = startOfDay(new Date(year, 0, 1));
+    const yearEnd = endOfDay(
+      year === now.getFullYear() ? now : new Date(year, 11, 31)
+    );
+
+    if (granularity === "daily") {
+      points = [];
+      let cursor = yearStart;
+      while (!isAfter(cursor, yearEnd)) {
+        const dayStart = startOfDay(cursor);
+        const dayEnd = endOfDay(cursor);
+        points.push(
+          buildPeriodPerformancePoint(
+            trades,
+            startingEquity,
+            dayStart,
+            dayEnd,
+            {
+              periodKey: format(dayStart, "yyyy-MM-dd"),
+              label: format(dayStart, "M/d"),
+              periodTitle: format(dayStart, "MMM d, yyyy"),
+            }
+          )
+        );
+        cursor = addDays(cursor, 1);
+      }
+    } else {
+      points = [];
+      let weekStart = startOfWeek(yearStart, { weekStartsOn: 1 });
+      while (!isAfter(weekStart, yearEnd)) {
+        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+        const effectiveStart = isBefore(weekStart, yearStart)
+          ? yearStart
+          : weekStart;
+        const effectiveEnd = isAfter(weekEnd, yearEnd) ? yearEnd : weekEnd;
+        if (!isAfter(effectiveStart, effectiveEnd)) {
+          points.push(
+            buildPeriodPerformancePoint(
+              trades,
+              startingEquity,
+              effectiveStart,
+              effectiveEnd,
+              {
+                periodKey: format(weekStart, "yyyy-MM-dd"),
+                label: format(effectiveStart, "MMM d"),
+                periodTitle: `Week of ${format(effectiveStart, "MMM d, yyyy")}`,
+              }
+            )
+          );
+        }
+        weekStart = addDays(weekEnd, 1);
+      }
+    }
+  }
+
+  return filterPerformancePeriodsWithTrades(
+    trades,
+    points,
+    granularity,
+    year,
+    now
+  );
 }
 
 export function tradeRMultiple(trade: JournalTrade): number | null {
@@ -589,6 +826,125 @@ export function computeHeatmap(trades: JournalTrade[]): HeatCell[] {
   });
 }
 
+export interface CalendarDay {
+  date: string;
+  pnl: number | null;
+  trades: number;
+}
+
+export interface PnlCalendarData {
+  weeks: CalendarDay[][];
+  maxAbsPnl: number;
+}
+
+/** Daily P&L cells grouped into week columns (Sun–Sat) for a calendar heatmap. */
+export function computePnlCalendar(
+  trades: JournalTrade[],
+  weekCount = 26,
+  now = new Date()
+): PnlCalendarData {
+  const dailyMap = new Map(
+    computeDailyPnl(trades).map((d) => [d.date, d])
+  );
+  const calendarEnd = endOfDay(now);
+  const calendarStart = startOfWeek(subDays(calendarEnd, weekCount * 7 - 1), {
+    weekStartsOn: 0,
+  });
+
+  const days: CalendarDay[] = [];
+  let cursor = calendarStart;
+  while (!isAfter(cursor, calendarEnd)) {
+    const key = format(cursor, "yyyy-MM-dd");
+    const entry = dailyMap.get(key);
+    days.push({
+      date: key,
+      pnl: entry?.pnl ?? null,
+      trades: entry?.trades ?? 0,
+    });
+    cursor = addDays(cursor, 1);
+  }
+
+  const weeks: CalendarDay[][] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+
+  const maxAbsPnl = Math.max(
+    1,
+    ...days.map((d) => (d.pnl !== null ? Math.abs(d.pnl) : 0))
+  );
+
+  return { weeks, maxAbsPnl };
+}
+
+export interface RMultipleBucket {
+  label: string;
+  count: number;
+}
+
+export function computeRMultipleBuckets(
+  trades: JournalTrade[]
+): RMultipleBucket[] {
+  const defs = [
+    { label: "< -2R", test: (r: number) => r < -2 },
+    { label: "-2R to -1R", test: (r: number) => r >= -2 && r < -1 },
+    { label: "-1R to 0", test: (r: number) => r >= -1 && r < 0 },
+    { label: "0 to 1R", test: (r: number) => r >= 0 && r < 1 },
+    { label: "1R to 2R", test: (r: number) => r >= 1 && r < 2 },
+    { label: "2R to 3R", test: (r: number) => r >= 2 && r < 3 },
+    { label: "3R+", test: (r: number) => r >= 3 },
+  ] as const;
+
+  const rValues = trades
+    .map(tradeRMultiple)
+    .filter((r): r is number => r !== null);
+
+  return defs.map(({ label, test }) => ({
+    label,
+    count: rValues.filter(test).length,
+  }));
+}
+
+export interface TagMetric {
+  tag: string;
+  trades: number;
+  winRate: number;
+  totalPnl: number;
+  avgR: number | null;
+}
+
+export function computeTagMetrics(trades: JournalTrade[]): TagMetric[] {
+  const map = new Map<string, JournalTrade[]>();
+  for (const t of trades) {
+    const tags = t.tags.length > 0 ? t.tags : ["Untagged"];
+    for (const tag of tags) {
+      const list = map.get(tag) ?? [];
+      list.push(t);
+      map.set(tag, list);
+    }
+  }
+
+  return Array.from(map.entries())
+    .map(([tag, list]) => {
+      const wins = list.filter((t) => t.pnl > 0);
+      const rValues = list
+        .map(tradeRMultiple)
+        .filter((r): r is number => r !== null);
+      return {
+        tag,
+        trades: list.length,
+        winRate: list.length ? (wins.length / list.length) * 100 : 0,
+        totalPnl: Math.round(list.reduce((s, t) => s + t.pnl, 0) * 100) / 100,
+        avgR: rValues.length
+          ? Math.round(
+              (rValues.reduce((a, b) => a + b, 0) / rValues.length) * 100
+            ) / 100
+          : null,
+      };
+    })
+    .sort((a, b) => b.totalPnl - a.totalPnl);
+}
+
 export function computeDurationBuckets(trades: JournalTrade[]): DurationBucket[] {
   const buckets = [
     { bucket: "Scalp (<4h)", test: (h: number) => h < 4 },
@@ -612,15 +968,153 @@ export function computeDurationBuckets(trades: JournalTrade[]): DurationBucket[]
   });
 }
 
-export function formatMoney(value: number, withSign = true) {
-  const abs = Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  if (!withSign) return `$${abs}`;
-  if (value > 0) return `+$${abs}`;
-  if (value < 0) return `-$${abs}`;
-  return `$${abs}`;
+export interface TradingInsights {
+  winRateCushion: number | null;
+  breakEvenWinRate: number | null;
+  actualWinRate: number;
+  greenDayRate: number;
+  greenDays: number;
+  tradingDays: number;
+  recoveryFactor: number | null;
+  bestWeekday: { day: string; pnl: number } | null;
+  profitConcentrationPct: number | null;
+  topProfitTicker: string | null;
+  plannedRiskRate: number;
+  rTargetHitRate: number | null;
+  sweetSpotHold: string | null;
+  lossAfterWinRate: number | null;
+}
+
+const WEEKDAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
+
+export function computeTradingInsights(
+  trades: JournalTrade[],
+  startingEquity = 10000
+): TradingInsights {
+  const breakdown = computePnlBreakdown(trades);
+  const kpis = computeKpis(trades, startingEquity);
+  const heatmap = computeHeatmap(trades);
+  const durationBuckets = computeDurationBuckets(trades);
+
+  const avgLossAbs = Math.abs(breakdown.avgLoss);
+  const payoffRatio =
+    avgLossAbs > 0 ? breakdown.avgWin / avgLossAbs : null;
+  const breakEvenWinRate =
+    payoffRatio != null && payoffRatio > 0
+      ? Math.round((1 / (1 + payoffRatio)) * 1000) / 10
+      : null;
+  const winRateCushion =
+    breakEvenWinRate != null
+      ? Math.round((kpis.winRate - breakEvenWinRate) * 10) / 10
+      : null;
+
+  const daily = computeDailyPnl(trades);
+  const tradingDays = daily.length;
+  const greenDays = daily.filter((d) => d.pnl > 0).length;
+  const greenDayRate = tradingDays
+    ? Math.round((greenDays / tradingDays) * 1000) / 10
+    : 0;
+
+  const recoveryFactor =
+    kpis.maxDrawdown !== 0
+      ? Math.round((breakdown.netPnl / Math.abs(kpis.maxDrawdown)) * 100) / 100
+      : null;
+
+  const weekdayPnl = new Map<string, number>();
+  for (const day of WEEKDAY_ORDER) weekdayPnl.set(day, 0);
+  for (const cell of heatmap) {
+    weekdayPnl.set(cell.day, (weekdayPnl.get(cell.day) ?? 0) + cell.pnl);
+  }
+  const weekdayRanked = WEEKDAY_ORDER.map((day) => ({
+    day,
+    pnl: Math.round((weekdayPnl.get(day) ?? 0) * 100) / 100,
+  })).sort((a, b) => b.pnl - a.pnl);
+  const bestWeekday =
+    weekdayRanked[0] && weekdayRanked[0].pnl !== 0 ? weekdayRanked[0] : null;
+
+  const grossProfit = trades
+    .filter((t) => t.pnl > 0)
+    .reduce((s, t) => s + t.pnl, 0);
+  const tickerProfit = new Map<string, number>();
+  for (const trade of trades) {
+    if (trade.pnl <= 0) continue;
+    tickerProfit.set(
+      trade.ticker,
+      (tickerProfit.get(trade.ticker) ?? 0) + trade.pnl
+    );
+  }
+  const topProfitEntry = [...tickerProfit.entries()].sort(
+    (a, b) => b[1] - a[1]
+  )[0];
+  const profitConcentrationPct =
+    grossProfit > 0 && topProfitEntry
+      ? Math.round((topProfitEntry[1] / grossProfit) * 1000) / 10
+      : null;
+
+  const withPlannedRisk = trades.filter((t) => t.plannedRisk > 0);
+  const plannedRiskRate = trades.length
+    ? Math.round((withPlannedRisk.length / trades.length) * 1000) / 10
+    : 0;
+  const rWinners = withPlannedRisk.filter(
+    (t) => (tradeRMultiple(t) ?? 0) >= 1
+  );
+  const rTargetHitRate = withPlannedRisk.length
+    ? Math.round((rWinners.length / withPlannedRisk.length) * 1000) / 10
+    : null;
+
+  const sweetSpotHold =
+    [...durationBuckets]
+      .filter((b) => b.trades > 0)
+      .sort((a, b) => b.totalPnl - a.totalPnl)[0]?.bucket ?? null;
+
+  const sorted = [...trades].sort(
+    (a, b) => tradeTime(a).getTime() - tradeTime(b).getTime()
+  );
+  let lossAfterWin = 0;
+  let lossCount = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].pnl < 0) {
+      lossCount += 1;
+      if (sorted[i - 1].pnl > 0) lossAfterWin += 1;
+    }
+  }
+  const lossAfterWinRate = lossCount
+    ? Math.round((lossAfterWin / lossCount) * 1000) / 10
+    : null;
+
+  return {
+    winRateCushion,
+    breakEvenWinRate,
+    actualWinRate: Math.round(kpis.winRate * 10) / 10,
+    greenDayRate,
+    greenDays,
+    tradingDays,
+    recoveryFactor,
+    bestWeekday,
+    profitConcentrationPct,
+    topProfitTicker: topProfitEntry?.[0] ?? null,
+    plannedRiskRate,
+    rTargetHitRate,
+    sweetSpotHold,
+    lossAfterWinRate,
+  };
+}
+
+export function formatMoney(
+  value: number,
+  withSign = true,
+  currency: CurrencyCode = DEFAULT_CURRENCY
+) {
+  const locale = currency === "INR" ? "en-IN" : "en-US";
+  if (!withSign) {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }
+  return formatSignedMoney(value, currency);
 }
 
 export function formatPf(value: number) {

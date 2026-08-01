@@ -1,5 +1,6 @@
 import type { AssetClass } from "@/lib/journal-types";
 import type { CurrencyCode } from "@/lib/settings";
+import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 
 const EODHD_API_BASE = "https://eodhd.com/api";
 
@@ -46,7 +47,7 @@ function mapEodhdCurrency(value?: string): CurrencyCode | undefined {
 }
 
 function cleanTicker(ticker: string): string {
-  return ticker.trim().toUpperCase().replace(/^\$/, "");
+  return normalizeEquityTicker(ticker);
 }
 
 /** Map journal ticker + asset class to an EODHD symbol (live delayed feed). */

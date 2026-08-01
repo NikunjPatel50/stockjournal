@@ -10,6 +10,7 @@ import { fetchMarketQuoteForTrade } from "@/lib/market-quote";
 import { normalizeListingMarket } from "@/lib/equity-listing-markets";
 import { getCurrentUser } from "@/lib/insforge/server";
 import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
 
 type QuoteRequestItem = {
   ticker?: string;
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
 
   const currency = CURRENCIES.has(payload.currency as CurrencyCode)
     ? (payload.currency as CurrencyCode)
-    : "USD";
+    : DEFAULT_CURRENCY;
   const equityExchange =
     payload.equityExchange === "NSE" || payload.equityExchange === "US"
       ? payload.equityExchange

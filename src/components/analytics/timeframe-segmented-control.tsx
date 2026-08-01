@@ -30,7 +30,15 @@ export function TimeframeSegmentedControl({
       }}
       className={cn("w-auto min-w-0", className)}
     >
-      <div className="flex w-max max-w-none flex-nowrap items-center gap-2">
+      <div
+        className={cn(
+          "flex max-w-none flex-nowrap items-center gap-2",
+          "w-full max-md:min-w-0 max-md:overflow-x-auto max-md:overscroll-x-contain",
+          "max-md:pb-0.5 max-md:[-ms-overflow-style:none] max-md:[scrollbar-width:none]",
+          "max-md:[&::-webkit-scrollbar]:hidden",
+          "md:w-max"
+        )}
+      >
         <TabsList
           className={cn(
             "inline-flex h-10 w-max max-w-none flex-nowrap items-center gap-0.5",

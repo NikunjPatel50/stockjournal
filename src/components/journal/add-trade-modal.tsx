@@ -26,6 +26,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { DateTimeField, formatDateTimeFieldValue } from "@/components/journal/datetime-field";
 import { ChartScreenshotPreview } from "@/components/journal/chart-screenshot-preview";
 import { SmartPositionSizer } from "@/components/journal/smart-position-sizer";
+import {
+  TickerSearchInput,
+  type TickerSearchInputHandle,
+} from "@/components/journal/ticker-search-input";
 import { useSettings } from "@/components/settings/settings-provider";
 import {
   type JournalTrade,
@@ -38,6 +42,7 @@ import {
   normalizeListingMarket,
   type ListingMarketId,
 } from "@/lib/equity-listing-markets";
+import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 import { cn } from "@/lib/utils";
 
 const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
@@ -274,10 +279,12 @@ export function AddTradeModal({
     },
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tickerInputRef = useRef<TickerSearchInputHandle>(null);
   const [screenshotSrc, setScreenshotSrc] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [screenshotDragActive, setScreenshotDragActive] = useState(false);
   const tradeStatus = form.watch("status");
+  const listingMarket = form.watch("listingMarket");
   const entryDate = form.watch("entryDate");
   const entryPriceWatch = form.watch("entryPrice");
   const exitFieldsDisabled = tradeStatus === "Active";
@@ -431,7 +438,16 @@ export function AddTradeModal({
     }
   }
 
-  function onSubmit(values: TradeFormValues) {
+  async function onSubmit(values: TradeFormValues) {
+    const tickerCommitted = await tickerInputRef.current?.commit();
+    if (tickerCommitted === false) return;
+
+    const resolvedTicker = normalizeEquityTicker(form.getValues("ticker"));
+    if (!resolvedTicker) {
+      form.setError("ticker", { message: "Ticker is required" });
+      return;
+    }
+
     const direction = initialTrade?.direction ?? "Long";
     const assetClass = initialTrade?.assetClass ?? "Equities";
     const fees = initialTrade?.fees ?? 0;
@@ -465,7 +481,7 @@ export function AddTradeModal({
 
     const trade: JournalTrade = {
       id: initialTrade?.id ?? crypto.randomUUID(),
-      ticker: values.ticker.toUpperCase(),
+      ticker: resolvedTicker,
       listingMarket: values.listingMarket as ListingMarketId,
       assetClass,
       direction,
@@ -548,102 +564,116 @@ export function AddTradeModal({
                   description="Instrument and session timing"
                   tone="sky"
                 >
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <Controller
-                      control={form.control}
-                      name="listingMarket"
-                      render={({ field }) => (
-                        <Field label="Market / exchange">
-                          <Select
-                            value={field.value}
-                            onValueChange={(value) => {
-                              if (
-                                LISTING_MARKET_IDS.includes(
-                                  value as ListingMarketId
-                                )
-                              ) {
-                                field.onChange(value);
-                              }
-                            }}
-                          >
-                            <SelectTrigger className={cn(inputClass, "w-full")}>
-                              <SelectValue placeholder="Select market" />
-                            </SelectTrigger>
-                            <SelectContent
-                              align="start"
-                              className="max-h-[min(20rem,70vh)]"
-                            >
-                              {EQUITY_LISTING_MARKETS.map((market) => (
-                                <SelectItem key={market.id} value={market.id}>
-                                  {market.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </Field>
-                      )}
-                    />
-                    <Field label="Ticker symbol">
-                      <Input
-                        {...form.register("ticker")}
-                        placeholder="e.g. AAPL"
-                        className={cn(inputClass, "font-mono uppercase")}
-                      />
-                    </Field>
-                    <Controller
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <Field label="Status">
-                          <Select
-                            value={field.value}
-                            onValueChange={(value) => {
-                              if (value === "Closed" || value === "Active") {
-                                field.onChange(value);
-                                if (value === "Active") {
-                                  form.setValue("exitPrice", 0);
-                                  form.setValue(
-                                    "exitDate",
-                                    form.getValues("entryDate")
-                                  );
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Controller
+                        control={form.control}
+                        name="listingMarket"
+                        render={({ field }) => (
+                          <Field label="Market / exchange">
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                if (
+                                  LISTING_MARKET_IDS.includes(
+                                    value as ListingMarketId
+                                  )
+                                ) {
+                                  field.onChange(value);
                                 }
-                              }
-                            }}
-                          >
-                            <SelectTrigger className={cn(inputClass, "w-full")}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Closed">Closed</SelectItem>
-                              <SelectItem value="Active">Active</SelectItem>
-                            </SelectContent>
-                          </Select>
+                              }}
+                            >
+                              <SelectTrigger className={cn(inputClass, "w-full")}>
+                                <SelectValue placeholder="Select market" />
+                              </SelectTrigger>
+                              <SelectContent
+                                align="start"
+                                className="max-h-[min(20rem,70vh)]"
+                              >
+                                {EQUITY_LISTING_MARKETS.map((market) => (
+                                  <SelectItem key={market.id} value={market.id}>
+                                    {market.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        )}
+                      />
+                      <Controller
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <Field label="Status">
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                if (value === "Closed" || value === "Active") {
+                                  field.onChange(value);
+                                  if (value === "Active") {
+                                    form.setValue("exitPrice", 0);
+                                    form.setValue(
+                                      "exitDate",
+                                      form.getValues("entryDate")
+                                    );
+                                  }
+                                }
+                              }}
+                            >
+                              <SelectTrigger className={cn(inputClass, "w-full")}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Closed">Closed</SelectItem>
+                                <SelectItem value="Active">Active</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        )}
+                      />
+                    </div>
+                    <Controller
+                      control={form.control}
+                      name="ticker"
+                      render={({ field, fieldState }) => (
+                        <Field label="Ticker symbol" className="w-full min-w-0">
+                          <TickerSearchInput
+                            ref={tickerInputRef}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            listingMarket={listingMarket}
+                            error={fieldState.error?.message}
+                            className={cn(inputClass, "w-full")}
+                          />
                         </Field>
                       )}
                     />
-                    <Controller
-                      control={form.control}
-                      name="entryDate"
-                      render={({ field }) => (
-                        <DateTimeField
-                          label="Entry date & time"
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                      )}
-                    />
-                    <Controller
-                      control={form.control}
-                      name="exitDate"
-                      render={({ field }) => (
-                        <DateTimeField
-                          label="Exit date & time"
-                          value={field.value}
-                          onChange={field.onChange}
-                          disabled={exitFieldsDisabled}
-                        />
-                      )}
-                    />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Controller
+                        control={form.control}
+                        name="entryDate"
+                        render={({ field }) => (
+                          <DateTimeField
+                            label="Entry date & time"
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
+                        )}
+                      />
+                      <Controller
+                        control={form.control}
+                        name="exitDate"
+                        render={({ field }) => (
+                          <DateTimeField
+                            label="Exit date & time"
+                            value={field.value}
+                            onChange={field.onChange}
+                            disabled={exitFieldsDisabled}
+                          />
+                        )}
+                      />
+                    </div>
                   </div>
                 </FormSection>
 

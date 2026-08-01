@@ -74,9 +74,9 @@ const CATEGORY_LABELS: Record<GoalCategory, string> = {
 };
 
 const METRIC_LABELS: Record<MetricType, string> = {
-  profit: "$ Profit",
+  profit: "₹ Profit",
   win_rate: "Win Rate %",
-  max_loss: "Max Loss $",
+  max_loss: "Max loss (₹)",
   trade_count: "Trade Count",
   streak_days: "Streak Days",
 };
@@ -189,7 +189,7 @@ export function AddGoalModal({
           <div className="space-y-1.5">
             <Label>Goal Title</Label>
             <Input
-              placeholder="Achieve $5,000 Net Profit in Q3"
+              placeholder="Achieve ₹5,00,000 net profit in Q3"
               {...form.register("title")}
             />
           </div>

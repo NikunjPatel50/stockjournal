@@ -21,11 +21,12 @@ import {
   defaultWeekAdherence,
 } from "@/lib/goals-defaults";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
+import { useGoals } from "@/lib/goals-storage";
 import { cn } from "@/lib/utils";
 
 export default function GoalsPage() {
-  const [period, setPeriod] = useState<GoalPeriod>("monthly");
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [period, setPeriod] = useState<GoalPeriod>("all");
+  const { goals, setGoals } = useGoals();
   const [categoryTab, setCategoryTab] = useState<"all" | GoalCategory>("all");
   const [rules, setRules] = useState(defaultDisciplineRules);
   const [week, setWeek] = useState(defaultWeekAdherence);

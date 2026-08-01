@@ -1,5 +1,6 @@
 import type { EquityExchangeHint } from "@/lib/eodhd";
 import type { CurrencyCode } from "@/lib/settings";
+import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 
 export const EQUITY_LISTING_MARKETS = [
   {
@@ -150,9 +151,121 @@ export function yahooSymbolForListingMarket(
   ticker: string,
   marketId: ListingMarketId
 ): string {
-  const base = ticker.trim().toUpperCase().replace(/^\$/, "");
+  const base = normalizeEquityTicker(ticker);
   if (!base) return "";
   if (base.includes(".")) return base;
   const suffix = getListingMarket(marketId).yahooSuffix;
   return `${base}${suffix}`;
+}
+
+/** EODHD exchange codes used to filter symbol search for a listing market. */
+export function eodhdExchangesForListingMarket(
+  marketId: ListingMarketId
+): string[] {
+  switch (marketId) {
+    case "US":
+      return ["US", "NYSE", "NASDAQ"];
+    case "IN_NSE":
+      return ["NSE", "XNSE", "NS", "NSI"];
+    case "IN_BSE":
+      return ["BSE", "XBOM", "BO"];
+    case "UK":
+      return ["LSE", "XLON"];
+    case "CA":
+      return ["TO", "V", "TSX"];
+    case "DE":
+      return ["XETRA", "F", "XFRA"];
+    case "FR":
+      return ["PA", "XPAR"];
+    case "NL":
+      return ["AS", "XAMS"];
+    case "CH":
+      return ["SW", "XSWX"];
+    case "HK":
+      return ["HK", "XHKG"];
+    case "AU":
+      return ["AU", "XASX"];
+    case "JP":
+      return ["T", "XTKS"];
+    case "KR":
+      return ["KO", "KQ", "XKRX"];
+    case "SG":
+      return ["SI", "XSES"];
+    case "BR":
+      return ["SA", "BVMF"];
+    case "MX":
+      return ["MX", "BMV"];
+    default:
+      return ["US"];
+  }
+}
+
+/** Preferred EODHD `exchange` query param for search API. */
+export function eodhdSearchExchangeParam(
+  marketId: ListingMarketId
+): string | undefined {
+  switch (marketId) {
+    case "US":
+      return "US";
+    case "IN_NSE":
+      return "NSE";
+    case "IN_BSE":
+      return "BSE";
+    case "UK":
+      return "LSE";
+    case "CA":
+      return "TO";
+    case "DE":
+      return "XETRA";
+    case "FR":
+      return "PA";
+    case "NL":
+      return "AS";
+    case "CH":
+      return "SW";
+    case "HK":
+      return "HK";
+    case "AU":
+      return "AU";
+    case "JP":
+      return "T";
+    case "KR":
+      return "KO";
+    case "SG":
+      return "SI";
+    case "BR":
+      return "SA";
+    case "MX":
+      return "MX";
+    default:
+      return "US";
+  }
+}
+
+/** Normalize EODHD search exchange codes to listing-market exchange ids. */
+export function normalizeEodhdSearchExchange(exchange: string): string {
+  const upper = exchange.trim().toUpperCase();
+  const aliases: Record<string, string> = {
+    XNSE: "NSE",
+    NS: "NSE",
+    NSI: "NSE",
+    XBOM: "BSE",
+    BO: "BSE",
+    XLON: "LSE",
+    XFRA: "F",
+    XPAR: "PA",
+    XAMS: "AS",
+    XSWX: "SW",
+    XHKG: "HK",
+    XASX: "AU",
+    XTKS: "T",
+    XKRX: "KO",
+    XSES: "SI",
+    BVMF: "SA",
+    BMV: "MX",
+    TSX: "TO",
+    NASDAQ: "US",
+    NYSE: "US",
+  };
+  return aliases[upper] ?? upper;
 }

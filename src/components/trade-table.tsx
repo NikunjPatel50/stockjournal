@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { JournalTrade } from "@/lib/journal-types";
+import { formatSignedMoney, type JournalTrade } from "@/lib/journal-types";
 import {
   cn,
   NUMERIC_CLASS,
@@ -30,11 +30,7 @@ import {
 } from "@/lib/utils";
 
 function formatPnl(value: number) {
-  const prefix = value > 0 ? "+" : "";
-  return `${prefix}$${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatSignedMoney(value);
 }
 
 function formatTradeDate(trade: JournalTrade) {

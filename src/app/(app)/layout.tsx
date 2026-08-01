@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { AdminAccessProvider } from "@/components/admin/admin-access-provider";
 import { Sidebar } from "@/components/sidebar";
 import { UserStorageProvider } from "@/components/user-storage-provider";
+import { isAdminUser } from "@/lib/admin";
 import { getCurrentUser } from "@/lib/insforge/server";
 
 export const metadata: Metadata = {
@@ -22,17 +24,21 @@ export default async function AppLayout({
     redirect("/login");
   }
 
+  const isAdmin = isAdminUser(user);
+
   return (
-    <UserStorageProvider
-      userId={user.id}
-      userDisplayName={user.profile?.name ?? user.email}
-    >
-      <div className="flex h-svh w-full overflow-hidden">
-        <Sidebar user={user} />
-        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background supports-[padding:max(0px)]:pb-[max(0px,env(safe-area-inset-bottom))]">
-          {children}
-        </main>
-      </div>
-    </UserStorageProvider>
+    <AdminAccessProvider isAdmin={isAdmin}>
+      <UserStorageProvider
+        userId={user.id}
+        userDisplayName={user.profile?.name ?? user.email}
+      >
+        <div className="flex h-svh w-full overflow-hidden">
+          <Sidebar user={user} />
+          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background supports-[padding:max(0px)]:pb-[max(0px,env(safe-area-inset-bottom))]">
+            {children}
+          </main>
+        </div>
+      </UserStorageProvider>
+    </AdminAccessProvider>
   );
 }

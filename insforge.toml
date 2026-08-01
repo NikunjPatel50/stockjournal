@@ -6,6 +6,7 @@ allowed_redirect_urls = [
   "https://swingtradinglog.com/login",
   "https://www.swingtradinglog.com/api/auth/callback",
   "https://www.swingtradinglog.com/login",
+  "swingtradinglog://auth/callback",
 ]
 require_email_verification = true
 verify_email_method = "code"

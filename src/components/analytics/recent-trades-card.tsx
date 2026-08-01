@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { tradeRMultiple } from "@/lib/analytics";
+import { formatSignedMoney } from "@/lib/journal-types";
 import type { JournalTrade } from "@/lib/journal-types";
 import {
   cn,
@@ -30,11 +31,7 @@ import {
 const LIMIT = 6;
 
 function formatPnl(value: number) {
-  const prefix = value > 0 ? "+" : "";
-  return `${prefix}$${Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatSignedMoney(value);
 }
 
 function formatPrice(value: number) {

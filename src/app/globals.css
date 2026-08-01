@@ -329,3 +329,15 @@ html[data-density="comfortable"] {
     inset 0 -1px 0 color-mix(in oklab, black 30%, transparent),
     0 4px 12px -6px color-mix(in oklab, black 55%, transparent);
 }
+
+/* Plain number fields — no browser spin buttons */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

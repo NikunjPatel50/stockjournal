@@ -15,6 +15,17 @@ import {
 const numberInputClass =
   "h-9 bg-background font-sans tabular-nums [font-feature-settings:'tnum'_1,'lnum'_1]";
 
+function sanitizeDecimalInput(value: string) {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const dot = cleaned.indexOf(".");
+  if (dot === -1) return cleaned;
+  return cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, "");
+}
+
+function selectAllOnFocus(event: React.FocusEvent<HTMLInputElement>) {
+  requestAnimationFrame(() => event.target.select());
+}
+
 type SmartPositionSizerProps = {
   entryPrice: number | string;
   direction: JournalDirection;
@@ -33,40 +44,39 @@ export function SmartPositionSizer({
   const [open, setOpen] = useState(false);
   const [stockPrice, setStockPrice] = useState("");
   const [capital, setCapital] = useState("");
-  const [riskReward, setRiskReward] = useState(defaultRiskReward);
-  const [stopPercent, setStopPercent] = useState("2");
+  const [riskReward, setRiskReward] = useState("");
+  const [stopPercent, setStopPercent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<SmartPositionResult | null>(null);
   const onApplyRef = useRef(onApply);
   onApplyRef.current = onApply;
 
-  useEffect(() => {
-    setRiskReward(defaultRiskReward);
-  }, [defaultRiskReward]);
+  const entryHint =
+    Number(entryPrice) > 0 ? String(entryPrice) : undefined;
+  const capitalHint =
+    defaultCapital > 0 ? String(defaultCapital) : undefined;
+  const riskRewardHint = defaultRiskReward.trim() || "1:2";
 
   useEffect(() => {
-    const entry = Number(entryPrice);
-    if (Number.isFinite(entry) && entry > 0 && !stockPrice) {
-      setStockPrice(String(entry));
-    }
-  }, [entryPrice, stockPrice]);
-
-  useEffect(() => {
-    if (!capital && defaultCapital > 0) {
-      setCapital(String(defaultCapital));
-    }
-  }, [capital, defaultCapital]);
+    if (!open) return;
+    setStockPrice("");
+    setCapital("");
+    setRiskReward("");
+    setStopPercent("");
+    setPreview(null);
+    setError(null);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
 
     const timer = window.setTimeout(() => {
       const result = computeSmartPosition({
-        entryPrice: Number(stockPrice),
-        capital: Number(capital),
-        riskReward,
+        entryPrice: Number(stockPrice || entryHint || ""),
+        capital: Number(capital || capitalHint || ""),
+        riskReward: riskReward || riskRewardHint,
         direction: defaultDirection,
-        stopPercent: Number(stopPercent),
+        stopPercent: Number(stopPercent || "2"),
       });
       if ("error" in result) {
         setPreview(null);
@@ -78,7 +88,17 @@ export function SmartPositionSizer({
     }, 200);
 
     return () => window.clearTimeout(timer);
-  }, [open, stockPrice, capital, riskReward, stopPercent, defaultDirection]);
+  }, [
+    open,
+    stockPrice,
+    capital,
+    riskReward,
+    stopPercent,
+    defaultDirection,
+    entryHint,
+    capitalHint,
+    riskRewardHint,
+  ]);
 
   function handleApply() {
     if (!preview) return;
@@ -114,12 +134,14 @@ export function SmartPositionSizer({
                 Stock price
               </Label>
               <Input
-                type="number"
-                step="any"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 className={numberInputClass}
                 value={stockPrice}
-                onChange={(e) => setStockPrice(e.target.value)}
-                placeholder="Entry price"
+                onChange={(e) => setStockPrice(sanitizeDecimalInput(e.target.value))}
+                onFocus={selectAllOnFocus}
+                placeholder={entryHint ?? "Entry price"}
               />
             </div>
             <div className="space-y-1.5">
@@ -127,11 +149,14 @@ export function SmartPositionSizer({
                 Capital to invest
               </Label>
               <Input
-                type="number"
-                step="any"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 className={numberInputClass}
                 value={capital}
-                onChange={(e) => setCapital(e.target.value)}
+                onChange={(e) => setCapital(sanitizeDecimalInput(e.target.value))}
+                onFocus={selectAllOnFocus}
+                placeholder={capitalHint ?? "10000"}
               />
             </div>
             <div className="space-y-1.5">
@@ -142,7 +167,8 @@ export function SmartPositionSizer({
                 className={numberInputClass}
                 value={riskReward}
                 onChange={(e) => setRiskReward(e.target.value)}
-                placeholder="1:2"
+                onFocus={selectAllOnFocus}
+                placeholder={riskRewardHint}
               />
             </div>
             <div className="space-y-1.5">
@@ -150,11 +176,14 @@ export function SmartPositionSizer({
                 Stop % from entry
               </Label>
               <Input
-                type="number"
-                step="any"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 className={numberInputClass}
                 value={stopPercent}
-                onChange={(e) => setStopPercent(e.target.value)}
+                onChange={(e) => setStopPercent(sanitizeDecimalInput(e.target.value))}
+                onFocus={selectAllOnFocus}
+                placeholder="2"
               />
             </div>
           </div>

@@ -23,9 +23,11 @@ import {
   displayTradeOutcome,
   formatCurrency,
   formatHoldTime,
+  formatMarketPrice,
   isClosedTrade,
   type JournalTrade,
 } from "@/lib/journal-types";
+import { useSettings } from "@/components/settings/settings-provider";
 import { ShareTradeButton } from "@/components/journal/share-trade-dialog";
 import { ChartScreenshotPreview } from "@/components/journal/chart-screenshot-preview";
 import {
@@ -47,6 +49,9 @@ export function TradeDetailDrawer({
   open,
   onOpenChange,
 }: TradeDetailDrawerProps) {
+  const { settings } = useSettings();
+  const currency = settings.profile.currency;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -142,13 +147,13 @@ export function TradeDetailDrawer({
                           </TableCell>
                           <TableCell className="text-xs">{fill.side}</TableCell>
                           <TableCell className={cn("text-xs", NUMERIC_CLASS)}>
-                            ${fill.price.toFixed(2)}
+                            {formatMarketPrice(fill.price, currency)}
                           </TableCell>
                           <TableCell className={cn("text-xs", NUMERIC_CLASS)}>
                             {fill.quantity}
                           </TableCell>
                           <TableCell className={cn("text-xs", NUMERIC_CLASS)}>
-                            ${fill.fees.toFixed(2)}
+                            {formatMarketPrice(fill.fees, currency)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -162,11 +167,15 @@ export function TradeDetailDrawer({
                 <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-card p-3 text-sm">
                   <div>
                     <p className="text-xs text-muted-foreground">Stop Loss</p>
-                    <p className={NUMERIC_CLASS}>${trade.stopLoss.toFixed(2)}</p>
+                    <p className={NUMERIC_CLASS}>
+                      {formatMarketPrice(trade.stopLoss, currency)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Target</p>
-                    <p className={NUMERIC_CLASS}>${trade.profitTarget.toFixed(2)}</p>
+                    <p className={NUMERIC_CLASS}>
+                      {formatMarketPrice(trade.profitTarget, currency)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Planned Risk</p>
@@ -182,14 +191,16 @@ export function TradeDetailDrawer({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Entry</p>
-                    <p className={NUMERIC_CLASS}>${trade.entryPrice.toFixed(2)}</p>
+                    <p className={NUMERIC_CLASS}>
+                      {formatMarketPrice(trade.entryPrice, currency)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Exit</p>
                     <p className={NUMERIC_CLASS}>
                       {(trade.status ?? "Closed") === "Active" || trade.exitPrice <= 0
                         ? "—"
-                        : `$${trade.exitPrice.toFixed(2)}`}
+                        : formatMarketPrice(trade.exitPrice, currency)}
                     </p>
                   </div>
                 </div>

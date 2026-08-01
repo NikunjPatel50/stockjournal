@@ -12,7 +12,12 @@ import {
   quoteLookupKey,
 } from "@/lib/eodhd";
 import type { JournalTrade } from "@/lib/journal-types";
+import {
+  isSymbolQuoteSessionOpen,
+  quotePollIntervalMs,
+} from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
 
 export type ClientMarketQuote = {
   price: number | null;
@@ -29,18 +34,19 @@ type QuotesState = {
   error: string | null;
   fetchedAt: number | null;
   delayed: boolean;
+  sessionOpen: boolean;
 };
 
-const REFRESH_MS = 3_000;
+type SymbolRequest = {
+  ticker: string;
+  assetClass: JournalTrade["assetClass"];
+  entryPrice: number;
+  listingMarket: ListingMarketId;
+};
 
 function uniqueSymbolRequests(trades: JournalTrade[], currency: CurrencyCode) {
   const seen = new Set<string>();
-  const out: {
-    ticker: string;
-    assetClass: JournalTrade["assetClass"];
-    entryPrice: number;
-    listingMarket: ListingMarketId;
-  }[] = [];
+  const out: SymbolRequest[] = [];
   for (const trade of trades) {
     const assetClass = normalizeQuoteAssetClass(trade.assetClass);
     const key = quoteLookupKey(trade.ticker, assetClass);
@@ -59,9 +65,15 @@ function uniqueSymbolRequests(trades: JournalTrade[], currency: CurrencyCode) {
   return out;
 }
 
+function anySymbolSessionOpen(symbols: SymbolRequest[], now = new Date()) {
+  return symbols.some((symbol) =>
+    isSymbolQuoteSessionOpen(symbol.assetClass, symbol.listingMarket, now)
+  );
+}
+
 export function useMarketQuotes(
   trades: JournalTrade[],
-  currency: CurrencyCode = "USD"
+  currency: CurrencyCode = DEFAULT_CURRENCY
 ) {
   const symbols = useMemo(
     () => uniqueSymbolRequests(trades, currency),
@@ -82,9 +94,11 @@ export function useMarketQuotes(
     error: null,
     fetchedAt: null,
     delayed: true,
+    sessionOpen: false,
   });
 
   const pollGenerationRef = useRef(0);
+  const pollTimerRef = useRef<number | null>(null);
 
   const fetchQuotes = useCallback(async () => {
     if (symbols.length === 0) {
@@ -94,17 +108,27 @@ export function useMarketQuotes(
         loading: false,
         error: null,
         fetchedAt: null,
+        sessionOpen: false,
       }));
       return;
     }
 
+    const now = new Date();
+    const sessionOpen = anySymbolSessionOpen(symbols, now);
     const generation = ++pollGenerationRef.current;
 
-    setState((prev) => ({
-      ...prev,
-      loading: prev.fetchedAt === null && Object.keys(prev.quotes).length === 0,
-      error: null,
-    }));
+    setState((prev) => {
+      const requestedKeys = symbols.map((s) =>
+        quoteLookupKey(s.ticker, normalizeQuoteAssetClass(s.assetClass))
+      );
+      const hasMissing = requestedKeys.some((k) => prev.quotes[k] == null);
+      return {
+        ...prev,
+        loading: hasMissing,
+        error: null,
+        sessionOpen,
+      };
+    });
 
     try {
       const res = await fetch("/api/market-quotes", {
@@ -130,55 +154,86 @@ export function useMarketQuotes(
         throw new Error(data.error ?? "Could not load quotes");
       }
 
-      setState({
-        quotes: data.quotes ?? {},
+      const fetchedAt = data.fetchedAt ?? Date.now();
+
+      setState((prev) => ({
+        quotes: { ...prev.quotes, ...(data.quotes ?? {}) },
         loading: false,
         error: null,
-        fetchedAt: data.fetchedAt ?? Date.now(),
+        fetchedAt,
         delayed: data.delayed !== false,
-      });
+        sessionOpen: anySymbolSessionOpen(symbols, new Date(fetchedAt)),
+      }));
     } catch (err) {
       if (generation !== pollGenerationRef.current) return;
       setState((prev) => ({
         ...prev,
         loading: false,
         error: err instanceof Error ? err.message : "Could not load quotes",
+        sessionOpen: anySymbolSessionOpen(symbols),
       }));
     }
   }, [currency, symbols]);
 
+  const schedulePoll = useCallback(() => {
+    if (pollTimerRef.current != null) {
+      window.clearTimeout(pollTimerRef.current);
+    }
+
+    const delay = quotePollIntervalMs(symbols);
+    pollTimerRef.current = window.setTimeout(() => {
+      if (document.visibilityState === "visible") {
+        void fetchQuotes();
+      }
+      schedulePoll();
+    }, delay);
+  }, [fetchQuotes, symbols]);
+
   useEffect(() => {
     pollGenerationRef.current += 1;
     void fetchQuotes();
-  }, [fetchQuotes, symbolsKey]);
-
-  useEffect(() => {
-    if (symbols.length === 0) return;
+    schedulePoll();
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") void fetchQuotes();
+      if (document.visibilityState === "visible") {
+        void fetchQuotes();
+      }
     };
-
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") void fetchQuotes();
-    }, REFRESH_MS);
 
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisibility);
+      if (pollTimerRef.current != null) {
+        window.clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
     };
-  }, [fetchQuotes, symbols.length, symbolsKey]);
+  }, [fetchQuotes, schedulePoll, symbolsKey]);
 
   const getQuote = useCallback(
     (trade: JournalTrade) => {
-      const key = quoteLookupKey(
-        trade.ticker,
-        normalizeQuoteAssetClass(trade.assetClass)
+      const assetClass = normalizeQuoteAssetClass(trade.assetClass);
+      const key = quoteLookupKey(trade.ticker, assetClass);
+      const quote = state.quotes[key] ?? null;
+      if (!quote) return null;
+
+      const listingMarket =
+        trade.listingMarket != null
+          ? normalizeListingMarket(trade.listingMarket)
+          : defaultListingMarketForCurrency(currency);
+      const sessionOpen = isSymbolQuoteSessionOpen(
+        assetClass,
+        listingMarket
       );
-      return state.quotes[key] ?? null;
+
+      if (sessionOpen) return quote;
+
+      return {
+        ...quote,
+        isLive: false,
+      };
     },
-    [state.quotes]
+    [currency, state.quotes]
   );
 
   return {
@@ -187,6 +242,7 @@ export function useMarketQuotes(
     error: state.error,
     fetchedAt: state.fetchedAt,
     delayed: state.delayed,
+    sessionOpen: state.sessionOpen,
     refresh: fetchQuotes,
   };
 }

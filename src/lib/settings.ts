@@ -14,6 +14,9 @@ export type LandingPage =
   | "/settings";
 export type CurrencyCode = "USD" | "EUR" | "GBP" | "INR" | "CAD";
 
+/** Primary display currency for the product (Indian market). */
+export const DEFAULT_CURRENCY: CurrencyCode = "INR";
+
 export interface CustomTag {
   id: string;
   label: string;
@@ -85,8 +88,8 @@ export const defaultSettings: AppSettings = {
     fullName: "",
     handle: "",
     initials: "—",
-    currency: "USD",
-    startingBalance: 10_000,
+    currency: DEFAULT_CURRENCY,
+    startingBalance: 100_000,
   },
   risk: {
     defaultCommission: 0,
@@ -119,7 +122,7 @@ export function initialsFromName(name: string): string {
 }
 
 export function currencySymbol(code: CurrencyCode): string {
-  return CURRENCY_OPTIONS.find((c) => c.code === code)?.symbol ?? "$";
+  return CURRENCY_OPTIONS.find((c) => c.code === code)?.symbol ?? "₹";
 }
 
 function normalizeLandingPage(value: unknown): LandingPage {
@@ -131,7 +134,11 @@ function normalizeLandingPage(value: unknown): LandingPage {
 
 function mergeSettings(parsed: Partial<AppSettings>): AppSettings {
   return {
-    profile: { ...defaultSettings.profile, ...parsed.profile },
+    profile: {
+      ...defaultSettings.profile,
+      ...parsed.profile,
+      currency: DEFAULT_CURRENCY,
+    },
     risk: { ...defaultSettings.risk, ...parsed.risk },
     customization: {
       strategies:

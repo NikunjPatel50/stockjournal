@@ -12,6 +12,7 @@ import {
   defaultJournalColumnPrefs,
   JOURNAL_REORDERABLE_COLUMNS,
   moveJournalColumn,
+  sanitizeJournalColumnOrder,
   type JournalColumnPrefs,
 } from "@/lib/journal-column-prefs";
 
@@ -23,22 +24,29 @@ interface JournalColumnsMenuProps {
 export function JournalColumnsMenu({ prefs, onChange }: JournalColumnsMenuProps) {
   const orderedMiddle = prefs.order.filter((id) => id !== "actions");
 
-  function setVisibility(columnId: string, visible: boolean) {
+  function applyChange(next: JournalColumnPrefs) {
     onChange({
+      ...next,
+      order: sanitizeJournalColumnOrder(next.order),
+    });
+  }
+
+  function setVisibility(columnId: string, visible: boolean) {
+    applyChange({
       ...prefs,
       visibility: { ...prefs.visibility, [columnId]: visible },
     });
   }
 
   function move(columnId: string, direction: "up" | "down") {
-    onChange({
+    applyChange({
       ...prefs,
       order: moveJournalColumn(prefs.order, columnId, direction),
     });
   }
 
   function reset() {
-    onChange(defaultJournalColumnPrefs());
+    applyChange(defaultJournalColumnPrefs());
   }
 
   return (

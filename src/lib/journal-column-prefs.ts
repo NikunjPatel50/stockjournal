@@ -2,15 +2,25 @@ export const JOURNAL_TABLE_STORAGE_KEY = "tradetracker_journal_columns_v2";
 
 export const JOURNAL_LOCKED_END = ["actions"] as const;
 
+/** Shown in the per-row accordion instead of the main table row. */
+export const JOURNAL_ACCORDION_COLUMN_IDS = [
+  "status",
+  "outcome",
+  "targetStop",
+  "profitTargetStopLoss",
+] as const;
+
+const ACCORDION_COLUMN_SET = new Set<string>(JOURNAL_ACCORDION_COLUMN_IDS);
+
 export const JOURNAL_REORDERABLE_COLUMNS = [
   { id: "entryDate", label: "Date" },
   { id: "ticker", label: "Ticker" },
-  { id: "status", label: "Status" },
-  { id: "outcome", label: "Outcome" },
   { id: "prices", label: "Entry/exit" },
   { id: "currentPrice", label: "Market price" },
   { id: "quantity", label: "Qty" },
+  { id: "invested", label: "Invested" },
   { id: "pnl", label: "Net P&L" },
+  { id: "riskReward", label: "R:R" },
   { id: "holdTimeHours", label: "Hold" },
 ] as const;
 
@@ -42,13 +52,53 @@ export function defaultJournalColumnPrefs(): JournalColumnPrefs {
   };
 }
 
-function sanitizeOrder(order: string[]): string[] {
-  const allowed = new Set<string>(DEFAULT_JOURNAL_COLUMN_ORDER);
-  const middle = order.filter((id) => allowed.has(id) && id !== "actions");
-  const missing = JOURNAL_REORDERABLE_COLUMNS.map((c) => c.id).filter(
-    (id) => !middle.includes(id)
+function migrateLegacyColumnOrder(order: string[]): string[] {
+  const hasLegacy =
+    order.includes("maxProfit") || order.includes("maxLoss");
+  if (!hasLegacy) return order;
+
+  const withoutLegacy = order.filter(
+    (id) => id !== "maxProfit" && id !== "maxLoss"
   );
-  return [...middle, ...missing, ...JOURNAL_LOCKED_END];
+  if (withoutLegacy.includes("targetStop")) return withoutLegacy;
+
+  const profitIdx = order.indexOf("maxProfit");
+  const lossIdx = order.indexOf("maxLoss");
+  const insertAt =
+    profitIdx !== -1
+      ? profitIdx
+      : lossIdx !== -1
+        ? lossIdx
+        : withoutLegacy.length;
+  const next = [...withoutLegacy];
+  next.splice(insertAt, 0, "targetStop");
+  return next;
+}
+
+function sanitizeOrder(order: string[]): string[] {
+  const migrated = migrateLegacyColumnOrder(order);
+  const actionsIdx = migrated.indexOf("actions");
+  const beforeActions =
+    actionsIdx === -1 ? migrated : migrated.slice(0, actionsIdx);
+  const afterActions =
+    actionsIdx === -1 ? [] : migrated.slice(actionsIdx + 1);
+
+  const allowed = new Set<string>(DEFAULT_JOURNAL_COLUMN_ORDER);
+  const middle = beforeActions.filter(
+    (id) => allowed.has(id) && id !== "actions" && !ACCORDION_COLUMN_SET.has(id)
+  );
+  const trailing = afterActions.filter(
+    (id) => allowed.has(id) && id !== "actions" && !ACCORDION_COLUMN_SET.has(id)
+  );
+  const missing = JOURNAL_REORDERABLE_COLUMNS.map((c) => c.id).filter(
+    (id) => !middle.includes(id) && !trailing.includes(id)
+  );
+  return [...middle, ...trailing, ...missing, ...JOURNAL_LOCKED_END];
+}
+
+/** Keep Actions last; fill in any new column ids before it. */
+export function sanitizeJournalColumnOrder(order: string[]): string[] {
+  return sanitizeOrder(order);
 }
 
 export function loadJournalColumnPrefs(): JournalColumnPrefs {
@@ -63,6 +113,14 @@ export function loadJournalColumnPrefs(): JournalColumnPrefs {
       ...(parsed.visibility ?? {}),
     };
     delete vis.select;
+    delete vis.maxProfit;
+    delete vis.maxLoss;
+    if (vis.targetStop === undefined) {
+      const legacyVisible =
+        parsed.visibility?.maxProfit !== false ||
+        parsed.visibility?.maxLoss !== false;
+      vis.targetStop = legacyVisible;
+    }
     return {
       order: sanitizeOrder(parsed.order ?? base.order),
       visibility: { ...vis, actions: true },
