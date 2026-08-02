@@ -23,7 +23,7 @@ const DEMO_STEPS = [
     value: "journal",
     label: "Journal",
     variant: "journal" as const,
-    headline: "Journal every swing",
+    headline: "Journal every trade",
     detail:
       "Log ticker, asset class, strategy, risk, notes, and screenshots — then share a branded card on closed trades.",
   },

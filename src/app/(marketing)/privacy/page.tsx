@@ -4,15 +4,11 @@ import {
   LegalSection,
 } from "@/components/marketing/legal-document-page";
 import { BRAND_NAME } from "@/components/brand-logo";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
 const EFFECTIVE = "July 25, 2026";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Privacy Policy",
-  description: `How ${BRAND_NAME} collects, uses, and protects your account and journal data.`,
-  path: "/privacy",
-});
+export const metadata: Metadata = getSeoMetadata("privacy");
 
 export default function PrivacyPolicyPage() {
   return (

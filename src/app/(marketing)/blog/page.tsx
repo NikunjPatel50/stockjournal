@@ -8,15 +8,9 @@ import { LandingNavbar } from "@/components/landing/navbar";
 import { MarketingBreadcrumbs } from "@/components/marketing/marketing-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { BLOG_POSTS } from "@/lib/blog-posts";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Swing Trading Blog | Tips & Strategies | SwingTradingLog",
-  description:
-    "Swing trading journal tips, performance reviews, and strategy notes. Free insights from SwingTradingLog — start tracking trades today.",
-  path: "/blog",
-  absoluteTitle: true,
-});
+export const metadata: Metadata = getSeoMetadata("blog");
 
 export default function BlogPage() {
   const posts = [...BLOG_POSTS].sort(

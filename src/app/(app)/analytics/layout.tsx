@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Analytics",
-  description: "Swing trading analytics — weekly P&L, breakdowns, and trade stats.",
-  path: "/analytics",
-});
+export const metadata: Metadata = getSeoMetadata("analytics");
 
 export default function AnalyticsLayout({
   children,

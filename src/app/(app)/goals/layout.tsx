@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Goals",
-  description: "Track swing trading goals and discipline in SwingTradingLog.",
-  path: "/goals",
-});
+export const metadata: Metadata = getSeoMetadata("goals");
 
 export default function GoalsLayout({
   children,

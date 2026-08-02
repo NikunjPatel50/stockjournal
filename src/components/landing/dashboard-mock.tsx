@@ -101,12 +101,12 @@ export function DashboardMock({
 }) {
   const variantLabels: Record<MockVariant, string> = {
     dashboard:
-      "Swing trading journal dashboard with KPIs, overnight gap exposure, and equity curve",
+      "Trading journal dashboard with KPIs, overnight gap exposure, and equity curve",
     journal:
-      "Swing trading journal with trade log and shareable trade card preview",
+      "Trading journal with trade log and shareable trade card preview",
     analytics:
-      "Swing trading analytics with weekly P&L bars and reporting period filters",
-    goals: "Swing trading goals and discipline progress tracking",
+      "Trading analytics with weekly P&L bars and reporting period filters",
+    goals: "Trading goals and discipline progress tracking",
   };
 
   return (

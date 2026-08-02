@@ -21,11 +21,11 @@ const features = [
     icon: Moon,
     title: "Overnight & weekend exposure",
     description:
-      "See notional at gap risk on open (active) swings, with weekend and holiday flags. Uses entry price until live quotes ship.",
+      "See notional at gap risk on open (active) trades, with weekend and holiday flags. Uses entry price until live quotes ship.",
   },
   {
     icon: BookOpen,
-    title: "Swing trade journal",
+    title: "Trading journal",
     description:
       "Add and edit equities, options, forex, and crypto. Strategies, tags, stops, targets, notes, chart screenshots, and customizable columns.",
   },
@@ -39,7 +39,7 @@ const features = [
     icon: Target,
     title: "Goals & discipline",
     description:
-      "Set profit and process targets, track progress, and keep discipline checklists visible while you hold multi-day swings.",
+      "Set profit and process targets, track progress, and keep discipline checklists visible while you hold multi-day trades.",
   },
   {
     icon: Settings,

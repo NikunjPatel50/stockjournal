@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Feedback",
-  description:
-    "Suggest features and improvements for SwingTradingLog.",
-  path: "/feedback",
-});
+export const metadata: Metadata = getSeoMetadata("feedback");
 
 export default function FeedbackLayout({
   children,

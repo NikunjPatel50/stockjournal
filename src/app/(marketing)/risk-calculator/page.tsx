@@ -4,15 +4,9 @@ import { LandingFooter } from "@/components/landing/footer";
 import { LandingNavbar } from "@/components/landing/navbar";
 import { MarketingBreadcrumbs } from "@/components/marketing/marketing-breadcrumbs";
 import { Button } from "@/components/ui/button";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Position Size Calculator | Risk Management Tool | SwingTradingLog",
-  description:
-    "Free position size calculator for swing traders. Size trades by risk, stop loss, and account size — built into SwingTradingLog.",
-  path: "/risk-calculator",
-  absoluteTitle: true,
-});
+export const metadata: Metadata = getSeoMetadata("riskCalculator");
 
 export default function RiskCalculatorPage() {
   return (

@@ -2,12 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { MessageCircle, Send, X } from "lucide-react";
+import { submitChatbotLeadAction } from "@/app/actions/chatbot-lead";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  CHATBOT_EMAIL_HELPER,
+  CHATBOT_EMAIL_PROMPT,
+  CHATBOT_EMAIL_STORAGE_KEY,
+  CHATBOT_EMAIL_THANKS,
   CHATBOT_FALLBACK,
   CHATBOT_GREETING,
+  CHATBOT_QUESTION_LIMIT,
   CHATBOT_QUICK_QUESTIONS,
   findChatbotEntryByQuestion,
   matchChatbotReply,
@@ -25,6 +32,33 @@ type ChatMessage = {
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function readStoredEmail() {
+  if (typeof window === "undefined") return null;
+  const value = sessionStorage.getItem(CHATBOT_EMAIL_STORAGE_KEY)?.trim();
+  return value || null;
+}
+
+function storeEmail(email: string) {
+  sessionStorage.setItem(CHATBOT_EMAIL_STORAGE_KEY, email);
+}
+
+function buildQuestionPairs(messages: ChatMessage[]) {
+  const pairs: { question: string; answer: string }[] = [];
+
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
+    if (message.role !== "user") continue;
+
+    const next = messages[index + 1];
+    pairs.push({
+      question: message.text,
+      answer: next?.role === "bot" ? next.text : CHATBOT_FALLBACK,
+    });
+  }
+
+  return pairs;
 }
 
 function BotMessage({
@@ -55,8 +89,13 @@ function BotMessage({
 }
 
 export function SiteChatbot() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [capturedEmail, setCapturedEmail] = useState<string | null>(null);
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "greeting",
@@ -66,27 +105,61 @@ export function SiteChatbot() {
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const emailPromptShownRef = useRef(false);
+
+  const userQuestionCount = useMemo(
+    () => messages.filter((message) => message.role === "user").length,
+    [messages]
+  );
+
+  const needsEmail =
+    userQuestionCount >= CHATBOT_QUESTION_LIMIT && !capturedEmail;
 
   const quickQuestions = useMemo(
     () =>
-      CHATBOT_QUICK_QUESTIONS.filter(
-        (question) =>
-          !messages.some(
-            (message) => message.role === "user" && message.text === question
-          )
-      ).slice(0, 4),
-    [messages]
+      needsEmail
+        ? []
+        : CHATBOT_QUICK_QUESTIONS.filter(
+            (question) =>
+              !messages.some(
+                (message) => message.role === "user" && message.text === question
+              )
+          ).slice(0, 4),
+    [messages, needsEmail]
   );
+
+  useEffect(() => {
+    setCapturedEmail(readStoredEmail());
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     const node = scrollRef.current;
     if (node) node.scrollTop = node.scrollHeight;
-  }, [messages, open]);
+  }, [messages, open, needsEmail, emailError]);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    if (!open) return;
+    if (needsEmail) {
+      emailRef.current?.focus();
+      return;
+    }
+    inputRef.current?.focus();
+  }, [open, needsEmail]);
+
+  useEffect(() => {
+    if (!needsEmail || emailPromptShownRef.current) return;
+    emailPromptShownRef.current = true;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: createId(),
+        role: "bot",
+        text: CHATBOT_EMAIL_PROMPT,
+      },
+    ]);
+  }, [needsEmail]);
 
   function pushBotReply(question: string) {
     const entry =
@@ -105,7 +178,7 @@ export function SiteChatbot() {
 
   function handleAsk(question: string) {
     const trimmed = question.trim();
-    if (!trimmed) return;
+    if (!trimmed || needsEmail) return;
 
     setMessages((prev) => [
       ...prev,
@@ -118,6 +191,41 @@ export function SiteChatbot() {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     handleAsk(input);
+  }
+
+  async function handleEmailSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!needsEmail || emailSubmitting) return;
+
+    setEmailError(null);
+    setEmailSubmitting(true);
+
+    const result = await submitChatbotLeadAction({
+      email: emailInput,
+      questions: buildQuestionPairs(messages),
+      pagePath: pathname,
+    });
+
+    setEmailSubmitting(false);
+
+    if (!result.ok) {
+      setEmailError(result.error);
+      return;
+    }
+
+    const normalizedEmail = emailInput.trim().toLowerCase();
+    storeEmail(normalizedEmail);
+    setCapturedEmail(normalizedEmail);
+    setEmailInput("");
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: createId(),
+        role: "bot",
+        text: CHATBOT_EMAIL_THANKS,
+        links: [{ label: "Start free", href: "/login" }],
+      },
+    ]);
   }
 
   return (
@@ -191,28 +299,67 @@ export function SiteChatbot() {
             ) : null}
           </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="flex items-center gap-2 border-t border-border bg-card/50 px-3 py-3"
-          >
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="Ask about pricing, journal, risk..."
-              className="h-10 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none ring-emerald-500/30 placeholder:text-muted-foreground focus-visible:ring-2"
-              aria-label="Ask a question"
-            />
-            <Button
-              type="submit"
-              size="icon"
-              className="size-10 shrink-0 bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
-              aria-label="Send message"
-              disabled={!input.trim()}
+          {needsEmail ? (
+            <form
+              onSubmit={handleEmailSubmit}
+              className="space-y-2 border-t border-border bg-card/50 px-3 py-3"
             >
-              <Send className="size-4" />
-            </Button>
-          </form>
+              <label htmlFor="chatbot-email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="chatbot-email"
+                ref={emailRef}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                required
+                value={emailInput}
+                onChange={(event) => setEmailInput(event.target.value)}
+                placeholder="you@email.com"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none ring-emerald-500/30 placeholder:text-muted-foreground focus-visible:ring-2"
+              />
+              {emailError ? (
+                <p className="text-xs text-red-500" role="alert">
+                  {emailError}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {CHATBOT_EMAIL_HELPER}
+                </p>
+              )}
+              <Button
+                type="submit"
+                className="h-10 w-full bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
+                disabled={!emailInput.trim() || emailSubmitting}
+              >
+                {emailSubmitting ? "Saving…" : "Continue"}
+              </Button>
+            </form>
+          ) : (
+            <form
+              onSubmit={handleSubmit}
+              className="flex items-center gap-2 border-t border-border bg-card/50 px-3 py-3"
+            >
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder="Ask about pricing, journal, risk..."
+                className="h-10 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none ring-emerald-500/30 placeholder:text-muted-foreground focus-visible:ring-2"
+                aria-label="Ask a question"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                className="size-10 shrink-0 bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
+                aria-label="Send message"
+                disabled={!input.trim()}
+              >
+                <Send className="size-4" />
+              </Button>
+            </form>
+          )}
         </div>
 
         {!open ? (

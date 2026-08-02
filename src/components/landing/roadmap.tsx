@@ -45,7 +45,7 @@ const PHASES: RoadmapPhase[] = [
       {
         id: "exposure",
         title: "Overnight & weekend exposure",
-        description: "Gap risk on open swings with weekend/holiday flags.",
+        description: "Gap risk on open trades with weekend/holiday flags.",
         status: "live",
         icon: LineChart,
       },

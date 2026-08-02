@@ -4,15 +4,11 @@ import {
   LegalSection,
 } from "@/components/marketing/legal-document-page";
 import { BRAND_NAME } from "@/components/brand-logo";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
 const EFFECTIVE = "July 25, 2026";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Terms of Service",
-  description: `Terms for using the ${BRAND_NAME} swing trading journal and related services.`,
-  path: "/terms",
-});
+export const metadata: Metadata = getSeoMetadata("terms");
 
 export default function TermsOfServicePage() {
   return (

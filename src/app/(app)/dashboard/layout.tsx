@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Dashboard",
-  description: "Swing trading performance dashboard — KPIs, equity curve, and P&L.",
-  path: "/dashboard",
-});
+export const metadata: Metadata = getSeoMetadata("dashboard");
 
 export default function DashboardLayout({
   children,

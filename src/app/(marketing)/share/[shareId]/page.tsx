@@ -7,7 +7,7 @@ import {
   parseShareTradeToken,
   tradeCardImagePath,
 } from "@/lib/share-trade";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 type PageProps = {
@@ -21,9 +21,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Trade not found" };
   }
   const title = `${trade.ticker} trade · ${formatShareReturn(trade)}`;
-  return buildPageMetadata({
+  return getSeoMetadata("share", {
     title,
-    description: `${trade.ticker} swing trade shared from SwingTradingLog.`,
+    description: `${trade.ticker} trade shared from SwingTradingLog.`,
     path: `/share/${encodeURIComponent(shareId)}`,
     openGraphTitle: title,
   });

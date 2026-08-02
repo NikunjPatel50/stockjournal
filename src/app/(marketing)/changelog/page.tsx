@@ -4,15 +4,9 @@ import { LandingFooter } from "@/components/landing/footer";
 import { LandingNavbar } from "@/components/landing/navbar";
 import { MarketingBreadcrumbs } from "@/components/marketing/marketing-breadcrumbs";
 import { Button } from "@/components/ui/button";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "SwingTradingLog Changelog | Latest Updates & Features",
-  description:
-    "See what's new in SwingTradingLog: journal updates, dashboard analytics, and feature releases for your free swing trading journal.",
-  path: "/changelog",
-  absoluteTitle: true,
-});
+export const metadata: Metadata = getSeoMetadata("changelog");
 
 export default function ChangelogPage() {
   return (

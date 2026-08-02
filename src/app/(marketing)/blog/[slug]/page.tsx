@@ -10,7 +10,7 @@ import { BlogArticleBody } from "@/components/marketing/blog-article-body";
 import { MarketingBreadcrumbs } from "@/components/marketing/marketing-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { getAllBlogSlugs, getBlogPost } from "@/lib/blog-posts";
-import { absoluteUrl, buildPageMetadata } from "@/lib/site";
+import { getBlogPostMetadata } from "@/lib/seo-pages";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -25,13 +25,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const post = getBlogPost(slug);
   if (!post) return {};
 
-  return buildPageMetadata({
-    title: `${post.title} | SwingTradingLog`,
-    description: post.description,
-    path: `/blog/${post.slug}`,
-    absoluteTitle: true,
-    image: absoluteUrl(post.coverImage.src),
-  });
+  return getBlogPostMetadata(post);
 }
 
 export default async function BlogPostPage({ params }: PageProps) {

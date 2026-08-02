@@ -4,15 +4,9 @@ import { LandingFooter } from "@/components/landing/footer";
 import { LandingNavbar } from "@/components/landing/navbar";
 import { MarketingBreadcrumbs } from "@/components/marketing/marketing-breadcrumbs";
 import { Button } from "@/components/ui/button";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Trading Guides for Swing Traders | Free Resources | SwingTradingLog",
-  description:
-    "Free swing trading guides: journal setup, risk management, and performance review workflows. Practical resources from SwingTradingLog.",
-  path: "/trading-guides",
-  absoluteTitle: true,
-});
+export const metadata: Metadata = getSeoMetadata("tradingGuides");
 
 export default function TradingGuidesPage() {
   return (

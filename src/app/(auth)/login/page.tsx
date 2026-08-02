@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/login-form";
-import { buildPageMetadata } from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Sign in",
-  description:
-    "Sign in to your free SwingTradingLog swing trading journal — track trades, analytics, and goals.",
-  path: "/login",
-  noIndex: true,
-});
+export const metadata: Metadata = getSeoMetadata("login");
 
 export default function LoginPage() {
   return (

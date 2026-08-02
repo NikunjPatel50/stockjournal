@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
+import { SEO_PAGES } from "@/lib/seo-pages";
 
 export const SITE_NAME = "SwingTradingLog";
 
-export const HOME_TITLE =
-  "Swing Trading Journal & Trade Log | SwingTradingLog — Free Beta";
+export const HOME_TITLE = SEO_PAGES.home.title;
 
-export const DEFAULT_DESCRIPTION =
-  "Free swing trading journal at swingtradinglog.com: Dashboard analytics, overnight gap exposure, Journal, Goals, and shareable trade cards — no credit card.";
+export const DEFAULT_DESCRIPTION = SEO_PAGES.home.description;
 
 export function getSiteUrl() {
   return (
@@ -37,7 +36,7 @@ export function openGraphImages() {
       url,
       width: 1200,
       height: 630,
-      alt: "SwingTradingLog swing trading journal dashboard preview",
+      alt: "SwingTradingLog trading journal dashboard preview",
     },
   ];
 }
@@ -46,6 +45,7 @@ export function buildPageMetadata({
   title,
   description = DEFAULT_DESCRIPTION,
   path,
+  keywords,
   openGraphTitle,
   absoluteTitle = false,
   noIndex = false,
@@ -54,6 +54,7 @@ export function buildPageMetadata({
   title: string;
   description?: string;
   path: string;
+  keywords?: string[];
   openGraphTitle?: string;
   absoluteTitle?: boolean;
   noIndex?: boolean;
@@ -76,6 +77,7 @@ export function buildPageMetadata({
   return {
     title: resolvedTitle,
     description,
+    ...(keywords?.length ? { keywords } : {}),
     alternates: {
       canonical: url,
     },

@@ -16,6 +16,20 @@ export type ChatbotEntry = {
 export const CHATBOT_GREETING =
   "Hi! I’m the SwingTradingLog assistant. Pick a question below or type your own — I can answer from our site FAQ, pricing, and product pages.";
 
+/** Free questions before email is required for follow-up. */
+export const CHATBOT_QUESTION_LIMIT = 3;
+
+export const CHATBOT_EMAIL_PROMPT =
+  "Thanks for your questions! If you’re open to it, please share your email — it helps us improve SwingTradingLog and follow up if we can be more helpful.";
+
+export const CHATBOT_EMAIL_HELPER =
+  "Your email helps us improve the site and serve traders better. We won’t spam you.";
+
+export const CHATBOT_EMAIL_THANKS =
+  "Thank you — we appreciate it. You can keep asking questions here, or sign in free to explore the journal.";
+
+export const CHATBOT_EMAIL_STORAGE_KEY = "swingtradinglog_chatbot_email";
+
 export const CHATBOT_FALLBACK =
   "I’m not sure about that yet. Try one of the suggested questions, browse the FAQ on the homepage, or sign in free to explore the journal.";
 

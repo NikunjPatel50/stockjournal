@@ -11,33 +11,9 @@ import { LandingShowcase } from "@/components/landing/showcase";
 import { FaqJsonLd } from "@/components/seo/faq-json-ld";
 import { getFreePriceForCountry } from "@/lib/geo-pricing";
 import { getRequestCountry } from "@/lib/request-country";
-import {
-  absoluteUrl,
-  DEFAULT_DESCRIPTION,
-  HOME_TITLE,
-  openGraphImages,
-} from "@/lib/site";
+import { getSeoMetadata } from "@/lib/seo-pages";
 
-export const metadata: Metadata = {
-  title: HOME_TITLE,
-  description: DEFAULT_DESCRIPTION,
-  alternates: {
-    canonical: absoluteUrl("/"),
-  },
-  openGraph: {
-    type: "website",
-    url: absoluteUrl("/"),
-    title: HOME_TITLE,
-    description: DEFAULT_DESCRIPTION,
-    images: openGraphImages(),
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: HOME_TITLE,
-    description: DEFAULT_DESCRIPTION,
-    images: [absoluteUrl("/og-image.webp")],
-  },
-};
+export const metadata: Metadata = getSeoMetadata("home");
 
 export default async function LandingPage() {
   const country = await getRequestCountry();
