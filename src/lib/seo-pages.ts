@@ -4,6 +4,11 @@ import { absoluteUrl, buildPageMetadata } from "@/lib/site";
 
 export type SeoPageId =
   | "home"
+  | "features"
+  | "preview"
+  | "pricing"
+  | "roadmap"
+  | "faq"
   | "login"
   | "blog"
   | "tradingGuides"
@@ -48,6 +53,77 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
       "overnight gap risk",
       "shareable trade cards",
       "SwingTradingLog",
+    ],
+    absoluteTitle: true,
+  },
+  features: {
+    path: "/features",
+    title: "Trading Journal Features | Dashboard, Journal & Goals | SwingTradingLog",
+    description:
+      "Explore SwingTradingLog features: dashboard analytics, overnight gap exposure, trade journal, goals, shareable trade cards, and data export — free during beta.",
+    keywords: [
+      "trading journal features",
+      "trade log app",
+      "dashboard analytics",
+      "overnight gap risk",
+      "trade journal",
+      "shareable trade cards",
+      "SwingTradingLog",
+    ],
+    absoluteTitle: true,
+  },
+  preview: {
+    path: "/preview",
+    title: "Trading Analytics Preview | Dashboard & Charts | SwingTradingLog",
+    description:
+      "Preview SwingTradingLog dashboards, journal, equity curve, weekly P&L, and goals — the same screens you get after a free sign-up.",
+    keywords: [
+      "trading analytics",
+      "equity curve",
+      "weekly P&L",
+      "trading dashboard preview",
+      "journal preview",
+      "SwingTradingLog demo",
+    ],
+    absoluteTitle: true,
+  },
+  pricing: {
+    path: "/pricing",
+    title: "Pricing | Free Trading Journal | SwingTradingLog",
+    description:
+      "SwingTradingLog is free during beta — full dashboard, journal, goals, analytics, CSV export, and workspace backup. No credit card required.",
+    keywords: [
+      "free trading journal",
+      "trading journal pricing",
+      "free trade log",
+      "no credit card",
+      "SwingTradingLog pricing",
+    ],
+    absoluteTitle: true,
+  },
+  roadmap: {
+    path: "/roadmap",
+    title: "Product Roadmap | SwingTradingLog",
+    description:
+      "See what’s shipped in SwingTradingLog beta and what we’re building next: live quotes, risk calculator, mobile apps, and broker integrations.",
+    keywords: [
+      "SwingTradingLog roadmap",
+      "product roadmap",
+      "trading journal updates",
+      "upcoming features",
+    ],
+    absoluteTitle: true,
+  },
+  faq: {
+    path: "/faq",
+    title: "FAQ | SwingTradingLog Trading Journal",
+    description:
+      "Answers about SwingTradingLog: free beta access, journaling assets, exports, overnight exposure, sharing trades, and mobile support.",
+    keywords: [
+      "trading journal FAQ",
+      "SwingTradingLog help",
+      "journal questions",
+      "free trading journal",
     ],
     absoluteTitle: true,
   },

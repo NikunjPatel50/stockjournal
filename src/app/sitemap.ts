@@ -4,6 +4,11 @@ import { absoluteUrl } from "@/lib/site";
 
 const PUBLIC_ROUTES = [
   { path: "/", changeFrequency: "weekly" as const, priority: 1 },
+  { path: "/features", changeFrequency: "monthly" as const, priority: 0.8 },
+  { path: "/preview", changeFrequency: "monthly" as const, priority: 0.8 },
+  { path: "/pricing", changeFrequency: "monthly" as const, priority: 0.8 },
+  { path: "/roadmap", changeFrequency: "monthly" as const, priority: 0.6 },
+  { path: "/faq", changeFrequency: "monthly" as const, priority: 0.6 },
   { path: "/changelog", changeFrequency: "monthly" as const, priority: 0.4 },
   { path: "/blog", changeFrequency: "weekly" as const, priority: 0.5 },
   { path: "/trading-guides", changeFrequency: "monthly" as const, priority: 0.5 },

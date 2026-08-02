@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   BookOpen,
@@ -63,12 +64,12 @@ export function LandingFeatures() {
             as{" "}
             <span className="font-medium text-foreground">swingtradinglog.com</span>
             , free during beta. What&apos;s next is on the{" "}
-            <a
-              href="#roadmap"
+            <Link
+              href="/roadmap"
               className="font-medium text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
             >
               roadmap
-            </a>
+            </Link>
             .
           </p>
         </div>

@@ -1,8 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
-import { Tag } from "lucide-react";
-import { HubPanel } from "@/components/analytics-hub/hub-panel";
+import { DataPanel, PanelEmpty } from "@/components/data-panel";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   computeTagMetrics,
   formatMoney,
@@ -17,56 +24,80 @@ type TagRankingsProps = {
   currency: CurrencyCode;
 };
 
+const MAX_ROWS = 8;
+
+const headClass =
+  "h-9 bg-muted/30 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
+const numericHeadClass = cn(headClass, "text-right");
+const cellClass = "px-3 py-2.5 text-xs";
+const numericCellClass = cn(cellClass, "text-right", NUMERIC_CLASS);
+
 export function TagRankings({ trades, currency }: TagRankingsProps) {
   const tags = useMemo(() => computeTagMetrics(trades), [trades]);
-  const top = tags.slice(0, 8);
+  const rows = tags.slice(0, MAX_ROWS);
 
   return (
-    <HubPanel
-      title="Tag performance"
+    <DataPanel
+      title="Tag attribution"
       subtitle="Which labels correlate with your best and worst outcomes"
+      meta={`${tags.length} tag${tags.length === 1 ? "" : "s"}`}
+      flush
+      footer={
+        tags.length > MAX_ROWS
+          ? `Showing the ${MAX_ROWS} highest-contributing tags of ${tags.length}.`
+          : undefined
+      }
     >
-      {top.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          Add tags to trades to see tag-level analytics.
-        </p>
+      {rows.length === 0 ? (
+        <div className="p-4 sm:p-5">
+          <PanelEmpty
+            title="No tags recorded"
+            hint="Add tags to trades to compare outcomes across setups and conditions."
+          />
+        </div>
       ) : (
-        <div className="divide-y divide-border/50">
-          {top.map((row) => {
-            const positive = row.totalPnl >= 0;
-            return (
-              <div
-                key={row.tag}
-                className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground">
-                    <Tag className="size-3.5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{row.tag}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {row.trades} trades · {formatPercent(row.winRate)} win
-                      {row.avgR !== null ? ` · ${row.avgR}R avg` : ""}
-                    </p>
-                  </div>
-                </div>
-                <p
+        <Table>
+          <TableHeader>
+            <TableRow className="border-border/70 hover:bg-transparent">
+              <TableHead className={headClass}>Tag</TableHead>
+              <TableHead className={numericHeadClass}>Trades</TableHead>
+              <TableHead className={numericHeadClass}>Win rate</TableHead>
+              <TableHead className={numericHeadClass}>Avg R</TableHead>
+              <TableHead className={numericHeadClass}>Net P&L</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.tag} className="border-border/60">
+                <TableCell
+                  className={cn(cellClass, "max-w-[12rem] truncate font-medium")}
+                >
+                  {row.tag}
+                </TableCell>
+                <TableCell className={numericCellClass}>{row.trades}</TableCell>
+                <TableCell className={numericCellClass}>
+                  {formatPercent(row.winRate)}
+                </TableCell>
+                <TableCell
+                  className={cn(numericCellClass, "text-muted-foreground")}
+                >
+                  {row.avgR !== null ? `${row.avgR.toFixed(2)}R` : "—"}
+                </TableCell>
+                <TableCell
                   className={cn(
-                    "shrink-0 text-sm font-semibold",
-                    NUMERIC_CLASS,
-                    positive
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-rose-600 dark:text-rose-400"
+                    numericCellClass,
+                    "font-semibold",
+                    row.totalPnl > 0 && "text-emerald-600 dark:text-emerald-400",
+                    row.totalPnl < 0 && "text-rose-600 dark:text-rose-400"
                   )}
                 >
                   {formatMoney(row.totalPnl, true, currency)}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
-    </HubPanel>
+    </DataPanel>
   );
 }

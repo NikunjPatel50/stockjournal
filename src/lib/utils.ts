@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Column-aligned currency and P&L (sans, tabular lining figures). */
+/** Column-aligned currency and P&L (tabular lining figures). */
 export const NUMERIC_CLASS =
   "font-sans tabular-nums tracking-tight [font-feature-settings:'tnum'_1,'lnum'_1]";
 

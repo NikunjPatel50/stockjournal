@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
-import { HubPanel } from "@/components/analytics-hub/hub-panel";
+import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import {
   computePnlCalendar,
   formatMoney,
@@ -10,128 +10,146 @@ import {
 } from "@/lib/analytics";
 import type { CurrencyCode } from "@/lib/settings";
 import type { JournalTrade } from "@/lib/journal-types";
-import { cn } from "@/lib/utils";
+import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 type PnlCalendarProps = {
   trades: JournalTrade[];
   currency: CurrencyCode;
 };
 
-function cellIntensity(pnl: number | null, maxAbs: number): number {
-  if (pnl === null) return 0;
-  if (pnl === 0) return 0.08;
-  return Math.min(1, Math.abs(pnl) / maxAbs);
-}
+const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 
-function cellClass(pnl: number | null, intensity: number): string {
-  if (pnl === null) return "bg-muted/40";
-  if (pnl === 0) return "bg-muted/60";
+function cellClass(pnl: number | null, maxAbs: number): string {
+  if (pnl === null) return "bg-muted/35";
+  if (pnl === 0) return "bg-muted/70";
+  const intensity = Math.min(1, Math.abs(pnl) / maxAbs);
+  const tier = intensity > 0.66 ? 3 : intensity > 0.33 ? 2 : 1;
   if (pnl > 0) {
-    if (intensity > 0.66) return "bg-emerald-500";
-    if (intensity > 0.33) return "bg-emerald-500/70";
-    return "bg-emerald-500/40";
+    return tier === 3
+      ? "bg-emerald-500"
+      : tier === 2
+        ? "bg-emerald-500/65"
+        : "bg-emerald-500/35";
   }
-  if (intensity > 0.66) return "bg-rose-500";
-  if (intensity > 0.33) return "bg-rose-500/70";
-  return "bg-rose-500/40";
+  return tier === 3
+    ? "bg-rose-500"
+    : tier === 2
+      ? "bg-rose-500/65"
+      : "bg-rose-500/35";
 }
 
-function CalendarGrid({
-  data,
-  currency,
-}: {
-  data: PnlCalendarData;
-  currency: CurrencyCode;
-}) {
-  const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
-
-  return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
-      <div className="flex flex-col gap-[3px] pt-5 text-[9px] text-muted-foreground">
-        {dayLabels.map((label, i) => (
-          <span
-            key={`${label}-${i}`}
-            className={cn(
-              "flex h-[11px] items-center leading-none",
-              i % 2 === 0 ? "opacity-100" : "opacity-0"
-            )}
-          >
-            {label}
-          </span>
-        ))}
-      </div>
-      <div className="flex min-w-0 flex-1 gap-[3px]">
-        {data.weeks.map((week, wi) => (
-          <div key={wi} className="flex flex-col gap-[3px]">
-            {week.map((day) => {
-              const intensity = cellIntensity(day.pnl, data.maxAbsPnl);
-              const label = format(parseISO(day.date), "EEE, MMM d");
-              const pnlLabel =
-                day.pnl === null
-                  ? "No trades"
-                  : formatMoney(day.pnl, true, currency);
-              const title = `${label}: ${pnlLabel}${
-                day.trades > 0
-                  ? ` · ${day.trades} trade${day.trades === 1 ? "" : "s"}`
-                  : ""
-              }`;
-
-              return (
-                <div
-                  key={day.date}
-                  title={title}
-                  className={cn(
-                    "size-[11px] cursor-default rounded-[2px] ring-1 ring-border/20 transition-transform hover:scale-125",
-                    cellClass(day.pnl, intensity)
-                  )}
-                  aria-label={title}
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+/** One label per week column, shown only when the month changes. */
+function monthLabels(data: PnlCalendarData): (string | null)[] {
+  let previous = "";
+  return data.weeks.map((week) => {
+    const first = week[0];
+    if (!first) return null;
+    const month = format(parseISO(first.date), "MMM");
+    if (month === previous) return null;
+    previous = month;
+    return month;
+  });
 }
 
 export function PnlCalendar({ trades, currency }: PnlCalendarProps) {
   const data = useMemo(() => computePnlCalendar(trades), [trades]);
-  const activeDays = useMemo(
-    () => data.weeks.flat().filter((d) => d.pnl !== null).length,
-    [data]
-  );
+  const months = useMemo(() => monthLabels(data), [data]);
+
+  const summary = useMemo(() => {
+    const days = data.weeks.flat().filter((d) => d.pnl !== null);
+    if (days.length === 0) return null;
+    const best = days.reduce((a, b) => (b.pnl! > a.pnl! ? b : a));
+    const worst = days.reduce((a, b) => (b.pnl! < a.pnl! ? b : a));
+    return { count: days.length, best, worst };
+  }, [data]);
 
   return (
-    <HubPanel
+    <DataPanel
       title="Daily P&L rhythm"
-      subtitle="26-week calendar — greener is profit, redder is loss"
-      accent="emerald"
+      subtitle="Trailing 26 weeks of realized results, one cell per day"
+      meta={summary ? `${summary.count} active days` : "No activity"}
+      footer={
+        summary
+          ? `Best day ${formatMoney(summary.best.pnl!, true, currency)} on ${format(parseISO(summary.best.date), "MMM d")} · Worst day ${formatMoney(summary.worst.pnl!, true, currency)} on ${format(parseISO(summary.worst.date), "MMM d")}.`
+          : undefined
+      }
     >
-      {activeDays === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No closed trades in this period to map.
-        </p>
+      {!summary ? (
+        <PanelEmpty
+          title="No closed trades to map"
+          hint="Daily cells appear once trades are closed within the trailing 26 weeks."
+        />
       ) : (
-        <>
-          <CalendarGrid data={data} currency={currency} />
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
-            <span>Less</span>
-            <div className="flex gap-1">
-              <span className="size-3 rounded-[2px] bg-muted/40" />
-              <span className="size-3 rounded-[2px] bg-rose-500/40" />
-              <span className="size-3 rounded-[2px] bg-rose-500/70" />
-              <span className="size-3 rounded-[2px] bg-rose-500" />
+        <div className="space-y-3">
+          <div className="overflow-x-auto pb-1">
+            <div className="flex min-w-max gap-2">
+              <div className="flex flex-col gap-[3px] pt-[18px] text-[9px] text-muted-foreground">
+                {DAY_LABELS.map((label, i) => (
+                  <span
+                    key={`${label}-${i}`}
+                    className={cn(
+                      "flex h-[11px] items-center leading-none",
+                      i % 2 === 1 ? "opacity-100" : "opacity-0"
+                    )}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-[3px]">
+                {data.weeks.map((week, wi) => (
+                  <div key={wi} className="flex flex-col gap-[3px]">
+                    <span className="h-[15px] text-[9px] leading-none text-muted-foreground">
+                      {months[wi] ?? ""}
+                    </span>
+                    {week.map((day) => {
+                      const pnlLabel =
+                        day.pnl === null
+                          ? "No trades"
+                          : formatMoney(day.pnl, true, currency);
+                      const title = `${format(parseISO(day.date), "EEE, MMM d")}: ${pnlLabel}${
+                        day.trades > 0
+                          ? ` · ${day.trades} trade${day.trades === 1 ? "" : "s"}`
+                          : ""
+                      }`;
+
+                      return (
+                        <div
+                          key={day.date}
+                          title={title}
+                          aria-label={title}
+                          className={cn(
+                            "size-[11px] cursor-default rounded-[2px] ring-1 ring-inset ring-foreground/[0.06]",
+                            cellClass(day.pnl, data.maxAbsPnl)
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-1">
-              <span className="size-3 rounded-[2px] bg-emerald-500/40" />
-              <span className="size-3 rounded-[2px] bg-emerald-500/70" />
-              <span className="size-3 rounded-[2px] bg-emerald-500" />
-            </div>
-            <span>More</span>
           </div>
-        </>
+
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+            <span className={NUMERIC_CLASS}>
+              Loss {formatMoney(-data.maxAbsPnl, true, currency)}
+            </span>
+            <div className="flex gap-[3px]">
+              <span className="size-[11px] rounded-[2px] bg-rose-500" />
+              <span className="size-[11px] rounded-[2px] bg-rose-500/65" />
+              <span className="size-[11px] rounded-[2px] bg-rose-500/35" />
+              <span className="size-[11px] rounded-[2px] bg-muted/35 ring-1 ring-inset ring-border/60" />
+              <span className="size-[11px] rounded-[2px] bg-emerald-500/35" />
+              <span className="size-[11px] rounded-[2px] bg-emerald-500/65" />
+              <span className="size-[11px] rounded-[2px] bg-emerald-500" />
+            </div>
+            <span className={NUMERIC_CLASS}>
+              Profit {formatMoney(data.maxAbsPnl, true, currency)}
+            </span>
+          </div>
+        </div>
       )}
-    </HubPanel>
+    </DataPanel>
   );
 }

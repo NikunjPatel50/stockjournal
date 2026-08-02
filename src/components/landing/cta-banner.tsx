@@ -26,12 +26,12 @@ export function LandingCtaBanner() {
           <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground sm:text-base">
             Free beta: journal trades, watch gap risk on the dashboard, hit your
             goals, and share closed-trade cards. See the{" "}
-            <a
-              href="#roadmap"
+            <Link
+              href="/roadmap"
               className="font-medium text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
             >
               roadmap
-            </a>{" "}
+            </Link>{" "}
             for what&apos;s next.
           </p>
           <Link href="/login" className="mt-8 inline-block w-full max-w-sm sm:w-auto">

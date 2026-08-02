@@ -47,7 +47,7 @@ export function LandingHero() {
                 <ArrowRight data-icon="inline-end" />
               </Button>
             </Link>
-            <a href="#showcase" className="w-full sm:w-auto">
+            <Link href="/preview" className="w-full sm:w-auto">
               <Button
                 size="lg"
                 variant="outline"
@@ -55,7 +55,7 @@ export function LandingHero() {
               >
                 See the app
               </Button>
-            </a>
+            </Link>
           </div>
         </motion.div>
 

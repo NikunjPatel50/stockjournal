@@ -6,7 +6,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background pb-24 text-foreground antialiased sm:pb-28">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground antialiased">
       <SiteJsonLd />
       {children}
     </div>

@@ -1,103 +1,135 @@
-import Link from "next/link";
-import { AppPageHeader } from "@/components/app-page-header";
-import { AdminNav } from "@/components/admin/admin-nav";
-import { AdminStatCard } from "@/components/admin/admin-stat-card";
-import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
-import { fetchAdminDashboardStats } from "@/lib/admin-data";
+import { AdminCategoryBreakdown } from "@/components/admin/admin-category-breakdown";
+import { AdminDataSources } from "@/components/admin/admin-data-sources";
+import { AdminRecentFeedback } from "@/components/admin/admin-recent-feedback";
+import { AdminRecentUsers } from "@/components/admin/admin-recent-users";
+import { AdminShell } from "@/components/admin/admin-shell";
+import { MetricBand } from "@/components/metric-band";
+import {
+  fetchAdminDashboardStats,
+  fetchAdminFeedback,
+  fetchAdminUsers,
+  type AdminDashboardStats,
+  type AdminFeedbackRow,
+  type AdminUserRow,
+} from "@/lib/admin-data";
+
+const RECENT_LIMIT = 5;
+
+function sortByLastSync(rows: AdminUserRow[]): AdminUserRow[] {
+  return [...rows].sort((a, b) => {
+    const left = a.lastTradeSync ?? a.createdAt;
+    const right = b.lastTradeSync ?? b.createdAt;
+    return right.localeCompare(left);
+  });
+}
 
 export default async function AdminOverviewPage() {
-  let stats;
+  let stats: AdminDashboardStats | null = null;
+  let feedback: AdminFeedbackRow[] = [];
+  let users: AdminUserRow[] = [];
   let error: string | null = null;
+
   try {
-    stats = await fetchAdminDashboardStats();
+    [stats, feedback, users] = await Promise.all([
+      fetchAdminDashboardStats(),
+      fetchAdminFeedback(RECENT_LIMIT),
+      fetchAdminUsers(),
+    ]);
   } catch (err) {
     error =
       err instanceof Error ? err.message : "Could not load admin statistics.";
   }
 
+  const activeShare =
+    stats && stats.usersWithSettings > 0
+      ? Math.round((stats.activeSyncUsers7d / stats.usersWithSettings) * 100)
+      : 0;
+  const avgTrades =
+    stats && stats.usersWithSettings > 0
+      ? stats.totalTradesSynced / stats.usersWithSettings
+      : 0;
+
   return (
-    <div className={APP_PAGE_SHELL_CLASS}>
-      <AppPageHeader
-        eyebrow="Admin"
-        title="Overview"
-        description="Monitor users, feedback, and cloud-sync activity for Swing Trading Log."
-      />
-
-      <AdminNav />
-
-      {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-800 dark:text-rose-200">
-          {error}
-        </div>
-      ) : stats ? (
+    <AdminShell
+      title="Overview"
+      description="Operational health of accounts, cloud sync, and product feedback."
+      generatedAt={new Date()}
+      error={error}
+    >
+      {stats ? (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <AdminStatCard
-              label="Users with cloud data"
-              value={stats.usersWithSettings}
-              hint="Rows in user_settings"
+          <MetricBand
+            items={[
+              {
+                label: "Cloud accounts",
+                value: stats.usersWithSettings.toLocaleString("en-IN"),
+                detail: "Rows in user_settings",
+              },
+              {
+                label: "Active sync (7d)",
+                value: stats.activeSyncUsers7d.toLocaleString("en-IN"),
+                detail: `${activeShare}% of all accounts`,
+                tone: stats.activeSyncUsers7d > 0 ? "positive" : "neutral",
+              },
+              {
+                label: "Trades synced",
+                value: stats.totalTradesSynced.toLocaleString("en-IN"),
+                detail: `${avgTrades.toFixed(1)} average per account`,
+              },
+              {
+                label: "Goals stored",
+                value: stats.totalGoals.toLocaleString("en-IN"),
+                detail: "Rows in goals",
+              },
+              {
+                label: "Feedback total",
+                value: stats.feedbackTotal.toLocaleString("en-IN"),
+                detail: "All time submissions",
+              },
+              {
+                label: "Feedback this week",
+                value: stats.feedbackThisWeek.toLocaleString("en-IN"),
+                detail: "Since Monday",
+                tone: stats.feedbackThisWeek > 0 ? "positive" : "neutral",
+              },
+            ]}
+          />
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch">
+            <AdminRecentFeedback rows={feedback} total={stats.feedbackTotal} />
+            <AdminCategoryBreakdown
+              counts={stats.categoryCounts}
+              total={stats.feedbackTotal}
             />
-            <AdminStatCard
-              label="Trades synced"
-              value={stats.totalTradesSynced}
-              hint="Across all journal backups"
-            />
-            <AdminStatCard
-              label="Active sync (7d)"
-              value={stats.activeSyncUsers7d}
-              hint="Users who synced journal in the last week"
-            />
-            <AdminStatCard
-              label="Goals in cloud"
-              value={stats.totalGoals}
-              hint="Total goal rows"
-            />
-            <AdminStatCard
-              label="Feedback total"
-              value={stats.feedbackTotal}
-              hint={`${stats.feedbackThisWeek} this week`}
-            />
-            <AdminStatCard
-              label="Quick links"
-              value="→"
-              hint="Manage feedback and users"
-            >
-              <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                <Link
-                  href="/admin/feedback"
-                  className="rounded-lg border border-border/70 px-2.5 py-1 hover:bg-muted/40"
-                >
-                  Feedback inbox
-                </Link>
-                <Link
-                  href="/admin/users"
-                  className="rounded-lg border border-border/70 px-2.5 py-1 hover:bg-muted/40"
-                >
-                  User explorer
-                </Link>
-              </div>
-            </AdminStatCard>
           </div>
 
-          {Object.keys(stats.categoryCounts).length > 0 ? (
-            <section className="rounded-2xl border border-border/70 bg-card/60 p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-foreground">
-                Feedback by category
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {Object.entries(stats.categoryCounts).map(([category, count]) => (
-                  <span
-                    key={category}
-                    className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-medium text-foreground"
-                  >
-                    {category}: {count}
-                  </span>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch">
+            <AdminRecentUsers
+              rows={sortByLastSync(users).slice(0, RECENT_LIMIT)}
+              total={users.length}
+            />
+            <AdminDataSources
+              sources={[
+                {
+                  table: "user_settings",
+                  rows: stats.usersWithSettings,
+                  description: "Profiles and journal trade backups",
+                },
+                {
+                  table: "feedback_submissions",
+                  rows: stats.feedbackTotal,
+                  description: "In-app product feedback",
+                },
+                {
+                  table: "goals",
+                  rows: stats.totalGoals,
+                  description: "Per-user trading goals",
+                },
+              ]}
+            />
+          </div>
         </>
       ) : null}
-    </div>
+    </AdminShell>
   );
 }

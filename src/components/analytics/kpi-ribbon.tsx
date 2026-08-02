@@ -18,7 +18,7 @@ type FooterTone = "profit" | "loss" | "neutral";
 
 function toneClass(tone: FooterTone) {
   if (tone === "profit") return "text-emerald-600 dark:text-emerald-400";
-  if (tone === "loss") return "text-rose-600 dark:text-orange-400";
+  if (tone === "loss") return "text-rose-600 dark:text-rose-400";
   return "text-muted-foreground";
 }
 
@@ -129,7 +129,7 @@ export function KpiRibbon({ kpis }: KpiRibbonProps) {
           pnlUp
             ? "text-emerald-500 dark:text-emerald-400"
             : pnlDown
-              ? "text-orange-500 dark:text-orange-400"
+              ? "text-rose-600 dark:text-rose-400"
               : undefined
         }
         footer={[
@@ -207,7 +207,7 @@ export function KpiRibbon({ kpis }: KpiRibbonProps) {
         title="Max drawdown"
         hint="Largest peak-to-trough decline in account equity for the filtered trades."
         value={formatMoney(kpis.maxDrawdown)}
-        valueClassName="text-orange-500 dark:text-orange-400"
+        valueClassName="text-rose-600 dark:text-rose-400"
         footer={[
           {
             label: "Peak-to-trough",

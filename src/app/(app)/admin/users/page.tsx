@@ -1,8 +1,9 @@
-import { AppPageHeader } from "@/components/app-page-header";
-import { AdminNav } from "@/components/admin/admin-nav";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminUsersTable } from "@/components/admin/admin-users-table";
-import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
+import { MetricBand } from "@/components/metric-band";
 import { fetchAdminUsers, type AdminUserRow } from "@/lib/admin-data";
+
+const WEEK_MS = 7 * 86_400_000;
 
 export default async function AdminUsersPage() {
   let rows: AdminUserRow[] = [];
@@ -12,26 +13,58 @@ export default async function AdminUsersPage() {
     rows = await fetchAdminUsers();
   } catch (err) {
     error = err instanceof Error ? err.message : "Could not load users.";
-    rows = [];
   }
 
+  const totalTrades = rows.reduce((sum, row) => sum + row.tradeCount, 0);
+  const totalGoals = rows.reduce((sum, row) => sum + row.goalCount, 0);
+  const activeThisWeek = rows.filter(
+    (row) =>
+      row.lastTradeSync != null &&
+      Date.now() - new Date(row.lastTradeSync).getTime() <= WEEK_MS
+  ).length;
+  const neverSynced = rows.filter((row) => row.lastTradeSync == null).length;
+
   return (
-    <div className={APP_PAGE_SHELL_CLASS}>
-      <AppPageHeader
-        eyebrow="Admin"
-        title="Users"
-        description="Cloud-synced profiles, journal trade counts, and goal activity."
+    <AdminShell
+      title="Users"
+      description="Cloud-synced profiles, journal volume, and sync recency."
+      generatedAt={new Date()}
+      error={error}
+    >
+      <MetricBand
+        columnsClassName="sm:grid-cols-3 xl:grid-cols-5"
+        items={[
+          {
+            label: "Cloud accounts",
+            value: rows.length.toLocaleString("en-IN"),
+            detail: "Rows in user_settings",
+          },
+          {
+            label: "Active this week",
+            value: activeThisWeek.toLocaleString("en-IN"),
+            detail: "Journal written in last 7 days",
+            tone: activeThisWeek > 0 ? "positive" : "neutral",
+          },
+          {
+            label: "Never synced",
+            value: neverSynced.toLocaleString("en-IN"),
+            detail: "Settings row without journal data",
+            tone: neverSynced > 0 ? "negative" : "neutral",
+          },
+          {
+            label: "Trades stored",
+            value: totalTrades.toLocaleString("en-IN"),
+            detail: `${rows.length ? (totalTrades / rows.length).toFixed(1) : "0.0"} average per account`,
+          },
+          {
+            label: "Goals stored",
+            value: totalGoals.toLocaleString("en-IN"),
+            detail: "Across all accounts",
+          },
+        ]}
       />
 
-      <AdminNav />
-
-      {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-800 dark:text-rose-200">
-          {error}
-        </div>
-      ) : null}
-
       <AdminUsersTable rows={rows} />
-    </div>
+    </AdminShell>
   );
 }

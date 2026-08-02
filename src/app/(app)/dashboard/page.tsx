@@ -73,7 +73,7 @@ export default function DashboardPage() {
         <PnlBreakdownCard trades={filtered} />
       </div>
 
-      <RecentTradesCard trades={filtered} />
+      <RecentTradesCard trades={filtered} currency={settings.profile.currency} />
     </div>
   );
 }

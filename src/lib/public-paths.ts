@@ -1,6 +1,11 @@
 /** Routes reachable without signing in (keep in sync with src/proxy.ts). */
 export const PUBLIC_PATHS = [
   "/",
+  "/features",
+  "/preview",
+  "/pricing",
+  "/roadmap",
+  "/faq",
   "/login",
   "/robots.txt",
   "/sitemap.xml",

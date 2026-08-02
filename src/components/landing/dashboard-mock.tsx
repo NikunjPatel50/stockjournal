@@ -304,7 +304,7 @@ function DashboardPreview() {
       title: "Max drawdown",
       value: "-₹1,240",
       footer: "-3.8%",
-      tone: "text-orange-500 dark:text-orange-400",
+      tone: mockNegative,
     },
   ];
 

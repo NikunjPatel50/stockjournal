@@ -2,15 +2,20 @@
 
 import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
-import { HubPanel } from "@/components/analytics-hub/hub-panel";
+import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { computeRMultipleBuckets } from "@/lib/analytics";
+import {
+  computeRMultipleBuckets,
+  formatPercent,
+  tradeRMultiple,
+} from "@/lib/analytics";
 import type { JournalTrade } from "@/lib/journal-types";
+import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 type RMultipleSpectrumProps = {
   trades: JournalTrade[];
@@ -19,69 +24,123 @@ type RMultipleSpectrumProps = {
 const chartConfig = {
   count: {
     label: "Trades",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
-const BAR_COLORS = [
-  "hsl(var(--chart-5))",
-  "hsl(var(--chart-5))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-1))",
-];
+/** Loss buckets read red, the 0–1R bucket reads neutral, gains read green. */
+const BAR_STYLES = [
+  { fill: "var(--chart-4)", opacity: 1 },
+  { fill: "var(--chart-4)", opacity: 0.75 },
+  { fill: "var(--chart-4)", opacity: 0.5 },
+  { fill: "var(--muted-foreground)", opacity: 0.35 },
+  { fill: "var(--chart-1)", opacity: 0.5 },
+  { fill: "var(--chart-1)", opacity: 0.75 },
+  { fill: "var(--chart-1)", opacity: 1 },
+] as const;
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        {label}
+      </p>
+      <p className={cn("mt-0.5 truncate text-base font-semibold", NUMERIC_CLASS)}>
+        {value}
+      </p>
+    </div>
+  );
+}
 
 export function RMultipleSpectrum({ trades }: RMultipleSpectrumProps) {
   const buckets = useMemo(() => computeRMultipleBuckets(trades), [trades]);
-  const withRisk = useMemo(
-    () => trades.filter((t) => t.plannedRisk > 0).length,
+
+  const rValues = useMemo(
+    () =>
+      trades
+        .map(tradeRMultiple)
+        .filter((value): value is number => value !== null),
     [trades]
   );
-  const total = buckets.reduce((s, b) => s + b.count, 0);
+
+  const total = rValues.length;
+  const avgR = total
+    ? rValues.reduce((sum, value) => sum + value, 0) / total
+    : 0;
+  const atLeastOneR = rValues.filter((value) => value >= 1).length;
+  const coverage = trades.length ? (total / trades.length) * 100 : 0;
 
   return (
-    <HubPanel
+    <DataPanel
       title="R-multiple distribution"
-      subtitle={`${withRisk} trades with planned risk defined`}
-      accent="violet"
+      subtitle="Outcome sizing relative to the risk planned on each trade"
+      meta={`${total} of ${trades.length} priced`}
+      footer={`Risk-plan coverage ${formatPercent(coverage)} — trades without planned risk are excluded.`}
     >
       {total === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          Add planned risk on trades to see R-multiple buckets.
-        </p>
+        <PanelEmpty
+          title="No risk-defined trades"
+          hint="Record planned risk when logging a trade to see outcomes expressed in R."
+        />
       ) : (
-        <ChartContainer config={chartConfig} className="h-[240px] w-full">
-          <BarChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-            <XAxis
-              dataKey="label"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              className="text-[9px]"
-              interval={0}
-              angle={-20}
-              textAnchor="end"
-              height={48}
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <Stat label="Average" value={`${avgR.toFixed(2)}R`} />
+            <Stat
+              label="1R or better"
+              value={formatPercent((atLeastOneR / total) * 100)}
             />
-            <YAxis
-              allowDecimals={false}
-              tickLine={false}
-              axisLine={false}
-              width={28}
-              className="text-[10px]"
+            <Stat
+              label="Best"
+              value={`${Math.max(...rValues).toFixed(2)}R`}
             />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-              {buckets.map((_, i) => (
-                <Cell key={i} fill={BAR_COLORS[i] ?? BAR_COLORS.at(-1)!} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ChartContainer>
+          </div>
+
+          <ChartContainer config={chartConfig} className="h-[200px] w-full">
+            <BarChart
+              data={buckets}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="2 4"
+                className="stroke-border/60"
+              />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                className="text-[9px]"
+                interval={0}
+                angle={-20}
+                textAnchor="end"
+                height={46}
+              />
+              <YAxis
+                allowDecimals={false}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+                className="text-[10px]"
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                {buckets.map((bucket, index) => {
+                  const style = BAR_STYLES[index] ?? BAR_STYLES.at(-1)!;
+                  return (
+                    <Cell
+                      key={bucket.label}
+                      fill={style.fill}
+                      fillOpacity={style.opacity}
+                    />
+                  );
+                })}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </div>
       )}
-    </HubPanel>
+    </DataPanel>
   );
 }

@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { ArrowRight, FileText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  FileText,
+} from "lucide-react";
+import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import {
   Table,
   TableBody,
@@ -19,36 +18,25 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { tradeRMultiple } from "@/lib/analytics";
-import { formatSignedMoney } from "@/lib/journal-types";
+import { formatHoldTime, formatSignedMoney } from "@/lib/journal-types";
 import type { JournalTrade } from "@/lib/journal-types";
-import {
-  cn,
-  NUMERIC_CLASS,
-  tradeBadgeNegative,
-  tradeBadgePositive,
-} from "@/lib/utils";
+import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
+import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 const LIMIT = 6;
 
-function formatPnl(value: number) {
-  return formatSignedMoney(value);
-}
+const headClass =
+  "h-9 bg-muted/30 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
+const numericHeadClass = cn(headClass, "text-right");
+const cellClass = "px-3 py-2.5 text-xs";
+const numericCellClass = cn(cellClass, "text-right", NUMERIC_CLASS);
 
 function formatPrice(value: number) {
   return value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-}
-
-function formatHoldLabel(hours: number) {
-  if (hours < 1) return "<1 hour";
-  if (hours < 24) {
-    const h = Math.round(hours);
-    return `${h} hour${h === 1 ? "" : "s"}`;
-  }
-  const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"}`;
 }
 
 function tradeDate(trade: JournalTrade) {
@@ -59,7 +47,30 @@ function tradeDate(trade: JournalTrade) {
   }
 }
 
-export function RecentTradesCard({ trades }: { trades: JournalTrade[] }) {
+function pnlClass(value: number) {
+  if (value > 0) return "text-emerald-600 dark:text-emerald-400";
+  if (value < 0) return "text-rose-600 dark:text-rose-400";
+  return "text-muted-foreground";
+}
+
+/** Direction is a position type, not an outcome, so it stays uncolored. */
+function DirectionChip({ direction }: { direction: JournalTrade["direction"] }) {
+  const Icon = direction === "Long" ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border/70 bg-muted/30 px-1.5 py-0.5 text-[11px] font-medium text-foreground">
+      <Icon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+      {direction}
+    </span>
+  );
+}
+
+export function RecentTradesCard({
+  trades,
+  currency = DEFAULT_CURRENCY,
+}: {
+  trades: JournalTrade[];
+  currency?: CurrencyCode;
+}) {
   const recent = [...trades]
     .sort(
       (a, b) =>
@@ -69,143 +80,138 @@ export function RecentTradesCard({ trades }: { trades: JournalTrade[] }) {
     .slice(0, LIMIT);
 
   return (
-    <Card className="border-border bg-card shadow-none">
-      <CardHeader className="border-b border-border py-3 pb-3">
-        <CardTitle className="text-base font-semibold">Recent Trades</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b border-border bg-muted/30 hover:bg-muted/30">
-                <TableHead className="h-9 whitespace-nowrap px-3 text-xs font-medium text-muted-foreground">
-                  Date
-                </TableHead>
-                <TableHead className="h-9 px-3 text-xs font-medium text-muted-foreground">
-                  Ticker
-                </TableHead>
-                <TableHead className="h-9 px-3 text-xs font-medium text-muted-foreground">
-                  Setup
-                </TableHead>
-                <TableHead className="h-9 px-3 text-xs font-medium text-muted-foreground">
-                  Direction
-                </TableHead>
-                <TableHead className="h-9 whitespace-nowrap px-3 text-xs font-medium text-muted-foreground">
-                  Entry / Exit
-                </TableHead>
-                <TableHead className="h-9 px-3 text-xs font-medium text-muted-foreground">
-                  R:R
-                </TableHead>
-                <TableHead className="h-9 px-3 text-right text-xs font-medium text-muted-foreground">
-                  P&L
-                </TableHead>
-                <TableHead className="h-9 px-3 text-right text-xs font-medium text-muted-foreground">
-                  R Multiple
-                </TableHead>
-                <TableHead className="h-9 px-3 text-xs font-medium text-muted-foreground">
-                  Hold Time
-                </TableHead>
-                <TableHead className="h-9 w-10 px-2 text-xs font-medium text-muted-foreground">
-                  Notes
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recent.length === 0 ? (
-                <TableRow>
+    <DataPanel
+      title="Recent trades"
+      subtitle="Most recently closed positions in the selected period"
+      action={
+        <Link
+          href="/journal"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border/70 bg-muted/30 px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted/60"
+        >
+          Open journal
+          <ArrowRight className="size-3" />
+        </Link>
+      }
+      flush={recent.length > 0}
+      footer={
+        recent.length > 0
+          ? `Showing the ${recent.length} newest of ${trades.length} closed trade${trades.length === 1 ? "" : "s"}.`
+          : undefined
+      }
+    >
+      {recent.length === 0 ? (
+        <PanelEmpty
+          title="No closed trades in this period"
+          hint="Close a trade in the journal, or widen the timeframe, to see it here."
+        />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow className="border-border/70 hover:bg-transparent">
+              <TableHead className={headClass}>Closed</TableHead>
+              <TableHead className={headClass}>Instrument</TableHead>
+              <TableHead className={headClass}>Direction</TableHead>
+              <TableHead className={numericHeadClass}>Entry → Exit</TableHead>
+              <TableHead className={cn(numericHeadClass, "hidden lg:table-cell")}>
+                R:R
+              </TableHead>
+              <TableHead className={numericHeadClass}>R multiple</TableHead>
+              <TableHead className={numericHeadClass}>P&L</TableHead>
+              <TableHead className={cn(numericHeadClass, "hidden md:table-cell")}>
+                Hold
+              </TableHead>
+              <TableHead
+                className={cn(headClass, "hidden w-10 text-center sm:table-cell")}
+              >
+                Notes
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {recent.map((trade) => {
+              const rMultiple = tradeRMultiple(trade);
+              const notes = trade.notes?.trim();
+
+              return (
+                <TableRow key={trade.id} className="border-border/60">
                   <TableCell
-                    colSpan={10}
-                    className="h-24 px-3 text-center text-sm text-muted-foreground"
+                    className={cn(cellClass, "text-muted-foreground")}
                   >
-                    No trades in the selected range
+                    {tradeDate(trade)}
+                  </TableCell>
+                  <TableCell className={cellClass}>
+                    <p className="font-semibold text-foreground">
+                      {trade.ticker}
+                    </p>
+                    <p className="max-w-[9rem] truncate text-[11px] text-muted-foreground">
+                      {trade.strategy || "No setup recorded"}
+                    </p>
+                  </TableCell>
+                  <TableCell className={cellClass}>
+                    <DirectionChip direction={trade.direction} />
+                  </TableCell>
+                  <TableCell
+                    className={cn(numericCellClass, "text-muted-foreground")}
+                  >
+                    {formatPrice(trade.entryPrice)}
+                    <span className="mx-1 text-muted-foreground/60">→</span>
+                    {formatPrice(trade.exitPrice)}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      numericCellClass,
+                      "hidden text-muted-foreground lg:table-cell"
+                    )}
+                  >
+                    {trade.riskReward || "—"}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      numericCellClass,
+                      rMultiple === null
+                        ? "text-muted-foreground"
+                        : pnlClass(rMultiple)
+                    )}
+                  >
+                    {rMultiple === null ? "—" : `${rMultiple.toFixed(2)}R`}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      numericCellClass,
+                      "font-semibold",
+                      pnlClass(trade.pnl)
+                    )}
+                  >
+                    {formatSignedMoney(trade.pnl, currency)}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      numericCellClass,
+                      "hidden text-muted-foreground md:table-cell"
+                    )}
+                  >
+                    {formatHoldTime(trade.holdTimeHours)}
+                  </TableCell>
+                  <TableCell
+                    className={cn(cellClass, "hidden text-center sm:table-cell")}
+                  >
+                    {notes ? (
+                      <span title={notes} className="inline-flex">
+                        <FileText
+                          className="size-3.5 text-muted-foreground"
+                          aria-label="Has notes"
+                        />
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/40">—</span>
+                    )}
                   </TableCell>
                 </TableRow>
-              ) : (
-                recent.map((trade) => {
-                  const rMult = tradeRMultiple(trade);
-                  return (
-                    <TableRow key={trade.id} className="hover:bg-muted/40">
-                      <TableCell className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
-                        {tradeDate(trade)}
-                      </TableCell>
-                      <TableCell className="px-3 py-2 text-sm font-semibold">
-                        {trade.ticker}
-                      </TableCell>
-                      <TableCell className="max-w-[7rem] truncate px-3 py-2 text-xs text-muted-foreground">
-                        {trade.strategy || "—"}
-                      </TableCell>
-                      <TableCell className="px-3 py-2">
-                        <Badge
-                          variant="outline"
-                          className={
-                            trade.direction === "Long"
-                              ? tradeBadgePositive
-                              : tradeBadgeNegative
-                          }
-                        >
-                          {trade.direction}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2 font-mono text-xs tabular-nums text-muted-foreground">
-                        {formatPrice(trade.entryPrice)} /{" "}
-                        {formatPrice(trade.exitPrice)}
-                      </TableCell>
-                      <TableCell className="px-3 py-2 text-xs text-muted-foreground">
-                        {trade.riskReward || "—"}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "px-3 py-2 text-right text-xs font-medium",
-                          NUMERIC_CLASS,
-                          trade.pnl >= 0
-                            ? "text-emerald-700 dark:text-emerald-400"
-                            : "text-rose-700 dark:text-rose-400"
-                        )}
-                      >
-                        {formatPnl(trade.pnl)}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "px-3 py-2 text-right text-xs font-medium",
-                          NUMERIC_CLASS,
-                          rMult === null
-                            ? "text-muted-foreground"
-                            : rMult >= 0
-                              ? "text-emerald-700 dark:text-emerald-400"
-                              : "text-rose-700 dark:text-rose-400"
-                        )}
-                      >
-                        {rMult === null ? "—" : `${rMult.toFixed(2)}R`}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
-                        {formatHoldLabel(trade.holdTimeHours)}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-center">
-                        {trade.notes?.trim() ? (
-                          <span title={trade.notes}>
-                            <FileText className="mx-auto size-4 text-muted-foreground" />
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground/40">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="border-t border-border py-3 text-center">
-          <Link
-            href="/journal"
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-          >
-            View All Trades
-            <ArrowRight className="size-4" />
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
+    </DataPanel>
   );
 }

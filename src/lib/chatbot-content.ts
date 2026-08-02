@@ -1,4 +1,5 @@
 import { LANDING_FAQS } from "@/lib/faq-content";
+import { FEEDBACK_INBOX } from "@/lib/feedback";
 
 export type ChatbotLink = {
   label: string;
@@ -31,7 +32,10 @@ export const CHATBOT_EMAIL_THANKS =
 export const CHATBOT_EMAIL_STORAGE_KEY = "swingtradinglog_chatbot_email";
 
 export const CHATBOT_FALLBACK =
-  "I’m not sure about that yet. Try one of the suggested questions, browse the FAQ on the homepage, or sign in free to explore the journal.";
+  `I’m not sure about that yet. If you’re having a problem with the website, email ${FEEDBACK_INBOX}. You can also try a suggested question below or sign in free to explore the journal.`;
+
+export const CHATBOT_WEBSITE_PROBLEM_ANSWER =
+  `Sorry you’re running into trouble. Please email ${FEEDBACK_INBOX} with what happened and we’ll help you as soon as we can.`;
 
 const EXTRA_ENTRIES: ChatbotEntry[] = [
   {
@@ -87,7 +91,7 @@ const EXTRA_ENTRIES: ChatbotEntry[] = [
       "journal",
       "goals",
     ],
-    links: [{ label: "View homepage features", href: "/#features" }],
+    links: [{ label: "View features", href: "/features" }],
   },
   {
     id: "risk-calculator",
@@ -106,15 +110,33 @@ const EXTRA_ENTRIES: ChatbotEntry[] = [
     links: [{ label: "Read the blog", href: "/blog" }],
   },
   {
+    id: "website-problem",
+    question: "I'm having a problem with the website",
+    answer: CHATBOT_WEBSITE_PROBLEM_ANSWER,
+    keywords: [
+      "problem",
+      "issue",
+      "bug",
+      "broken",
+      "error",
+      "not working",
+      "doesn't work",
+      "doesnt work",
+      "can't",
+      "cant",
+      "stuck",
+      "glitch",
+      "website",
+      "site",
+      "trouble",
+      "help me",
+    ],
+  },
+  {
     id: "support",
     question: "How do I contact support?",
-    answer:
-      "Signed-in users can send feedback from the in-app Feedback page. For account or privacy questions, review our Terms and Privacy Policy in the footer.",
+    answer: `For website or account issues, email ${FEEDBACK_INBOX}. Signed-in users can also send feedback from the in-app Feedback page.`,
     keywords: ["support", "help", "contact", "feedback", "email"],
-    links: [
-      { label: "Privacy policy", href: "/privacy" },
-      { label: "Terms of service", href: "/terms" },
-    ],
   },
 ];
 
