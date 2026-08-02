@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import {
   BookOpen,
   LayoutDashboard,
-  MessageSquare,
   Moon,
   Settings,
   Share2,
@@ -47,12 +46,6 @@ const features = [
     title: "Risk & data controls",
     description:
       "Configure default risk, commission, and R:R. Export trades to CSV or back up / restore your workspace from Settings.",
-  },
-  {
-    icon: MessageSquare,
-    title: "In-app feedback",
-    description:
-      "Send product feedback from the Feedback page so we can prioritize what swing traders need next.",
   },
 ];
 

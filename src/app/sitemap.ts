@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { getAllBlogSlugs } from "@/lib/blog-posts";
 import { absoluteUrl } from "@/lib/site";
 
 const PUBLIC_ROUTES = [
@@ -14,10 +15,19 @@ const PUBLIC_ROUTES = [
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
-  return PUBLIC_ROUTES.map(({ path, changeFrequency, priority }) => ({
+  const staticPages = PUBLIC_ROUTES.map(({ path, changeFrequency, priority }) => ({
     url: absoluteUrl(path),
     lastModified: now,
     changeFrequency,
     priority,
   }));
+
+  const blogPages = getAllBlogSlugs().map((slug) => ({
+    url: absoluteUrl(`/blog/${slug}`),
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.45,
+  }));
+
+  return [...staticPages, ...blogPages];
 }

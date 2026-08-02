@@ -44,12 +44,11 @@ export function LandingPricing({
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-medium text-emerald-400">Pricing</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Full SwingTradingLog — free in beta
+            Full SwingTradingLog, free forever
           </h2>
           <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            Same product as the live site: {freePrice.formatted}
-            {freePrice.period} during beta. We&apos;ll give advance notice before
-            pricing ever changes.
+            Same product as the live site: {freePrice.formatted}. Free forever,
+            no credit card.
           </p>
         </div>
 
@@ -61,7 +60,7 @@ export function LandingPricing({
           className="relative mx-auto mt-12 max-w-lg rounded-2xl border border-emerald-500/50 bg-muted p-6 shadow-[0_0_48px_rgba(52,211,153,0.12)] sm:p-8"
         >
           <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-zinc-950">
-            Beta access
+            Free forever
           </span>
           <h3 className="text-lg font-semibold text-foreground">
             {BRAND_NAME}
@@ -74,7 +73,7 @@ export function LandingPricing({
               {freePrice.formatted}
             </span>
             <span className="pb-1 text-sm text-muted-foreground">
-              {freePrice.period} during beta
+              free forever
             </span>
           </div>
 

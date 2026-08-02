@@ -27,13 +27,13 @@ export function LandingHero() {
             SwingTradingLog · Free beta
           </p>
           <h1 className="mt-3 text-balance text-[1.75rem] font-semibold leading-tight tracking-tight text-foreground sm:text-4xl sm:leading-[1.1] lg:text-5xl">
-            Your swing trading journal — dashboard, goals, and gap risk in one place
+            Your swing trading journal with dashboard, goals, and gap risk in one place
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             Log multi-day trades in the Journal, review P&amp;L and overnight
             exposure on the Dashboard, track Goals, and share branded cards for
-            closed trades. Full access free while we&apos;re in beta — no credit
+            closed trades. Full access free while we&apos;re in beta, no credit
             card.
           </p>
 
