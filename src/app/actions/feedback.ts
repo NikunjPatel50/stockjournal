@@ -7,9 +7,9 @@ import {
 } from "@/lib/feedback";
 import { notifyFeedbackInbox } from "@/lib/feedback-email";
 import {
-  createInsForgeServerClient,
+  createSupabaseServerClient,
   getCurrentUser,
-} from "@/lib/insforge/server";
+} from "@/lib/supabase/server";
 
 type FeedbackInput = {
   name: string;
@@ -26,16 +26,14 @@ async function persistFeedback(
   input: FeedbackInput,
   userId: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const client = await createInsForgeServerClient();
-  const { error } = await client.database.from("feedback_submissions").insert([
-    {
-      user_id: userId,
-      email: input.email,
-      name: input.name,
-      category: input.category,
-      message: input.message,
-    },
-  ]);
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("feedback_submissions").insert({
+    user_id: userId,
+    email: input.email,
+    name: input.name,
+    category: input.category,
+    message: input.message,
+  });
 
   if (error) {
     console.error("[feedback] database insert failed:", error.message);

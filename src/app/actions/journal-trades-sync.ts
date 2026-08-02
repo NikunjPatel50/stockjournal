@@ -1,9 +1,9 @@
 "use server";
 
 import {
-  createInsForgeServerClient,
+  createSupabaseServerClient,
   getCurrentUser,
-} from "@/lib/insforge/server";
+} from "@/lib/supabase/server";
 import type { JournalTrade } from "@/lib/journal-types";
 import { normalizeJournalTrade } from "@/lib/journal-types";
 
@@ -26,8 +26,8 @@ export async function fetchCloudJournalTrades(): Promise<
     return { ok: false, error: "Not signed in" };
   }
 
-  const client = await createInsForgeServerClient();
-  const { data, error } = await client.database
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
     .from("user_settings")
     .select("journal_trades, journal_trades_updated_at")
     .maybeSingle();
@@ -60,14 +60,14 @@ export async function saveCloudJournalTrades(
     return { ok: false, error: "Not signed in" };
   }
 
-  const client = await createInsForgeServerClient();
+  const supabase = await createSupabaseServerClient();
   const now = new Date().toISOString();
   const payload = {
     journal_trades: trades,
     journal_trades_updated_at: now,
   };
 
-  const { data: existing, error: selectError } = await client.database
+  const { data: existing, error: selectError } = await supabase
     .from("user_settings")
     .select("id")
     .maybeSingle();
@@ -77,7 +77,7 @@ export async function saveCloudJournalTrades(
   }
 
   if (existing?.id) {
-    const { error } = await client.database
+    const { error } = await supabase
       .from("user_settings")
       .update(payload)
       .eq("id", existing.id as string);
@@ -85,12 +85,10 @@ export async function saveCloudJournalTrades(
       return { ok: false, error: error.message };
     }
   } else {
-    const { error } = await client.database.from("user_settings").insert([
-      {
-        user_id: user.id,
-        ...payload,
-      },
-    ]);
+    const { error } = await supabase.from("user_settings").insert({
+      user_id: user.id,
+      ...payload,
+    });
     if (error) {
       return { ok: false, error: error.message };
     }

@@ -1,9 +1,9 @@
 "use server";
 
 import {
-  createInsForgeServerClient,
+  createSupabaseServerClient,
   getCurrentUser,
-} from "@/lib/insforge/server";
+} from "@/lib/supabase/server";
 import type { Goal } from "@/lib/goals";
 import { goalFromRow, goalToRow } from "@/lib/goals-mapper";
 
@@ -18,8 +18,8 @@ export async function fetchCloudGoals(): Promise<
     return { ok: false, error: "Not signed in" };
   }
 
-  const client = await createInsForgeServerClient();
-  const { data, error } = await client.database
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
     .from("goals")
     .select("*")
     .order("updated_at", { ascending: false });
@@ -46,9 +46,9 @@ export async function saveCloudGoals(
     return { ok: false, error: "Not signed in" };
   }
 
-  const client = await createInsForgeServerClient();
+  const supabase = await createSupabaseServerClient();
 
-  const { data: existing, error: selectError } = await client.database
+  const { data: existing, error: selectError } = await supabase
     .from("goals")
     .select("id");
 
@@ -63,7 +63,7 @@ export async function saveCloudGoals(
 
   const toDelete = [...existingIds].filter((id) => !nextIds.has(id));
   for (const id of toDelete) {
-    const { error } = await client.database.from("goals").delete().eq("id", id);
+    const { error } = await supabase.from("goals").delete().eq("id", id);
     if (error) {
       return { ok: false, error: error.message };
     }
@@ -72,7 +72,7 @@ export async function saveCloudGoals(
   for (const goal of goals) {
     const row = goalToRow(goal, user.id);
     if (existingIds.has(goal.id)) {
-      const { error } = await client.database
+      const { error } = await supabase
         .from("goals")
         .update(row)
         .eq("id", goal.id);
@@ -80,7 +80,7 @@ export async function saveCloudGoals(
         return { ok: false, error: error.message };
       }
     } else {
-      const { error } = await client.database.from("goals").insert([row]);
+      const { error } = await supabase.from("goals").insert(row);
       if (error) {
         return { ok: false, error: error.message };
       }

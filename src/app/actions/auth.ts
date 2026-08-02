@@ -2,59 +2,62 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createAuthActions, createServerClient } from "@insforge/sdk/ssr";
 import { GOOGLE_OAUTH_HINT_COOKIE } from "@/lib/google-oauth-hint";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { mapSupabaseUser } from "@/lib/supabase/types";
 
 function appUrl(path: string) {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return new URL(path, base).toString();
 }
 
-function authErrorMessage(error: { message?: string } | null, fallback: string) {
+function authErrorMessage(
+  error: { message?: string } | null,
+  fallback: string
+) {
   return error?.message?.trim() || fallback;
 }
 
-async function getAuthClient() {
-  return createServerClient({
-    cookies: await cookies(),
-  });
+function needsEmailVerification(message: string) {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("email not confirmed") ||
+    lower.includes("not verified") ||
+    lower.includes("verify")
+  );
 }
 
 export async function signInAction(input: {
   email: string;
   password: string;
 }) {
-  const auth = createAuthActions({ cookies: await cookies() });
-  const { data, error } = await auth.signInWithPassword({
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: input.email,
     password: input.password,
   });
 
-  if (error || !data?.user) {
+  if (error || !data.user) {
+    const message = authErrorMessage(error, "Sign in failed");
     return {
       ok: false as const,
-      error: authErrorMessage(error, "Sign in failed"),
-      statusCode: error?.statusCode,
-      needsVerification: error?.statusCode === 403,
+      error: message,
+      needsVerification: needsEmailVerification(message),
     };
   }
 
-  if (data.user.emailVerified === false) {
-    await auth.signOut();
-    const client = await getAuthClient();
-    await client.auth.resendVerificationEmail({
-      email: input.email,
-      redirectTo: appUrl("/login"),
-    });
+  const user = mapSupabaseUser(data.user);
+  if (!user.emailVerified) {
+    await supabase.auth.signOut();
+    await supabase.auth.resend({ type: "signup", email: input.email });
     return {
       ok: false as const,
       error: "Verify your email with the 6-digit code we sent you.",
-      statusCode: 403,
       needsVerification: true,
     };
   }
 
-  return { ok: true as const, user: data.user };
+  return { ok: true as const, user };
 }
 
 export async function signUpAction(input: {
@@ -62,12 +65,14 @@ export async function signUpAction(input: {
   password: string;
   name: string;
 }) {
-  const auth = createAuthActions({ cookies: await cookies() });
-  const { data, error } = await auth.signUp({
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
-    name: input.name,
-    redirectTo: appUrl("/login"),
+    options: {
+      data: { full_name: input.name },
+      emailRedirectTo: appUrl("/login"),
+    },
   });
 
   if (error) {
@@ -77,17 +82,15 @@ export async function signUpAction(input: {
     };
   }
 
-  if (!data?.user) {
+  if (!data.user) {
     return { ok: false as const, error: "Sign up failed" };
   }
 
-  // Email sign-up always completes on the login page with a 6-digit code.
-  await auth.signOut();
+  await supabase.auth.signOut();
 
-  const client = await getAuthClient();
-  const { error: resendError } = await client.auth.resendVerificationEmail({
+  const { error: resendError } = await supabase.auth.resend({
+    type: "signup",
     email: input.email,
-    redirectTo: appUrl("/login"),
   });
 
   if (resendError) {
@@ -111,27 +114,39 @@ export async function verifyEmailAction(input: {
   email: string;
   otp: string;
 }) {
-  const auth = createAuthActions({ cookies: await cookies() });
-  const { data, error } = await auth.verifyEmail({
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.verifyOtp({
     email: input.email,
-    otp: input.otp,
+    token: input.otp,
+    type: "email",
   });
 
-  if (error || !data?.user) {
-    return {
-      ok: false as const,
-      error: authErrorMessage(error, "Invalid or expired verification code"),
-    };
+  if (error || !data.user) {
+    const fallback = await supabase.auth.verifyOtp({
+      email: input.email,
+      token: input.otp,
+      type: "signup",
+    });
+    if (fallback.error || !fallback.data.user) {
+      return {
+        ok: false as const,
+        error: authErrorMessage(
+          error ?? fallback.error,
+          "Invalid or expired verification code"
+        ),
+      };
+    }
+    return { ok: true as const, user: mapSupabaseUser(fallback.data.user) };
   }
 
-  return { ok: true as const, user: data.user };
+  return { ok: true as const, user: mapSupabaseUser(data.user) };
 }
 
 export async function resendVerificationAction(input: { email: string }) {
-  const client = await getAuthClient();
-  const { error } = await client.auth.resendVerificationEmail({
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
     email: input.email,
-    redirectTo: appUrl("/login"),
   });
 
   if (error) {
@@ -145,9 +160,8 @@ export async function resendVerificationAction(input: { email: string }) {
 }
 
 export async function sendResetPasswordAction(input: { email: string }) {
-  const client = await getAuthClient();
-  const { error } = await client.auth.sendResetPasswordEmail({
-    email: input.email,
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(input.email, {
     redirectTo: appUrl("/login"),
   });
 
@@ -166,22 +180,22 @@ export async function resetPasswordWithOtpAction(input: {
   code: string;
   newPassword: string;
 }) {
-  const client = await getAuthClient();
-  const { data, error } = await client.auth.exchangeResetPasswordToken({
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.verifyOtp({
     email: input.email,
-    code: input.code,
+    token: input.code,
+    type: "recovery",
   });
 
-  if (error || !data?.token) {
+  if (error || !data.session) {
     return {
       ok: false as const,
       error: authErrorMessage(error, "Invalid or expired reset code"),
     };
   }
 
-  const { error: resetError } = await client.auth.resetPassword({
-    newPassword: input.newPassword,
-    otp: data.token,
+  const { error: resetError } = await supabase.auth.updateUser({
+    password: input.newPassword,
   });
 
   if (resetError) {
@@ -198,11 +212,13 @@ export async function changePasswordAction(input: {
   code: string;
   newPassword: string;
 }) {
-  const client = await getAuthClient();
-  const { data: userData, error: userError } =
-    await client.auth.getCurrentUser();
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  if (userError || !userData?.user?.email) {
+  if (userError || !user?.email) {
     return {
       ok: false as const,
       error: "You must be signed in to change your password",
@@ -210,73 +226,65 @@ export async function changePasswordAction(input: {
   }
 
   return resetPasswordWithOtpAction({
-    email: userData.user.email,
+    email: user.email,
     code: input.code,
     newPassword: input.newPassword,
   });
 }
 
 export async function sendChangePasswordCodeAction() {
-  const client = await getAuthClient();
-  const { data: userData, error: userError } =
-    await client.auth.getCurrentUser();
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  if (userError || !userData?.user?.email) {
+  if (userError || !user?.email) {
     return {
       ok: false as const,
       error: "You must be signed in to change your password",
     };
   }
 
-  const result = await sendResetPasswordAction({
-    email: userData.user.email,
-  });
-
+  const result = await sendResetPasswordAction({ email: user.email });
   if (!result.ok) return result;
 
-  return { ok: true as const, email: userData.user.email };
+  return { ok: true as const, email: user.email };
 }
 
 export async function signOutAction() {
-  const auth = createAuthActions({ cookies: await cookies() });
-  await auth.signOut();
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
   redirect("/login");
 }
 
 export async function initiateOAuthAction(options?: { pickAccount?: boolean }) {
   const cookieStore = await cookies();
-  const auth = createAuthActions({ cookies: cookieStore });
+  const supabase = await createSupabaseServerClient();
 
   const loginHint = cookieStore.get(GOOGLE_OAUTH_HINT_COOKIE)?.value?.trim();
-  const additionalParams: Record<string, string> = {};
+  const queryParams: Record<string, string> = {};
 
   if (options?.pickAccount) {
-    additionalParams.prompt = "select_account";
+    queryParams.prompt = "select_account";
   } else if (loginHint) {
-    additionalParams.login_hint = loginHint;
+    queryParams.login_hint = loginHint;
   }
 
-  const { data, error } = await auth.signInWithOAuth("google", {
-    redirectTo: appUrl("/api/auth/callback"),
-    skipBrowserRedirect: true,
-    ...(Object.keys(additionalParams).length > 0
-      ? { additionalParams }
-      : {}),
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: appUrl("/api/auth/callback"),
+      skipBrowserRedirect: true,
+      ...(Object.keys(queryParams).length > 0 ? { queryParams } : {}),
+    },
   });
 
-  if (error || !data?.url || !data.codeVerifier) {
+  if (error || !data?.url) {
     redirect(
       `/login?error=${encodeURIComponent(error?.message ?? "OAuth init failed")}`
     );
   }
-
-  cookieStore.set("insforge_code_verifier", data.codeVerifier, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
-  });
 
   redirect(data.url);
 }

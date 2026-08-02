@@ -1,5 +1,5 @@
 import type { FeedbackCategory } from "@/lib/feedback";
-import { createInsForgeAdminClient } from "@/lib/insforge/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type AdminFeedbackRow = {
   id: string;
@@ -76,18 +76,18 @@ function sevenDaysAgoIso(): string {
 }
 
 export async function fetchAdminDashboardStats(): Promise<AdminDashboardStats> {
-  const admin = createInsForgeAdminClient();
+  const admin = createSupabaseAdminClient();
 
   const [feedbackRes, settingsRes, goalsRes] = await Promise.all([
-    admin.database
+    admin
       .from("feedback_submissions")
       .select("id, category, created_at"),
-    admin.database
+    admin
       .from("user_settings")
       .select(
         "user_id, journal_trades, journal_trades_updated_at"
       ),
-    admin.database.from("goals").select("user_id"),
+    admin.from("goals").select("user_id"),
   ]);
 
   if (feedbackRes.error) throw new Error(feedbackRes.error.message);
@@ -141,8 +141,8 @@ export async function fetchAdminDashboardStats(): Promise<AdminDashboardStats> {
 export async function fetchAdminFeedback(
   limit = 100
 ): Promise<AdminFeedbackRow[]> {
-  const admin = createInsForgeAdminClient();
-  const { data, error } = await admin.database
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
     .from("feedback_submissions")
     .select("id, user_id, email, name, category, message, created_at")
     .order("created_at", { ascending: false })
@@ -162,17 +162,17 @@ export async function fetchAdminFeedback(
 }
 
 export async function fetchAdminUsers(): Promise<AdminUserRow[]> {
-  const admin = createInsForgeAdminClient();
+  const admin = createSupabaseAdminClient();
 
   const [settingsRes, goalsRes, feedbackRes] = await Promise.all([
-    admin.database
+    admin
       .from("user_settings")
       .select(
         "user_id, full_name, currency, created_at, journal_trades, journal_trades_updated_at"
       )
       .order("created_at", { ascending: false }),
-    admin.database.from("goals").select("user_id"),
-    admin.database
+    admin.from("goals").select("user_id"),
+    admin
       .from("feedback_submissions")
       .select("user_id, email")
       .order("created_at", { ascending: false }),

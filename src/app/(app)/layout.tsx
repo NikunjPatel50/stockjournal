@@ -4,7 +4,7 @@ import { AdminAccessProvider } from "@/components/admin/admin-access-provider";
 import { Sidebar } from "@/components/sidebar";
 import { UserStorageProvider } from "@/components/user-storage-provider";
 import { isAdminUser } from "@/lib/admin";
-import { getCurrentUser } from "@/lib/insforge/server";
+import { getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   robots: {

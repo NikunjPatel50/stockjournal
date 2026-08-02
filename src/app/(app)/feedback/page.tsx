@@ -1,6 +1,6 @@
 import { AppPageHeader } from "@/components/app-page-header";
 import { FeedbackFeaturePanel } from "@/components/feedback/feedback-feature-panel";
-import { getCurrentUser } from "@/lib/insforge/server";
+import { getCurrentUser } from "@/lib/supabase/server";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import { cn } from "@/lib/utils";
 

@@ -4,7 +4,7 @@ import {
   normalizeListingMarket,
 } from "@/lib/equity-listing-markets";
 import { normalizeQuoteAssetClass } from "@/lib/eodhd";
-import { getCurrentUser } from "@/lib/insforge/server";
+import { getCurrentUser } from "@/lib/supabase/server";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
 import {

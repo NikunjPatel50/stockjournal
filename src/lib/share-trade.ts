@@ -125,7 +125,7 @@ async function hmacVerify(
 export function getShareTradeSecret(): string {
   return (
     process.env.SHARE_TRADE_SECRET ||
-    process.env.INSFORGE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     "dev-only-share-trade-secret"
   );
 }

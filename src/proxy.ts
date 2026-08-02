@@ -1,8 +1,6 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import {
-  updateSession,
-  type CookieStore,
-} from "@insforge/sdk/ssr/middleware";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 const PUBLIC_PATHS = [
   "/",
@@ -30,60 +28,56 @@ function isPublicPath(pathname: string) {
   );
 }
 
-function asCookieStore(
-  cookies: NextRequest["cookies"] | NextResponse["cookies"]
-): CookieStore {
-  return {
-    get(name: string) {
-      return cookies.get(name);
-    },
-    set(nameOrOptions: string | { name: string; value: string }, value?: string, options?: object) {
-      if (typeof nameOrOptions === "string") {
-        cookies.set(nameOrOptions, value ?? "", options);
-        return;
-      }
-      cookies.set(nameOrOptions.name, nameOrOptions.value, nameOrOptions);
-    },
-    delete(nameOrOptions: string | { name: string }) {
-      if (typeof nameOrOptions === "string") {
-        cookies.delete(nameOrOptions);
-        return;
-      }
-      cookies.delete(nameOrOptions.name);
-    },
-  } as CookieStore;
-}
-
 function withNoIndex(response: NextResponse) {
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
   return response;
 }
 
 export async function proxy(request: NextRequest) {
-  const response = NextResponse.next({ request });
+  let supabaseResponse = NextResponse.next({ request });
 
-  const { accessToken } = await updateSession({
-    requestCookies: asCookieStore(request.cookies),
-    responseCookies: asCookieStore(response.cookies),
-  });
+  const supabase = createServerClient(
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
-  if (!accessToken && !isPublicPath(pathname)) {
+  if (!user && !isPublicPath(pathname)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return withNoIndex(NextResponse.redirect(loginUrl));
   }
 
-  if (accessToken && pathname === "/login") {
+  if (user && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   if (!isPublicPath(pathname)) {
-    return withNoIndex(response);
+    return withNoIndex(supabaseResponse);
   }
 
-  return response;
+  return supabaseResponse;
 }
 
 export const config = {

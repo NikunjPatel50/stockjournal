@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/insforge/server";
+import { getCurrentUser } from "@/lib/supabase/server";
 
 /** Sole account allowed to access /admin (uses normal app login — no separate admin auth). */
 export const ADMIN_EMAIL = "nicksofficialindia@gmail.com";

@@ -6,7 +6,7 @@ import {
   finalizeSymbolSearchResults,
   rankSymbolSearchResults,
 } from "@/lib/symbol-search";
-import { getCurrentUser } from "@/lib/insforge/server";
+import { getCurrentUser } from "@/lib/supabase/server";
 import { searchYahooSymbols } from "@/lib/yahoo-symbol-search";
 
 const YAHOO_PRIMARY_MARKETS = new Set<ListingMarketId>(["IN_NSE", "IN_BSE"]);
