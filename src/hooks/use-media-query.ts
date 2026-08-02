@@ -19,3 +19,8 @@ export function useMediaQuery(query: string): boolean {
 export function useIsMobile(): boolean {
   return useMediaQuery("(max-width: 767px)");
 }
+
+/** Matches Tailwind `lg` — sidebar visible, journal desktop table. */
+export function useIsCompactApp(): boolean {
+  return useMediaQuery("(max-width: 1023px)");
+}

@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -16,6 +17,7 @@ import {
   loadSettings,
   saveSettings,
   type AppSettings,
+  type ThemeMode,
 } from "@/lib/settings";
 import { getActiveStorageUserId } from "@/lib/user-storage";
 
@@ -29,6 +31,23 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
+const THEME_STORAGE_KEY = "swingtradinglog-theme";
+
+function readStoredThemePreference(): ThemeMode | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed === "light" || parsed === "dark" || parsed === "system") {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function SettingsEffects({
   settings,
   hydrated,
@@ -36,15 +55,15 @@ function SettingsEffects({
   settings: AppSettings;
   hydrated: boolean;
 }) {
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
+  const appliedSettingsTheme = useRef<string | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
-    // Keep next-themes as the only owner of the `dark` class to avoid flash/flicker.
-    if (theme !== settings.display.theme) {
-      setTheme(settings.display.theme);
-    }
-  }, [settings.display.theme, hydrated, setTheme, theme]);
+    if (appliedSettingsTheme.current === settings.display.theme) return;
+    appliedSettingsTheme.current = settings.display.theme;
+    setTheme(settings.display.theme);
+  }, [settings.display.theme, hydrated, setTheme]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -62,8 +81,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const userId = getActiveStorageUserId();
     const loaded = loadSettings(userId);
-    setSettings(loaded);
-    applyDisplaySettings(loaded.display);
+    const storedTheme = readStoredThemePreference();
+    const merged: AppSettings = storedTheme
+      ? {
+          ...loaded,
+          display: { ...loaded.display, theme: storedTheme },
+        }
+      : loaded;
+    setSettings(merged);
+    applyDisplaySettings(merged.display);
     setHydrated(true);
   }, []);
 

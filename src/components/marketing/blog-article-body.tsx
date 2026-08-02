@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { BlogBlock } from "@/lib/blog-posts";
 
 function BlogBlockView({ block }: { block: BlogBlock }) {
@@ -22,6 +23,24 @@ function BlogBlockView({ block }: { block: BlogBlock }) {
             <li key={item}>{item}</li>
           ))}
         </ul>
+      );
+    case "image":
+      return (
+        <figure className="mt-8 overflow-hidden rounded-2xl border border-border bg-muted/30">
+          <Image
+            src={block.src}
+            alt={block.alt}
+            width={1200}
+            height={675}
+            className="h-auto w-full object-cover"
+            sizes="(max-width: 768px) 100vw, 768px"
+          />
+          {block.caption ? (
+            <figcaption className="px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">
+              {block.caption}
+            </figcaption>
+          ) : null}
+        </figure>
       );
     case "p":
     default:

@@ -49,6 +49,7 @@ export function buildPageMetadata({
   openGraphTitle,
   absoluteTitle = false,
   noIndex = false,
+  image,
 }: {
   title: string;
   description?: string;
@@ -56,10 +57,21 @@ export function buildPageMetadata({
   openGraphTitle?: string;
   absoluteTitle?: boolean;
   noIndex?: boolean;
+  image?: string;
 }): Metadata {
   const url = absoluteUrl(path);
   const ogTitle = openGraphTitle ?? title;
   const resolvedTitle = absoluteTitle ? { absolute: title } : title;
+  const ogImages = image
+    ? [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: ogTitle,
+        },
+      ]
+    : openGraphImages();
 
   return {
     title: resolvedTitle,
@@ -82,13 +94,13 @@ export function buildPageMetadata({
       siteName: SITE_NAME,
       title: ogTitle,
       description,
-      images: openGraphImages(),
+      images: ogImages,
     },
     twitter: {
       card: "summary_large_image",
       title: ogTitle,
       description,
-      images: [absoluteUrl(OG_IMAGE_PATH)],
+      images: [image ?? absoluteUrl(OG_IMAGE_PATH)],
     },
   };
 }

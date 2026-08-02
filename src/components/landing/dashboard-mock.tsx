@@ -58,10 +58,10 @@ function MockSidebar({ variant }: { variant: MockVariant }) {
         <BrandLogo
           lockup
           size="sm"
+          lockupHeight={56}
           framedMark={false}
           showWordmark={false}
           logoTheme="auto"
-          className="[&_picture]:!h-12 [&_picture]:!w-auto [&_img]:!h-12 [&_img]:!w-auto sm:[&_picture]:!h-14 sm:[&_img]:!h-14"
         />
       </div>
       <div className="flex flex-1 flex-col px-2 py-3 sm:px-2.5">

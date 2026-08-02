@@ -2,7 +2,14 @@ export type BlogBlock =
   | { type: "p"; text: string }
   | { type: "h2"; text: string }
   | { type: "h3"; text: string }
-  | { type: "ul"; items: string[] };
+  | { type: "ul"; items: string[] }
+  | { type: "image"; src: string; alt: string; caption?: string };
+
+export type BlogCoverImage = {
+  src: string;
+  alt: string;
+  credit?: string;
+};
 
 export type BlogPost = {
   slug: string;
@@ -11,6 +18,7 @@ export type BlogPost = {
   publishedAt: string;
   readMinutes: number;
   tags: string[];
+  coverImage: BlogCoverImage;
   blocks: BlogBlock[];
 };
 
@@ -23,6 +31,11 @@ export const BLOG_POSTS: BlogPost[] = [
     publishedAt: "2026-07-15",
     readMinutes: 8,
     tags: ["Journal", "Beginners", "Process"],
+    coverImage: {
+      src: "/blog/how-to-start-a-swing-trading-journal.jpg",
+      alt: "Trader reviewing charts and notes at a desk",
+      credit: "Photo: Pexels",
+    },
     blocks: [
       {
         type: "p",
@@ -46,6 +59,12 @@ export const BLOG_POSTS: BlogPost[] = [
           "One sentence on why you took the trade",
           "Outcome and P&L after the position is closed",
         ],
+      },
+      {
+        type: "image",
+        src: "/blog/how-to-start-a-swing-trading-journal.jpg",
+        alt: "Notebook and laptop used for planning swing trades",
+        caption: "A simple journal beats a perfect spreadsheet you never open.",
       },
       {
         type: "h2",
@@ -86,6 +105,11 @@ export const BLOG_POSTS: BlogPost[] = [
     publishedAt: "2026-07-22",
     readMinutes: 7,
     tags: ["Risk", "Overnight", "Swing trading"],
+    coverImage: {
+      src: "/blog/overnight-gap-risk-for-swing-traders.jpg",
+      alt: "Stock market candlestick chart on a monitor",
+      credit: "Photo: Pexels",
+    },
     blocks: [
       {
         type: "p",
@@ -107,6 +131,12 @@ export const BLOG_POSTS: BlogPost[] = [
           "Note earnings dates within your hold window",
           "Cap total overnight notional as a percent of account equity",
         ],
+      },
+      {
+        type: "image",
+        src: "/blog/overnight-gap-risk-for-swing-traders.jpg",
+        alt: "Financial chart showing price movement between sessions",
+        caption: "Gaps happen when the market reopens — plan for them before you hold overnight.",
       },
       {
         type: "h2",
@@ -142,6 +172,11 @@ export const BLOG_POSTS: BlogPost[] = [
     publishedAt: "2026-07-29",
     readMinutes: 9,
     tags: ["Review", "Analytics", "Habits"],
+    coverImage: {
+      src: "/blog/weekly-swing-trade-review-without-overthinking.jpg",
+      alt: "Analytics dashboard with charts and performance metrics",
+      credit: "Photo: Pexels",
+    },
     blocks: [
       {
         type: "p",
@@ -159,6 +194,12 @@ export const BLOG_POSTS: BlogPost[] = [
           "5 min — Goals: did you hit process targets (max trades, max loss)?",
           "5 min — One written takeaway and one rule for next week",
         ],
+      },
+      {
+        type: "image",
+        src: "/blog/weekly-swing-trade-review-without-overthinking.jpg",
+        alt: "Laptop screen showing trading performance analytics",
+        caption: "Focus on profit factor and R:R — not just win rate.",
       },
       {
         type: "h2",
@@ -204,8 +245,6 @@ export const BLOG_POSTS: BlogPost[] = [
     ],
   },
 ];
-
-// Fix the first post - I used type "ol" but BlogBlock only has ul. Let me fix in the file - use ul for the weekly review steps in post 1.
 
 export function getBlogPost(slug: string): BlogPost | undefined {
   return BLOG_POSTS.find((post) => post.slug === slug);

@@ -50,11 +50,11 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
           <BrandLogo
             lockup
             size="md"
+            lockupHeight={72}
             framedMark={false}
             showWordmark={false}
             logoTheme="auto"
             priority
-            className="w-auto [&_picture]:!h-[5.5rem] [&_picture]:!w-auto [&_img]:!h-[5.5rem] [&_img]:!w-auto"
           />
         </Link>
       </div>
@@ -111,7 +111,7 @@ export function Sidebar({ user: _user }: { user: SidebarUser }) {
 
   return (
     <>
-      <aside className="sticky top-0 hidden h-full w-[17.5rem] shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
+          <aside className="sticky top-0 hidden h-full w-[17.5rem] min-w-[17.5rem] shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
         <NavContent />
       </aside>
 

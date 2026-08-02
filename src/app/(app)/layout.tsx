@@ -32,7 +32,7 @@ export default async function AppLayout({
         userId={user.id}
         userDisplayName={user.profile?.name ?? user.email}
       >
-        <div className="flex h-svh w-full overflow-hidden">
+        <div className="flex h-dvh min-h-0 w-full min-w-0 overflow-hidden">
           <Sidebar user={user} />
           <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background supports-[padding:max(0px)]:pb-[max(0px,env(safe-area-inset-bottom))]">
             {children}

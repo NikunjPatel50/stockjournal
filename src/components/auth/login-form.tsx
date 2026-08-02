@@ -264,13 +264,13 @@ export function LoginForm() {
 
   return (
     <div className="rounded-xl border border-border bg-card px-5 pt-4 pb-5 text-card-foreground shadow-[0_4px_6px_-2px_rgba(0,0,0,0.06),0_16px_40px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.45),0_0_48px_-12px_rgba(16,185,129,0.08)] sm:px-6 sm:pt-4 sm:pb-6">
-      <div className="mb-1 flex w-full justify-center">
+      <div className="mb-1 flex w-full justify-center [&_picture]:h-[5.5rem] sm:[&_picture]:h-[7.25rem]">
         <BrandLogo
           lockup
           size="lg"
+          lockupHeight={116}
           priority
           logoTheme="auto"
-          className="[&_picture]:!h-[7.25rem] [&_picture]:!w-auto [&_img]:!h-[7.25rem] [&_img]:!w-auto"
         />
       </div>
 

@@ -19,7 +19,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   const isDark = mounted ? resolvedTheme !== "light" : true;
 
   function toggleTheme() {
-    if (!mounted || !hydrated) return;
+    if (!mounted || !hydrated || resolvedTheme === undefined) return;
     const next = resolvedTheme === "light" ? "dark" : "light";
     setTheme(next);
     updateSettings((prev) => ({

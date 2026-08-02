@@ -30,8 +30,9 @@ import { Separator } from "@/components/ui/separator";
 import { AppPageHeader } from "@/components/app-page-header";
 import type { AnalyticsTimeframe } from "@/lib/analytics";
 import { emptyFilters, type JournalFilters } from "@/lib/journal-types";
-import { useIsMobile } from "@/hooks/use-media-query";
+import { useIsCompactApp } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+import { MOBILE_NAV_OFFSET_CLASS } from "@/lib/app-shell";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All statuses", dotClass: "bg-muted-foreground/50" },
@@ -62,7 +63,7 @@ export function JournalHeader({
 }: JournalHeaderProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [dateOpen, setDateOpen] = useState(false);
-  const isMobile = useIsMobile();
+  const isCompact = useIsCompactApp();
 
   const patch = (partial: Partial<JournalFilters>) =>
     onFiltersChange({ ...filters, ...partial });
@@ -99,11 +100,11 @@ export function JournalHeader({
       </PopoverTrigger>
       <PopoverContent
         className="w-auto max-w-[calc(100vw-2rem)] p-0"
-        align={isMobile ? "center" : "start"}
+        align={isCompact ? "center" : "start"}
       >
         <Calendar
           mode="range"
-          numberOfMonths={isMobile ? 1 : 2}
+          numberOfMonths={isCompact ? 1 : 2}
           selected={{
             from: filters.customFrom,
             to: filters.customTo,
@@ -133,7 +134,12 @@ export function JournalHeader({
         title="Trade journal"
       />
 
-      <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-none">
+      <div
+        className={cn(
+          "min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-none",
+          MOBILE_NAV_OFFSET_CLASS
+        )}
+      >
         <div className="flex flex-col gap-4 p-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center">
@@ -197,7 +203,7 @@ export function JournalHeader({
                   ) : null}
                 </div>
 
-                <div className="relative z-20 min-w-0 w-full md:flex-1 md:overflow-x-auto md:overscroll-x-contain md:pb-0.5 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
+                <div className="relative z-20 min-w-0 w-full flex-1 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <TimeframeSegmentedControl
                     value={filters.timeframe}
                     onChange={(timeframe: AnalyticsTimeframe) =>

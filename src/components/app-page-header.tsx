@@ -1,4 +1,5 @@
 import { HeaderActions } from "@/components/header-actions";
+import { MOBILE_NAV_OFFSET_CLASS } from "@/lib/app-shell";
 import { cn } from "@/lib/utils";
 
 type AppPageHeaderProps = {
@@ -27,7 +28,13 @@ export function AppPageHeader({
         className
       )}
     >
-      <div className="min-w-0 pl-12 pr-1 max-lg:pt-1 lg:pl-0 lg:pr-0">
+      <div
+        className={cn(
+          "min-w-0 pr-1 max-lg:pt-1",
+          MOBILE_NAV_OFFSET_CLASS,
+          "lg:pr-0"
+        )}
+      >
         {eyebrow ? (
           <p
             className={cn(
@@ -54,7 +61,8 @@ export function AppPageHeader({
       </div>
       <HeaderActions
         className={cn(
-          "w-full max-w-full shrink-0 justify-end self-stretch pl-12 sm:w-auto sm:self-auto sm:pl-0",
+          "w-full max-w-full shrink-0 justify-end self-stretch sm:w-auto sm:self-auto",
+          MOBILE_NAV_OFFSET_CLASS,
           actionsClassName
         )}
       />

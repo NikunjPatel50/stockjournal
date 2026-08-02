@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ArrowLeft } from "lucide-react";
@@ -9,7 +10,7 @@ import { BlogArticleBody } from "@/components/marketing/blog-article-body";
 import { MarketingBreadcrumbs } from "@/components/marketing/marketing-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { getAllBlogSlugs, getBlogPost } from "@/lib/blog-posts";
-import { buildPageMetadata } from "@/lib/site";
+import { absoluteUrl, buildPageMetadata } from "@/lib/site";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -29,6 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description: post.description,
     path: `/blog/${post.slug}`,
     absoluteTitle: true,
+    image: absoluteUrl(post.coverImage.src),
   });
 }
 
@@ -58,7 +60,23 @@ export default async function BlogPostPage({ params }: PageProps) {
         </Link>
 
         <header className="mt-6 border-b border-border pb-8">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="overflow-hidden rounded-2xl border border-border">
+            <Image
+              src={post.coverImage.src}
+              alt={post.coverImage.alt}
+              width={1200}
+              height={675}
+              className="h-auto w-full object-cover"
+              priority
+              sizes="(max-width: 768px) 100vw, 768px"
+            />
+          </div>
+          {post.coverImage.credit ? (
+            <p className="mt-2 text-right text-[11px] text-muted-foreground">
+              {post.coverImage.credit}
+            </p>
+          ) : null}
+          <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <time dateTime={post.publishedAt}>{published}</time>
             <span aria-hidden>·</span>
             <span>{post.readMinutes} min read</span>

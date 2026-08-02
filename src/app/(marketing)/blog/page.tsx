@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { ArrowRight } from "lucide-react";
 import { LandingFooter } from "@/components/landing/footer";
@@ -26,7 +27,7 @@ export default function BlogPage() {
     <>
       <LandingNavbar />
       <MarketingBreadcrumbs items={[{ name: "Blog", path: "/blog" }]} />
-      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+      <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
         <header className="text-center">
           <p className="text-sm font-medium text-emerald-500">Blog</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
@@ -38,10 +39,24 @@ export default function BlogPage() {
           </p>
         </header>
 
-        <ul className="mt-12 space-y-6">
+        <ul className="mt-12 space-y-8">
           {posts.map((post) => (
             <li key={post.slug}>
-              <article className="group rounded-2xl border border-border bg-card/60 p-6 transition-colors hover:border-emerald-500/40">
+              <article className="group overflow-hidden rounded-2xl border border-border bg-card/60 transition-colors hover:border-emerald-500/40">
+                <div className="grid gap-0 sm:grid-cols-[280px_1fr]">
+                  <Link
+                    href={`/blog/${post.slug}`}
+                    className="relative block aspect-[16/10] overflow-hidden sm:aspect-auto sm:min-h-[200px]"
+                  >
+                    <Image
+                      src={post.coverImage.src}
+                      alt={post.coverImage.alt}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                      sizes="(max-width: 640px) 100vw, 280px"
+                    />
+                  </Link>
+                  <div className="p-6">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <time dateTime={post.publishedAt}>
                     {format(parseISO(post.publishedAt), "MMM d, yyyy")}
@@ -77,6 +92,8 @@ export default function BlogPage() {
                   Read article
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
+                  </div>
+                </div>
               </article>
             </li>
           ))}

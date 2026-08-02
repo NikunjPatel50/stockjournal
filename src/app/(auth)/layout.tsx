@@ -53,7 +53,7 @@ export default function AuthLayout({
         <Link
           href="/"
           aria-label="Home"
-          className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+          className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
         >
           <Home className="size-4" />
         </Link>

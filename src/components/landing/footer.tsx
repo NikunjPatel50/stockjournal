@@ -35,7 +35,7 @@ export function LandingFooter() {
       <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="sm:col-span-2 lg:col-span-1">
           <Link href="/" className="inline-flex items-center">
-            <BrandLogo size="sm" />
+            <BrandLogo size="sm" markSize="md" framedMark={false} priority />
           </Link>
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
             Free swing trading journal at swingtradinglog.com — dashboard

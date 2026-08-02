@@ -633,13 +633,17 @@ function TradeActions({
   onDuplicate,
   onDelete,
   className,
+  compact = false,
 }: {
   trade: JournalTrade;
   onEdit: (t: JournalTrade) => void;
   onDuplicate: (t: JournalTrade) => void;
   onDelete: (ids: string[]) => void;
   className?: string;
+  compact?: boolean;
 }) {
+  const actionSize = compact ? "icon" : "icon-sm";
+
   return (
     <div
       className={cn("flex items-center justify-center gap-0.5", className)}
@@ -648,7 +652,7 @@ function TradeActions({
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
+        size={actionSize}
         title="Edit trade"
         aria-label="Edit trade"
         onClick={() => onEdit(trade)}
@@ -658,7 +662,7 @@ function TradeActions({
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
+        size={actionSize}
         title="Duplicate trade"
         aria-label="Duplicate trade"
         onClick={() => onDuplicate(trade)}
@@ -668,7 +672,7 @@ function TradeActions({
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
+        size={actionSize}
         title="Delete trade"
         aria-label="Delete trade"
         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -1240,7 +1244,7 @@ export function JournalTable({
                   <div className="flex items-start gap-2 px-4 py-4">
                     <button
                       type="button"
-                      className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                      className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                       aria-expanded={expanded}
                       aria-label={expanded ? "Hide row details" : "Show row details"}
                       onClick={() => toggleRowExpanded(row.id)}
@@ -1320,6 +1324,7 @@ export function JournalTable({
                           onEdit={onEdit}
                           onDuplicate={onDuplicate}
                           onDelete={onDelete}
+                          compact
                         />
                       </div>
                     </button>

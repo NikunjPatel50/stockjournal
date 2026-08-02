@@ -3,6 +3,7 @@
 import { useEffect, startTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ThemeProvider } from "next-themes";
+import { SiteChatbotGate } from "@/components/marketing/site-chatbot-gate";
 import { SettingsProvider, useSettings } from "@/components/settings/settings-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { isPublicPath } from "@/lib/public-paths";
@@ -42,6 +43,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <SettingsProvider>
         <LandingRedirect />
         {children}
+        <SiteChatbotGate />
         <Toaster richColors position="top-right" />
       </SettingsProvider>
     </ThemeProvider>

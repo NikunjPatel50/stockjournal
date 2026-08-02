@@ -19,7 +19,7 @@ import { RiskSettings } from "@/components/settings/risk-settings";
 import { AppPageHeader } from "@/components/app-page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
+import { APP_PAGE_SHELL_CLASS, MOBILE_NAV_OFFSET_CLASS } from "@/lib/app-shell";
 
 const NAV = [
   {
@@ -94,7 +94,12 @@ export default function SettingsPage() {
           orientation="vertical"
           className="w-full gap-0 lg:flex-row"
         >
-          <aside className="min-w-0 border-b border-border bg-muted/30 p-3 lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0">
+          <aside
+            className={cn(
+              "min-w-0 border-b border-border bg-muted/30 p-3 lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0",
+              MOBILE_NAV_OFFSET_CLASS
+            )}
+          >
             <TabsList
               variant="line"
               className="h-auto w-full min-w-0 flex-row gap-1 overflow-x-auto bg-transparent p-0 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-visible [&::-webkit-scrollbar]:hidden"
