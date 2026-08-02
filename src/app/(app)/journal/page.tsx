@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AddTradeModal } from "@/components/journal/add-trade-modal";
@@ -28,7 +28,6 @@ import {
   type JournalTrade,
 } from "@/lib/journal-types";
 import { computeLiveActivePnl, computeFilteredPnl } from "@/lib/trade-pnl";
-import { applyStopLossClosures } from "@/lib/close-trade";
 import { useJournalTrades } from "@/lib/trades-storage";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 
@@ -116,7 +115,7 @@ export default function JournalPage() {
     [trades]
   );
 
-  const { getQuote, loading: quotesLoading, fetchedAt } = useMarketQuotes(
+  const { getQuote, loading: quotesLoading } = useMarketQuotes(
     activePool,
     settings.profile.currency
   );
@@ -134,30 +133,6 @@ export default function JournalPage() {
       computeFilteredPnl(filtered, getQuote, settings.profile.currency),
     [filtered, getQuote, settings.profile.currency]
   );
-
-  const stoppedOutNotifiedRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!fetchedAt || activePool.length === 0) return;
-
-    let closed: JournalTrade[] = [];
-    setTrades((prev) => {
-      const result = applyStopLossClosures(prev, getQuote);
-      closed = result.closed.filter(
-        (t) =>
-          (prev.find((p) => p.id === t.id)?.status ?? "Closed") === "Active"
-      );
-      return closed.length > 0 ? result.nextTrades : prev;
-    });
-
-    for (const trade of closed) {
-      if (stoppedOutNotifiedRef.current.has(trade.id)) continue;
-      stoppedOutNotifiedRef.current.add(trade.id);
-      toast.info(
-        `${trade.ticker} stopped out at ${trade.stopLoss.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`
-      );
-    }
-  }, [activePool.length, fetchedAt, getQuote, setTrades]);
 
   function handleSave(trade: JournalTrade) {
     setTrades((prev) => {
