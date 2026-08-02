@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import { MicrosoftClarity } from "@/components/microsoft-clarity";
 import {
   DEFAULT_DESCRIPTION,
@@ -73,6 +74,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="h-full min-h-screen bg-background text-foreground">
+        <GoogleAnalytics />
         <MicrosoftClarity />
         <Providers>{children}</Providers>
       </body>
