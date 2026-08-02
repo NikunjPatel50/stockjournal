@@ -8,6 +8,7 @@ import { LandingNavbar } from "@/components/landing/navbar";
 import { LandingPricing } from "@/components/landing/pricing";
 import { LandingRoadmap } from "@/components/landing/roadmap";
 import { LandingShowcase } from "@/components/landing/showcase";
+import { FaqJsonLd } from "@/components/seo/faq-json-ld";
 import { getFreePriceForCountry } from "@/lib/geo-pricing";
 import { getRequestCountry } from "@/lib/request-country";
 import {
@@ -44,6 +45,7 @@ export default async function LandingPage() {
 
   return (
     <>
+      <FaqJsonLd />
       <LandingNavbar />
       <main>
         <LandingHero />

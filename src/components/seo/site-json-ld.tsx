@@ -18,6 +18,12 @@ export function SiteJsonLd() {
         url,
         logo: absoluteUrl("/icon-512.png"),
         sameAs: [],
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          email: "nicksofficialindia@gmail.com",
+          availableLanguage: ["English"],
+        },
       },
       {
         "@type": "WebSite",

@@ -47,21 +47,35 @@ export function buildPageMetadata({
   description = DEFAULT_DESCRIPTION,
   path,
   openGraphTitle,
+  absoluteTitle = false,
+  noIndex = false,
 }: {
   title: string;
   description?: string;
   path: string;
   openGraphTitle?: string;
+  absoluteTitle?: boolean;
+  noIndex?: boolean;
 }): Metadata {
   const url = absoluteUrl(path);
   const ogTitle = openGraphTitle ?? title;
+  const resolvedTitle = absoluteTitle ? { absolute: title } : title;
 
   return {
-    title,
+    title: resolvedTitle,
     description,
     alternates: {
       canonical: url,
     },
+    ...(noIndex
+      ? {
+          robots: {
+            index: false,
+            follow: true,
+            googleBot: { index: false, follow: true },
+          },
+        }
+      : {}),
     openGraph: {
       type: "website",
       url,

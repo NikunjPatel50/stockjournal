@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:feedback-email": "node scripts/test-feedback-smtp.mjs"
+    "test:feedback-email": "node scripts/test-feedback-smtp.mjs",
+    "migrate:insforge": "node scripts/migrate-insforge-to-supabase.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

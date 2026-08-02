@@ -8,6 +8,7 @@ export const metadata: Metadata = buildPageMetadata({
   description:
     "Sign in to your free SwingTradingLog swing trading journal — track trades, analytics, and goals.",
   path: "/login",
+  noIndex: true,
 });
 
 export default function LoginPage() {

@@ -1,9 +1,18 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site";
 
-/** Block API crawls only. App routes use `noindex` metadata instead of Disallow
- *  so Google can recrawl and drop URLs that should not appear in search. */
-const DISALLOW = ["/api/"];
+/** Block private app surfaces; marketing pages stay crawlable. */
+const DISALLOW = [
+  "/api/",
+  "/login",
+  "/admin",
+  "/dashboard",
+  "/journal",
+  "/goals",
+  "/settings",
+  "/analytics",
+  "/feedback",
+];
 
 export default function robots(): MetadataRoute.Robots {
   const base = getSiteUrl();
