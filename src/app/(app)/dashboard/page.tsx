@@ -55,12 +55,14 @@ export default function DashboardPage() {
         onFiltersChange={setFilters}
         title="Dashboard"
       />
-      <KpiRibbon kpis={kpis} />
+      <KpiRibbon kpis={kpis} startingEquity={startingEquity} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
         <OvernightRiskCard
           summary={overnightRisk}
-          className="h-full max-w-none"
+          startingBalance={startingEquity}
+          currency={settings.profile.currency}
+          className="h-full"
         />
         <MonthlyPerformanceCard
           trades={filtered}

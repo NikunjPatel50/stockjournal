@@ -83,13 +83,16 @@ export const SETTINGS_STORAGE_KEY = "tradetracker_settings_v1";
 /** @deprecated Use per-user keys via user-storage.ts */
 export const TRADES_BACKUP_KEY = "tradelog_trades";
 
+/** Old app default — migrated to 0 so equity is not inflated until the user sets a baseline. */
+export const LEGACY_DEFAULT_STARTING_BALANCE = 100_000;
+
 export const defaultSettings: AppSettings = {
   profile: {
     fullName: "",
     handle: "",
     initials: "—",
     currency: DEFAULT_CURRENCY,
-    startingBalance: 100_000,
+    startingBalance: 0,
   },
   risk: {
     defaultCommission: 0,
@@ -133,7 +136,7 @@ function normalizeLandingPage(value: unknown): LandingPage {
 }
 
 function mergeSettings(parsed: Partial<AppSettings>): AppSettings {
-  return {
+  const merged: AppSettings = {
     profile: {
       ...defaultSettings.profile,
       ...parsed.profile,
@@ -155,6 +158,12 @@ function mergeSettings(parsed: Partial<AppSettings>): AppSettings {
         defaultSettings.display.allowTradeSharing,
     },
   };
+
+  if (merged.profile.startingBalance === LEGACY_DEFAULT_STARTING_BALANCE) {
+    merged.profile.startingBalance = 0;
+  }
+
+  return merged;
 }
 
 export function loadSettings(userId?: string | null): AppSettings {

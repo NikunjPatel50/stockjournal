@@ -173,12 +173,14 @@ export function ProfileSettings() {
             <Field
               id="startingBalance"
               label="Starting balance"
-              hint="Baseline equity before logged trades"
+              hint="Your account size before logged trades. Required for return % and overnight exposure %."
             >
               <Input
                 id="startingBalance"
                 type="number"
+                min={0}
                 step="any"
+                placeholder="0"
                 className="h-9 border-border bg-background font-sans tabular-nums [font-feature-settings:'tnum'_1,'lnum'_1]"
                 {...form.register("startingBalance")}
               />

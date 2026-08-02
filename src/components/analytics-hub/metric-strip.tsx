@@ -47,9 +47,15 @@ export function MetricStrip({
         },
         {
           label: "Return on capital",
-          value: formatSignedPercent(kpis.returnPct, 2),
-          detail: `Base ${formatMoney(startingEquity, false, currency)}`,
-          tone: pnlTone,
+          value:
+            startingEquity > 0
+              ? formatSignedPercent(kpis.returnPct, 2)
+              : "—",
+          detail:
+            startingEquity > 0
+              ? `Base ${formatMoney(startingEquity, false, currency)}`
+              : "Set starting balance in Settings",
+          tone: startingEquity > 0 ? pnlTone : "neutral",
         },
         {
           label: "Win rate",

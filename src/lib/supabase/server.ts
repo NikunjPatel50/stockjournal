@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { isJwtClockSkewError } from "@/lib/supabase/auth-errors";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 import { mapSupabaseUser, type AppUser } from "@/lib/supabase/types";
 
@@ -26,10 +27,18 @@ export async function createSupabaseServerClient() {
 
 export async function getCurrentUser(): Promise<AppUser | null> {
   const supabase = await createSupabaseServerClient();
-  const {
+  let {
     data: { user },
     error,
   } = await supabase.auth.getUser();
+
+  if (!user && isJwtClockSkewError(error?.message)) {
+    await supabase.auth.refreshSession();
+    ({
+      data: { user },
+      error,
+    } = await supabase.auth.getUser());
+  }
 
   if (error || !user) return null;
   return mapSupabaseUser(user);

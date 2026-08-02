@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { MicrosoftClarity } from "@/components/microsoft-clarity";
@@ -14,10 +14,9 @@ import {
 import "./globals.css";
 
 /** Single typeface for the whole product — body copy, headings, and figures. */
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -79,7 +78,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plexMono.variable} h-full antialiased`}
+      className={`${inter.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

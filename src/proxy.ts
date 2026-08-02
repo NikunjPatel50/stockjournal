@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isPublicPath } from "@/lib/public-paths";
+import { isJwtClockSkewError } from "@/lib/supabase/auth-errors";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 function withNoIndex(response: NextResponse) {
@@ -32,9 +33,17 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
+  let {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  if (!user && isJwtClockSkewError(authError?.message)) {
+    await supabase.auth.refreshSession();
+    ({
+      data: { user },
+    } = await supabase.auth.getUser());
+  }
 
   const { pathname } = request.nextUrl;
 
