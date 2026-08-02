@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ThemeProvider } from "next-themes";
 import { SettingsProvider, useSettings } from "@/components/settings/settings-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { isPublicPath } from "@/lib/public-paths";
 
 function LandingRedirect() {
   const { settings, hydrated } = useSettings();
@@ -14,7 +15,7 @@ function LandingRedirect() {
   useEffect(() => {
     if (!hydrated) return;
     // Only apply preferred landing page inside the authenticated app shell.
-    if (pathname === "/" || pathname === "/login") return;
+    if (isPublicPath(pathname)) return;
     const key = "tradetracker_session_landed";
     if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");

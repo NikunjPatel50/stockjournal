@@ -1,32 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicPath } from "@/lib/public-paths";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
-
-const PUBLIC_PATHS = [
-  "/",
-  "/login",
-  "/robots.txt",
-  "/sitemap.xml",
-  "/changelog",
-  "/blog",
-  "/trading-guides",
-  "/risk-calculator",
-  "/privacy",
-  "/terms",
-];
-
-function isPublicPath(pathname: string) {
-  return (
-    PUBLIC_PATHS.some((path) =>
-      path === "/"
-        ? pathname === "/"
-        : pathname === path || pathname.startsWith(`${path}/`)
-    ) ||
-    pathname.startsWith("/share/") ||
-    pathname.startsWith("/api/trade-card/") ||
-    pathname.startsWith("/api/auth/")
-  );
-}
 
 function withNoIndex(response: NextResponse) {
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
