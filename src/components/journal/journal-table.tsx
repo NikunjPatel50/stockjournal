@@ -1227,7 +1227,7 @@ export function JournalTable({
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            Click a row to open the trade editor.
+            Click a row to expand trade details.
           </p>
           {quotesError ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
@@ -1283,7 +1283,7 @@ export function JournalTable({
                     <button
                       type="button"
                       className="min-w-0 flex-1 text-left"
-                      onClick={() => onEdit(trade)}
+                      onClick={() => toggleRowExpanded(row.id)}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -1459,7 +1459,7 @@ export function JournalTable({
                           ).pnl
                         )
                       )}
-                      onClick={() => onEdit(row.original)}
+                      onClick={() => toggleRowExpanded(row.id)}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <td
