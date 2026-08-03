@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
-  initiateOAuthAction,
   resendVerificationAction,
   resetPasswordWithOtpAction,
   sendResetPasswordAction,
@@ -205,11 +204,10 @@ export function LoginForm() {
 
   function onGoogleSignIn(pickAccount = false) {
     setError(null);
-    startTransition(async () => {
-      await initiateOAuthAction(
-        pickAccount ? { pickAccount: true } : undefined
-      );
-    });
+    const url = pickAccount
+      ? "/api/auth/google?pick_account=1"
+      : "/api/auth/google";
+    window.location.assign(url);
   }
 
   function onResendCode() {

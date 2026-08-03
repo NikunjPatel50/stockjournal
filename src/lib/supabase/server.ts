@@ -1,13 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createAuthSafeFetch } from "@/lib/supabase/auth-fetch";
 import { isJwtClockSkewError } from "@/lib/supabase/auth-errors";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 import { mapSupabaseUser, type AppUser } from "@/lib/supabase/types";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
+  const supabaseKey = getSupabaseAnonKey();
 
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+  return createServerClient(getSupabaseUrl(), supabaseKey, {
+    global: {
+      fetch: createAuthSafeFetch(supabaseKey),
+    },
     cookies: {
       getAll() {
         return cookieStore.getAll();

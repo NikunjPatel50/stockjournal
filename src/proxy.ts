@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isPublicPath } from "@/lib/public-paths";
+import { createAuthSafeFetch } from "@/lib/supabase/auth-fetch";
 import { isJwtClockSkewError } from "@/lib/supabase/auth-errors";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
@@ -11,11 +12,15 @@ function withNoIndex(response: NextResponse) {
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+  const supabaseKey = getSupabaseAnonKey();
 
   const supabase = createServerClient(
     getSupabaseUrl(),
-    getSupabaseAnonKey(),
+    supabaseKey,
     {
+      global: {
+        fetch: createAuthSafeFetch(supabaseKey),
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll();

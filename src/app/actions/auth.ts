@@ -1,8 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { GOOGLE_OAUTH_HINT_COOKIE } from "@/lib/google-oauth-hint";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { mapSupabaseUser } from "@/lib/supabase/types";
 
@@ -256,35 +254,4 @@ export async function signOutAction() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
   redirect("/login");
-}
-
-export async function initiateOAuthAction(options?: { pickAccount?: boolean }) {
-  const cookieStore = await cookies();
-  const supabase = await createSupabaseServerClient();
-
-  const loginHint = cookieStore.get(GOOGLE_OAUTH_HINT_COOKIE)?.value?.trim();
-  const queryParams: Record<string, string> = {};
-
-  if (options?.pickAccount) {
-    queryParams.prompt = "select_account";
-  } else if (loginHint) {
-    queryParams.login_hint = loginHint;
-  }
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: appUrl("/api/auth/callback"),
-      skipBrowserRedirect: true,
-      ...(Object.keys(queryParams).length > 0 ? { queryParams } : {}),
-    },
-  });
-
-  if (error || !data?.url) {
-    redirect(
-      `/login?error=${encodeURIComponent(error?.message ?? "OAuth init failed")}`
-    );
-  }
-
-  redirect(data.url);
 }
