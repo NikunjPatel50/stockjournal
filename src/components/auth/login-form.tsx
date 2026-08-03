@@ -26,6 +26,7 @@ import {
   saveRememberedLogin,
 } from "@/lib/remember-credentials";
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 
 const LOGIN_FIELD_CLASS =
   "h-10 border-input bg-background text-foreground shadow-none placeholder:text-muted-foreground focus-visible:border-emerald-600 focus-visible:ring-emerald-600/20 dark:border-input dark:bg-background";
@@ -202,14 +203,6 @@ export function LoginForm() {
     });
   }
 
-  function onGoogleSignIn(pickAccount = false) {
-    setError(null);
-    const url = pickAccount
-      ? "/api/auth/google?pick_account=1"
-      : "/api/auth/google";
-    window.location.assign(url);
-  }
-
   function onResendCode() {
     setError(null);
     startTransition(async () => {
@@ -328,28 +321,22 @@ export function LoginForm() {
 
       {(mode === "signin" || mode === "signup") && (
         <>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 w-full gap-2.5 border-border bg-background text-sm font-medium text-foreground shadow-none hover:bg-muted/60"
-            disabled={pending}
-            onClick={() => onGoogleSignIn(false)}
-          >
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <GoogleIcon className="size-4" />
+          <a
+            href="/api/auth/google"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "lg" }),
+              "h-10 w-full gap-2.5 border-border bg-background text-sm font-medium text-foreground shadow-none hover:bg-muted/60"
             )}
+          >
+            <GoogleIcon className="size-4" />
             Continue with Google
-          </Button>
-          <button
-            type="button"
-            className="mt-2 w-full text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-50"
-            disabled={pending}
-            onClick={() => onGoogleSignIn(true)}
+          </a>
+          <a
+            href="/api/auth/google?pick_account=1"
+            className="mt-2 block w-full text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             Use a different Google account
-          </button>
+          </a>
 
           <div className="relative my-3 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
