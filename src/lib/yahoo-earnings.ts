@@ -1,9 +1,11 @@
+import { addDays, format, parseISO, startOfDay } from "date-fns";
 import {
   getListingMarket,
   normalizeListingMarket,
   yahooSymbolForListingMarket,
   type ListingMarketId,
 } from "@/lib/equity-listing-markets";
+import { fetchNseNextEarningsDate } from "@/lib/nse-earnings";
 import { normalizeQuoteAssetClass, quoteLookupKey } from "@/lib/eodhd";
 import type { AssetClass, JournalTrade } from "@/lib/journal-types";
 
@@ -17,6 +19,11 @@ type YahooEarningsTimestamp = {
   fmt?: string;
 };
 
+type YahooEarningsTrend = {
+  period?: string;
+  endDate?: string | null;
+};
+
 let yahooAuthCache: {
   cookie: string;
   crumb: string;
@@ -24,6 +31,8 @@ let yahooAuthCache: {
 } | null = null;
 
 const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; SwingTradingLog/1.0)";
+const INDIA_REPORTING_LAG_DAYS = 40;
+const DEFAULT_REPORTING_LAG_DAYS = 30;
 
 async function getYahooAuth(): Promise<{ cookie: string; crumb: string } | null> {
   if (yahooAuthCache && Date.now() < yahooAuthCache.expiresAt) {
@@ -66,28 +75,89 @@ async function getYahooAuth(): Promise<{ cookie: string; crumb: string } | null>
   }
 }
 
-function pickNextEarningsDate(
+function normalizeYahooDate(value: string): string | null {
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parsed = Date.parse(trimmed);
+  if (Number.isNaN(parsed)) return null;
+  return format(new Date(parsed), "yyyy-MM-dd");
+}
+
+function pickNextCalendarEarningsDate(
   earningsDates: YahooEarningsTimestamp[],
   isEstimate: boolean
-): EarningsDateInfo {
+): EarningsDateInfo | null {
   const now = Math.floor(Date.now() / 1000);
   const upcoming = earningsDates
     .filter((entry) => typeof entry.raw === "number" && entry.raw >= now - 86_400)
     .sort((a, b) => (a.raw ?? 0) - (b.raw ?? 0));
 
   const next = upcoming[0];
-  if (!next?.fmt) {
-    return { nextEarningsDate: null, isEstimate: false };
-  }
+  if (!next?.fmt) return null;
+
+  const normalized = normalizeYahooDate(next.fmt);
+  if (!normalized) return null;
 
   return {
-    nextEarningsDate: next.fmt,
+    nextEarningsDate: normalized,
     isEstimate,
   };
 }
 
+function pickEstimatedEarningsFromTrend(
+  trends: YahooEarningsTrend[],
+  reportingLagDays: number
+): EarningsDateInfo | null {
+  const today = startOfDay(new Date());
+  let best: Date | null = null;
+
+  for (const trend of trends) {
+    if (!trend.endDate) continue;
+    const quarterEnd = parseISO(trend.endDate);
+    if (Number.isNaN(quarterEnd.getTime())) continue;
+
+    const estimatedAnnouncement = addDays(startOfDay(quarterEnd), reportingLagDays);
+    if (estimatedAnnouncement < today) continue;
+    if (!best || estimatedAnnouncement < best) {
+      best = estimatedAnnouncement;
+    }
+  }
+
+  if (!best) return null;
+  return {
+    nextEarningsDate: format(best, "yyyy-MM-dd"),
+    isEstimate: true,
+  };
+}
+
+function pickEstimatedEarningsFromMostRecentQuarter(
+  rawSeconds: number,
+  reportingLagDays: number
+): EarningsDateInfo | null {
+  const today = startOfDay(new Date());
+  let quarterEnd = startOfDay(new Date(rawSeconds * 1000));
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const estimatedAnnouncement = addDays(quarterEnd, reportingLagDays);
+    if (estimatedAnnouncement >= today) {
+      return {
+        nextEarningsDate: format(estimatedAnnouncement, "yyyy-MM-dd"),
+        isEstimate: true,
+      };
+    }
+    quarterEnd = addDays(quarterEnd, 90);
+  }
+
+  return null;
+}
+
+function isIndianListingMarket(listingMarket: ListingMarketId) {
+  return listingMarket === "IN_NSE" || listingMarket === "IN_BSE";
+}
+
 export async function fetchYahooNextEarningsDate(
-  yahooSymbol: string
+  yahooSymbol: string,
+  listingMarket: ListingMarketId = "US"
 ): Promise<EarningsDateInfo | null> {
   if (!yahooSymbol) return null;
 
@@ -97,8 +167,15 @@ export async function fetchYahooNextEarningsDate(
   const url = new URL(
     `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSymbol)}`
   );
-  url.searchParams.set("modules", "calendarEvents");
+  url.searchParams.set(
+    "modules",
+    "calendarEvents,earningsTrend,defaultKeyStatistics"
+  );
   url.searchParams.set("crumb", auth.crumb);
+
+  const reportingLagDays = isIndianListingMarket(listingMarket)
+    ? INDIA_REPORTING_LAG_DAYS
+    : DEFAULT_REPORTING_LAG_DAYS;
 
   try {
     const res = await fetch(url.toString(), {
@@ -120,18 +197,41 @@ export async function fetchYahooNextEarningsDate(
               isEarningsDateEstimate?: boolean;
             };
           };
+          earningsTrend?: {
+            trend?: YahooEarningsTrend[];
+          };
+          defaultKeyStatistics?: {
+            mostRecentQuarter?: YahooEarningsTimestamp;
+          };
         }>;
       };
     };
 
-    const earnings =
-      payload.quoteSummary?.result?.[0]?.calendarEvents?.earnings;
-    if (!earnings) return { nextEarningsDate: null, isEstimate: false };
+    const result = payload.quoteSummary?.result?.[0];
+    if (!result) return null;
 
-    return pickNextEarningsDate(
-      earnings.earningsDate ?? [],
-      earnings.isEarningsDateEstimate === true
+    const calendar = result.calendarEvents?.earnings;
+    const fromCalendar = pickNextCalendarEarningsDate(
+      calendar?.earningsDate ?? [],
+      calendar?.isEarningsDateEstimate === true
     );
+    if (fromCalendar?.nextEarningsDate) return fromCalendar;
+
+    const fromTrend = pickEstimatedEarningsFromTrend(
+      result.earningsTrend?.trend ?? [],
+      reportingLagDays
+    );
+    if (fromTrend?.nextEarningsDate) return fromTrend;
+
+    const mostRecentQuarter = result.defaultKeyStatistics?.mostRecentQuarter?.raw;
+    if (typeof mostRecentQuarter === "number") {
+      return pickEstimatedEarningsFromMostRecentQuarter(
+        mostRecentQuarter,
+        reportingLagDays
+      );
+    }
+
+    return { nextEarningsDate: null, isEstimate: false };
   } catch {
     return null;
   }
@@ -189,11 +289,25 @@ export async function fetchNextEarningsDateForTrade(
   assetClass: AssetClass,
   listingMarket: ListingMarketId
 ): Promise<EarningsDateInfo | null> {
+  if (normalizeQuoteAssetClass(assetClass) !== "Equities") return null;
+
+  if (isIndianListingMarket(listingMarket)) {
+    const nse = await fetchNseNextEarningsDate(ticker);
+    if (nse?.nextEarningsDate) return nse;
+  }
+
   const yahooSymbol = yahooSymbolForTrade(ticker, assetClass, listingMarket);
   if (!yahooSymbol) return null;
-  return fetchYahooNextEarningsDate(yahooSymbol);
+  return fetchYahooNextEarningsDate(yahooSymbol, listingMarket);
 }
 
 export function earningsMarketLabel(marketId: ListingMarketId): string {
   return getListingMarket(marketId).label;
+}
+
+export function parseEarningsDisplayDate(value: string): Date | null {
+  const normalized = normalizeYahooDate(value);
+  if (!normalized) return null;
+  const parsed = parseISO(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

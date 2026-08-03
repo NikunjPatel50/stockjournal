@@ -55,7 +55,7 @@ import { useEarningsDates } from "@/hooks/use-earnings-dates";
 import { useMarketQuotes, type ClientMarketQuote } from "@/hooks/use-market-quotes";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { CurrencyCode } from "@/lib/settings";
-import type { EarningsDateInfo } from "@/lib/yahoo-earnings";
+import { parseEarningsDisplayDate, type EarningsDateInfo } from "@/lib/yahoo-earnings";
 import {
   cn,
   NUMERIC_CLASS,
@@ -327,10 +327,15 @@ function NextEarningsDateValue({
     return <span className="text-sm text-muted-foreground">Not scheduled</span>;
   }
 
+  const displayDate = parseEarningsDisplayDate(earnings.nextEarningsDate);
+  if (!displayDate) {
+    return <span className="text-sm text-muted-foreground">Not scheduled</span>;
+  }
+
   return (
     <div className="flex flex-col items-center gap-0.5">
       <span className={cn("text-sm font-medium", NUMERIC_CLASS)}>
-        {format(new Date(`${earnings.nextEarningsDate}T12:00:00`), "MMM d, yyyy")}
+        {format(displayDate, "MMM d, yyyy")}
       </span>
       {earnings.isEstimate ? (
         <span className="text-[10px] text-muted-foreground">Estimated</span>
