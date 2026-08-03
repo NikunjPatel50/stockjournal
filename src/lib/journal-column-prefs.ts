@@ -21,6 +21,7 @@ export const JOURNAL_REORDERABLE_COLUMNS = [
   { id: "invested", label: "Invested" },
   { id: "pnl", label: "Net P&L" },
   { id: "riskReward", label: "R:R" },
+  { id: "targetStopProgress", label: "Target / Stop" },
   { id: "holdTimeHours", label: "Hold" },
 ] as const;
 

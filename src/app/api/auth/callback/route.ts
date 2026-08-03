@@ -4,7 +4,7 @@ import {
   GOOGLE_OAUTH_HINT_COOKIE,
   GOOGLE_OAUTH_HINT_MAX_AGE,
 } from "@/lib/google-oauth-hint";
-import { createSupabaseRouteClient } from "@/lib/supabase/route-client";
+import { createSupabaseOAuthRouteClient } from "@/lib/supabase/route-client";
 import { mapSupabaseUser } from "@/lib/supabase/types";
 
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = await createSupabaseRouteClient();
+  const { supabase, applyCookiesTo } = createSupabaseOAuthRouteClient(request);
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error || !data.user) {
@@ -47,10 +47,13 @@ export async function GET(request: NextRequest) {
       "Enter the 6-digit code we emailed you to finish creating your account."
     );
 
-    return NextResponse.redirect(verifyUrl);
+    const response = NextResponse.redirect(verifyUrl);
+    applyCookiesTo(response);
+    return response;
   }
 
   const response = NextResponse.redirect(new URL("/dashboard", request.url));
+  applyCookiesTo(response);
 
   if (user.email) {
     response.cookies.set(GOOGLE_OAUTH_HINT_COOKIE, user.email, {

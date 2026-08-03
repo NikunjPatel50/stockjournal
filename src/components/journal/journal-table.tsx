@@ -50,6 +50,7 @@ import {
   type JournalColumnPrefs,
 } from "@/lib/journal-column-prefs";
 import { JournalColumnsMenu } from "@/components/journal/journal-columns-menu";
+import { TargetStopProgressBar } from "@/components/journal/target-stop-progress-bar";
 import { useEarningsDates } from "@/hooks/use-earnings-dates";
 import { useMarketQuotes, type ClientMarketQuote } from "@/hooks/use-market-quotes";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -1005,6 +1006,29 @@ export function JournalTable({
         },
       },
       {
+        id: "targetStopProgress",
+        header: () => <StaticHeader label="Target / Stop" />,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const trade = row.original;
+          const quote = getQuote(trade);
+          const isActive = (trade.status ?? "Closed") === "Active";
+          const currentPrice = isActive
+            ? (quote?.price ?? null)
+            : trade.exitPrice > 0
+              ? trade.exitPrice
+              : null;
+
+          return (
+            <TargetStopProgressBar
+              trade={trade}
+              currentPrice={currentPrice}
+              loading={isActive && quotesLoading && currentPrice == null}
+            />
+          );
+        },
+      },
+      {
         accessorKey: "holdTimeHours",
         header: ({ column }) => (
           <SortHeader
@@ -1311,6 +1335,27 @@ export function JournalTable({
                               currency={quoteDisplayCurrency(quote, displayCurrency)}
                             />
                           </div>
+                        </div>
+                        <div className="col-span-2 sm:col-span-3">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Target / Stop
+                          </p>
+                          <TargetStopProgressBar
+                            trade={trade}
+                            currentPrice={
+                              (trade.status ?? "Closed") === "Active"
+                                ? (quote?.price ?? null)
+                                : trade.exitPrice > 0
+                                  ? trade.exitPrice
+                                  : null
+                            }
+                            loading={
+                              (trade.status ?? "Closed") === "Active" &&
+                              quotesLoading &&
+                              quote?.price == null
+                            }
+                            compact
+                          />
                         </div>
                       </div>
 

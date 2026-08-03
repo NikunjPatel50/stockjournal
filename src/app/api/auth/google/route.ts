@@ -1,14 +1,12 @@
-import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { GOOGLE_OAUTH_HINT_COOKIE } from "@/lib/google-oauth-hint";
-import { createSupabaseRouteClient } from "@/lib/supabase/route-client";
+import { createSupabaseOAuthRouteClient } from "@/lib/supabase/route-client";
 
 export async function GET(request: NextRequest) {
   const pickAccount = request.nextUrl.searchParams.get("pick_account") === "1";
-  const cookieStore = await cookies();
-  const loginHint = cookieStore.get(GOOGLE_OAUTH_HINT_COOKIE)?.value?.trim();
+  const loginHint = request.cookies.get(GOOGLE_OAUTH_HINT_COOKIE)?.value?.trim();
 
-  const supabase = await createSupabaseRouteClient();
+  const { supabase, applyCookiesTo } = createSupabaseOAuthRouteClient(request);
 
   const queryParams: Record<string, string> = {};
   if (pickAccount) {
@@ -34,5 +32,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(data.url);
+  const response = NextResponse.redirect(data.url);
+  applyCookiesTo(response);
+  return response;
 }

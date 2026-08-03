@@ -338,10 +338,9 @@ export function LoginForm() {
             Use a different Google account
           </a>
 
-          <div className="relative my-3 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
-            <span className="relative bg-card px-3">Or</span>
-          </div>
+          <p className="my-3 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Or
+          </p>
         </>
       )}
 
