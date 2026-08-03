@@ -7,11 +7,15 @@ import { normalizeQuoteAssetClass } from "@/lib/eodhd";
 import { getCurrentUser } from "@/lib/supabase/server";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
+import { prewarmNseEarningsCache } from "@/lib/nse-earnings";
 import {
   earningsLookupKey,
   fetchNextEarningsDateForTrade,
+  prewarmYahooEarningsCache,
   type EarningsDateInfo,
 } from "@/lib/yahoo-earnings";
+
+export const maxDuration = 30;
 
 type EarningsRequestItem = {
   ticker?: string;
@@ -57,6 +61,16 @@ export async function POST(request: Request) {
   const defaultMarket = defaultListingMarketForCurrency(currency);
 
   const earnings: Record<string, EarningsDateInfo | null> = {};
+
+  const hasIndianSymbols = items.some((item) => {
+    const market = normalizeListingMarket(item.listingMarket ?? defaultMarket);
+    return market === "IN_NSE" || market === "IN_BSE";
+  });
+
+  await Promise.all([
+    hasIndianSymbols ? prewarmNseEarningsCache() : Promise.resolve(),
+    prewarmYahooEarningsCache(),
+  ]);
 
   await Promise.all(
     items.map(async (item) => {

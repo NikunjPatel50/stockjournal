@@ -23,6 +23,7 @@ type EarningsState = {
 };
 
 const REFRESH_MS = 6 * 60 * 60 * 1000;
+const CLIENT_FETCH_TIMEOUT_MS = 25_000;
 
 export function useEarningsDates(
   trades: JournalTrade[],
@@ -66,11 +67,20 @@ export function useEarningsDates(
     }));
 
     try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        CLIENT_FETCH_TIMEOUT_MS
+      );
+
       const res = await fetch("/api/earnings-dates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbols, currency }),
+        signal: controller.signal,
       });
+
+      window.clearTimeout(timeoutId);
 
       const data = (await res.json()) as {
         error?: string;
@@ -89,10 +99,17 @@ export function useEarningsDates(
         fetchedAt: data.fetchedAt ?? Date.now(),
       });
     } catch (err) {
+      const message =
+        err instanceof Error && err.name === "AbortError"
+          ? "Earnings lookup timed out"
+          : err instanceof Error
+            ? err.message
+            : "Could not load earnings dates";
+
       setState((prev) => ({
         ...prev,
         loading: false,
-        error: err instanceof Error ? err.message : "Could not load earnings dates",
+        error: message,
       }));
     }
   }, [currency, symbols]);

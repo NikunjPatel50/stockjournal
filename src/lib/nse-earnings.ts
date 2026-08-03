@@ -1,5 +1,8 @@
 import { addMonths, format, parse, startOfDay } from "date-fns";
+import { fetchWithTimeout, extractResponseCookies } from "@/lib/fetch-with-timeout";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
+
+const NSE_FETCH_TIMEOUT_MS = 4000;
 
 export type NseEarningsDateInfo = {
   nextEarningsDate: string | null;
@@ -18,20 +21,25 @@ let nseCookieCache: { cookie: string; expiresAt: number } | null = null;
 const NSE_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+export async function prewarmNseEarningsCache(): Promise<void> {
+  await getNseCookie();
+}
+
 async function getNseCookie(): Promise<string | null> {
   if (nseCookieCache && Date.now() < nseCookieCache.expiresAt) {
     return nseCookieCache.cookie;
   }
 
   try {
-    const res = await fetch("https://www.nseindia.com/", {
-      headers: { "User-Agent": NSE_USER_AGENT },
-      cache: "no-store",
-    });
-    const cookie = (res.headers.getSetCookie?.() ?? [])
-      .map((entry) => entry.split(";")[0]?.trim())
-      .filter(Boolean)
-      .join("; ");
+    const res = await fetchWithTimeout(
+      "https://www.nseindia.com/",
+      {
+        headers: { "User-Agent": NSE_USER_AGENT },
+        cache: "no-store",
+      },
+      NSE_FETCH_TIMEOUT_MS
+    );
+    const cookie = extractResponseCookies(res);
     if (!cookie) return null;
 
     nseCookieCache = {
@@ -91,15 +99,19 @@ export async function fetchNseNextEarningsDate(
   url.searchParams.set("to_date", toParam);
 
   try {
-    const res = await fetch(url.toString(), {
-      cache: "no-store",
-      headers: {
-        "User-Agent": NSE_USER_AGENT,
-        Accept: "application/json",
-        Referer: "https://www.nseindia.com/",
-        Cookie: cookie,
+    const res = await fetchWithTimeout(
+      url.toString(),
+      {
+        cache: "no-store",
+        headers: {
+          "User-Agent": NSE_USER_AGENT,
+          Accept: "application/json",
+          Referer: "https://www.nseindia.com/",
+          Cookie: cookie,
+        },
       },
-    });
+      NSE_FETCH_TIMEOUT_MS
+    );
     if (!res.ok) return null;
 
     const events = (await res.json()) as NseEvent[];

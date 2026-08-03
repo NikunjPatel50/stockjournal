@@ -5,7 +5,10 @@ import {
   yahooSymbolForListingMarket,
   type ListingMarketId,
 } from "@/lib/equity-listing-markets";
+import { fetchWithTimeout, extractResponseCookies } from "@/lib/fetch-with-timeout";
 import { fetchNseNextEarningsDate } from "@/lib/nse-earnings";
+
+const YAHOO_FETCH_TIMEOUT_MS = 6000;
 import { normalizeQuoteAssetClass, quoteLookupKey } from "@/lib/eodhd";
 import type { AssetClass, JournalTrade } from "@/lib/journal-types";
 
@@ -34,31 +37,36 @@ const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; SwingTradingLog/1.0)";
 const INDIA_REPORTING_LAG_DAYS = 40;
 const DEFAULT_REPORTING_LAG_DAYS = 30;
 
+export async function prewarmYahooEarningsCache(): Promise<void> {
+  await getYahooAuth();
+}
+
 async function getYahooAuth(): Promise<{ cookie: string; crumb: string } | null> {
   if (yahooAuthCache && Date.now() < yahooAuthCache.expiresAt) {
     return yahooAuthCache;
   }
 
   try {
-    const bootstrap = await fetch("https://fc.yahoo.com", {
-      redirect: "manual",
-      headers: { "User-Agent": YAHOO_USER_AGENT },
-    });
-    const setCookie = bootstrap.headers.getSetCookie?.() ?? [];
-    const cookie = setCookie
-      .map((entry) => entry.split(";")[0]?.trim())
-      .filter(Boolean)
-      .join("; ");
+    const bootstrap = await fetchWithTimeout(
+      "https://fc.yahoo.com",
+      {
+        redirect: "manual",
+        headers: { "User-Agent": YAHOO_USER_AGENT },
+      },
+      YAHOO_FETCH_TIMEOUT_MS
+    );
+    const cookie = extractResponseCookies(bootstrap);
     if (!cookie) return null;
 
-    const crumbRes = await fetch(
+    const crumbRes = await fetchWithTimeout(
       "https://query2.finance.yahoo.com/v1/test/getcrumb",
       {
         headers: {
           "User-Agent": YAHOO_USER_AGENT,
           Cookie: cookie,
         },
-      }
+      },
+      YAHOO_FETCH_TIMEOUT_MS
     );
     if (!crumbRes.ok) return null;
     const crumb = (await crumbRes.text()).trim();
@@ -178,14 +186,18 @@ export async function fetchYahooNextEarningsDate(
     : DEFAULT_REPORTING_LAG_DAYS;
 
   try {
-    const res = await fetch(url.toString(), {
-      cache: "no-store",
-      headers: {
-        "User-Agent": YAHOO_USER_AGENT,
-        Cookie: auth.cookie,
-        Accept: "application/json",
+    const res = await fetchWithTimeout(
+      url.toString(),
+      {
+        cache: "no-store",
+        headers: {
+          "User-Agent": YAHOO_USER_AGENT,
+          Cookie: auth.cookie,
+          Accept: "application/json",
+        },
       },
-    });
+      YAHOO_FETCH_TIMEOUT_MS
+    );
     if (!res.ok) return null;
 
     const payload = (await res.json()) as {
