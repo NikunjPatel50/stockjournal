@@ -6,6 +6,7 @@ import { AnalyticsHeader } from "@/components/analytics/analytics-header";
 import { MonthlyPerformanceCard } from "@/components/analytics/monthly-performance-card";
 import { PnlBreakdownCard } from "@/components/analytics/pnl-breakdown-card";
 import { RecentTradesCard } from "@/components/analytics/recent-trades-card";
+import { TradePulseSection } from "@/components/trade-pulse/trade-pulse-section";
 import { KpiRibbon } from "@/components/analytics/kpi-ribbon";
 import { MainCharts } from "@/components/analytics/main-charts";
 import { useSettings } from "@/components/settings/settings-provider";
@@ -56,6 +57,8 @@ export default function DashboardPage() {
         title="Dashboard"
       />
       <KpiRibbon kpis={kpis} startingEquity={startingEquity} />
+
+      <TradePulseSection />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
         <OvernightRiskCard

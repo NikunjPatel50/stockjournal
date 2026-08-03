@@ -25,6 +25,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { DateTimeField, formatDateTimeFieldValue } from "@/components/journal/datetime-field";
 import { ChartScreenshotPreview } from "@/components/journal/chart-screenshot-preview";
+import { EarningsCheck } from "@/components/journal/earnings-check";
+import { PlannedRPreview } from "@/components/journal/planned-r-preview";
+import { RepeatSetup } from "@/components/journal/repeat-setup";
+import { SmartAtrLevels } from "@/components/journal/smart-atr-levels";
 import { SmartPositionSizer } from "@/components/journal/smart-position-sizer";
 import {
   TickerSearchInput,
@@ -32,6 +36,8 @@ import {
 } from "@/components/journal/ticker-search-input";
 import { useSettings } from "@/components/settings/settings-provider";
 import {
+  type AssetClass,
+  type JournalDirection,
   type JournalTrade,
   type JournalTradeStatus,
 } from "@/lib/journal-types";
@@ -177,6 +183,7 @@ interface AddTradeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTrade?: JournalTrade | null;
+  trades?: JournalTrade[];
   onSave: (trade: JournalTrade) => void;
 }
 
@@ -256,12 +263,30 @@ export function AddTradeModal({
   open,
   onOpenChange,
   initialTrade,
+  trades = [],
   onSave,
 }: AddTradeModalProps) {
   const { settings } = useSettings();
   const defaultMarket = defaultListingMarketForCurrency(
     settings.profile.currency
   );
+  const [tradeMeta, setTradeMeta] = useState<{
+    direction: JournalDirection;
+    assetClass: AssetClass;
+    strategy: string;
+    tags: string[];
+    psychology: string[];
+    fees: number;
+    mindset: number;
+  }>({
+    direction: "Long",
+    assetClass: "Equities",
+    strategy: "",
+    tags: [],
+    psychology: [],
+    fees: 0,
+    mindset: 3,
+  });
   const form = useForm<TradeFormInput, unknown, TradeFormValues>({
     resolver: zodResolver(tradeSchema),
     defaultValues: {
@@ -285,8 +310,12 @@ export function AddTradeModal({
   const [screenshotDragActive, setScreenshotDragActive] = useState(false);
   const tradeStatus = form.watch("status");
   const listingMarket = form.watch("listingMarket");
+  const tickerWatch = form.watch("ticker");
   const entryDate = form.watch("entryDate");
   const entryPriceWatch = form.watch("entryPrice");
+  const stopLossWatch = form.watch("stopLoss");
+  const profitTargetWatch = form.watch("profitTarget");
+  const quantityWatch = form.watch("quantity");
   const exitFieldsDisabled = tradeStatus === "Active";
 
   useEffect(() => {
@@ -301,6 +330,15 @@ export function AddTradeModal({
     setScreenshotDragActive(false);
     setScreenshotSrc(initialTrade?.screenshots[0] ?? "");
     if (initialTrade) {
+      setTradeMeta({
+        direction: initialTrade.direction,
+        assetClass: initialTrade.assetClass,
+        strategy: initialTrade.strategy,
+        tags: [...initialTrade.tags],
+        psychology: [...initialTrade.psychology],
+        fees: initialTrade.fees,
+        mindset: initialTrade.mindset,
+      });
       form.reset({
         listingMarket:
           initialTrade.listingMarket != null
@@ -324,6 +362,15 @@ export function AddTradeModal({
         notes: initialTrade.notes,
       });
     } else {
+      setTradeMeta({
+        direction: "Long",
+        assetClass: "Equities",
+        strategy: "",
+        tags: [],
+        psychology: [],
+        fees: 0,
+        mindset: 3,
+      });
       form.reset({
         listingMarket: defaultMarket,
         ticker: "",
@@ -448,9 +495,9 @@ export function AddTradeModal({
       return;
     }
 
-    const direction = initialTrade?.direction ?? "Long";
-    const assetClass = initialTrade?.assetClass ?? "Equities";
-    const fees = initialTrade?.fees ?? 0;
+    const direction = tradeMeta.direction;
+    const assetClass = tradeMeta.assetClass;
+    const fees = tradeMeta.fees;
     const exitPrice =
       values.status === "Active" ? 0 : values.exitPrice;
     const exitDate =
@@ -487,8 +534,8 @@ export function AddTradeModal({
       direction,
       status: values.status as JournalTradeStatus,
       outcome,
-      strategy: initialTrade?.strategy ?? "",
-      tags: initialTrade?.tags ?? [],
+      strategy: tradeMeta.strategy,
+      tags: tradeMeta.tags,
       entryDate: values.entryDate,
       exitDate,
       entryPrice: values.entryPrice,
@@ -503,9 +550,9 @@ export function AddTradeModal({
       riskReward: rr,
       plannedRisk: Math.round(plannedRisk * 100) / 100,
       realizedRisk: pnl < 0 ? Math.abs(pnl) : 0,
-      mindset: initialTrade?.mindset ?? 3,
+      mindset: tradeMeta.mindset,
       notes: values.notes ?? "",
-      psychology: initialTrade?.psychology ?? [],
+      psychology: tradeMeta.psychology,
       executions:
         values.status === "Active"
           ? [
@@ -649,6 +696,12 @@ export function AddTradeModal({
                         </Field>
                       )}
                     />
+                    <EarningsCheck
+                      ticker={tickerWatch}
+                      listingMarket={listingMarket}
+                      entryDate={entryDate}
+                      currency={settings.profile.currency}
+                    />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Controller
                         control={form.control}
@@ -682,28 +735,116 @@ export function AddTradeModal({
                   description="Fill prices, size, and planned levels"
                   tone="emerald"
                 >
-                  <SmartPositionSizer
-                    entryPrice={entryPriceWatch}
-                    direction={initialTrade?.direction ?? "Long"}
-                    defaultCapital={settings.profile.startingBalance}
-                    defaultRiskReward={settings.risk.defaultRiskReward}
-                    onApply={(result) => {
-                      queueMicrotask(() => {
-                        form.setValue("entryPrice", result.entryPrice, {
-                          shouldValidate: true,
+                  <div className="relative mb-4 flex flex-wrap gap-2">
+                    <SmartPositionSizer
+                      entryPrice={entryPriceWatch}
+                      direction={tradeMeta.direction}
+                      defaultCapital={settings.profile.startingBalance}
+                      defaultRiskReward={settings.risk.defaultRiskReward}
+                      onApply={(result) => {
+                        queueMicrotask(() => {
+                          form.setValue("entryPrice", result.entryPrice, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("quantity", result.quantity, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("stopLoss", result.stopLoss, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("profitTarget", result.profitTarget, {
+                            shouldValidate: true,
+                          });
                         });
-                        form.setValue("quantity", result.quantity, {
-                          shouldValidate: true,
+                      }}
+                    />
+                    <SmartAtrLevels
+                      ticker={tickerWatch}
+                      listingMarket={listingMarket}
+                      entryDate={entryDate}
+                      entryPrice={entryPriceWatch}
+                      direction={tradeMeta.direction}
+                      onBeforeOpen={async () => {
+                        await tickerInputRef.current?.commit();
+                        return form.getValues("ticker");
+                      }}
+                      onApply={(result) => {
+                        queueMicrotask(() => {
+                          form.setValue("entryPrice", result.entryPrice, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("stopLoss", result.stopLoss, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("profitTarget", result.profitTarget, {
+                            shouldValidate: true,
+                          });
                         });
-                        form.setValue("stopLoss", result.stopLoss, {
-                          shouldValidate: true,
+                      }}
+                    />
+                    <RepeatSetup
+                      ticker={tickerWatch}
+                      entryPrice={entryPriceWatch}
+                      trades={trades}
+                      excludeTradeId={initialTrade?.id}
+                      onBeforeOpen={async () => {
+                        await tickerInputRef.current?.commit();
+                        return form.getValues("ticker");
+                      }}
+                      onApply={({ fields, source, pricing, quantity }) => {
+                        setTradeMeta((prev) => ({
+                          ...prev,
+                          strategy: fields.strategy,
+                          tags: fields.tags,
+                          psychology: fields.psychology,
+                          direction: fields.direction,
+                          assetClass: fields.assetClass,
+                        }));
+                        queueMicrotask(() => {
+                          if (pricing) {
+                            form.setValue("entryPrice", pricing.entryPrice, {
+                              shouldValidate: true,
+                            });
+                            form.setValue("stopLoss", pricing.stopLoss, {
+                              shouldValidate: true,
+                            });
+                            form.setValue("profitTarget", pricing.profitTarget, {
+                              shouldValidate: true,
+                            });
+                          } else {
+                            if (source.stopLoss > 0) {
+                              form.setValue("stopLoss", source.stopLoss, {
+                                shouldValidate: true,
+                              });
+                            }
+                            if (source.profitTarget > 0) {
+                              form.setValue("profitTarget", source.profitTarget, {
+                                shouldValidate: true,
+                              });
+                            }
+                          }
+                          if (quantity && quantity > 0) {
+                            form.setValue("quantity", quantity, {
+                              shouldValidate: true,
+                            });
+                          }
                         });
-                        form.setValue("profitTarget", result.profitTarget, {
-                          shouldValidate: true,
-                        });
-                      });
-                    }}
-                  />
+                      }}
+                    />
+                  </div>
+                  {tradeMeta.strategy || tradeMeta.tags.length > 0 ? (
+                    <p className="mb-3 text-[11px] text-muted-foreground">
+                      {tradeMeta.strategy ? (
+                        <span>Strategy: {tradeMeta.strategy}</span>
+                      ) : null}
+                      {tradeMeta.strategy && tradeMeta.tags.length > 0
+                        ? " · "
+                        : null}
+                      {tradeMeta.tags.length > 0 ? (
+                        <span>Tags: {tradeMeta.tags.join(", ")}</span>
+                      ) : null}
+                    </p>
+                  ) : null}
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
                     <Field label="Entry price">
                       <Input
@@ -750,6 +891,13 @@ export function AddTradeModal({
                       />
                     </Field>
                   </div>
+                  <PlannedRPreview
+                    entryPrice={entryPriceWatch}
+                    stopLoss={stopLossWatch}
+                    profitTarget={profitTargetWatch}
+                    quantity={quantityWatch}
+                    direction={tradeMeta.direction}
+                  />
                 </FormSection>
               </div>
 

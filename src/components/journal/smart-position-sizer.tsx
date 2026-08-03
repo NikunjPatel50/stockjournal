@@ -110,7 +110,7 @@ export function SmartPositionSizer({
   }
 
   return (
-    <div className="mb-4">
+    <>
       <Button
         type="button"
         variant="outline"
@@ -123,121 +123,134 @@ export function SmartPositionSizer({
       </Button>
 
       {open ? (
-        <div className="mt-3 space-y-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
-          <p className="text-xs text-muted-foreground">
-            Size from capital, set stop from stop %, and target from your risk:reward
-            ratio. Preview updates as you type; click Apply to fill the form.
-          </p>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Stock price
-              </Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                className={numberInputClass}
-                value={stockPrice}
-                onChange={(e) => setStockPrice(sanitizeDecimalInput(e.target.value))}
-                onFocus={selectAllOnFocus}
-                placeholder={entryHint ?? "Entry price"}
-              />
+        <div className="w-full basis-full">
+          <div className="mt-3 space-y-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+            <p className="text-xs text-muted-foreground">
+              Size from capital, set stop from stop %, and target from your
+              risk:reward ratio. Preview updates as you type; click Apply to
+              fill the form.
+            </p>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Stock price
+                </Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  className={numberInputClass}
+                  value={stockPrice}
+                  onChange={(e) =>
+                    setStockPrice(sanitizeDecimalInput(e.target.value))
+                  }
+                  onFocus={selectAllOnFocus}
+                  placeholder={entryHint ?? "Entry price"}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Capital to invest
+                </Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  className={numberInputClass}
+                  value={capital}
+                  onChange={(e) =>
+                    setCapital(sanitizeDecimalInput(e.target.value))
+                  }
+                  onFocus={selectAllOnFocus}
+                  placeholder={capitalHint ?? "10000"}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Risk : reward
+                </Label>
+                <Input
+                  className={numberInputClass}
+                  value={riskReward}
+                  onChange={(e) => setRiskReward(e.target.value)}
+                  onFocus={selectAllOnFocus}
+                  placeholder={riskRewardHint}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Stop % from entry
+                </Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  className={numberInputClass}
+                  value={stopPercent}
+                  onChange={(e) =>
+                    setStopPercent(sanitizeDecimalInput(e.target.value))
+                  }
+                  onFocus={selectAllOnFocus}
+                  placeholder="2"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Capital to invest
-              </Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                className={numberInputClass}
-                value={capital}
-                onChange={(e) => setCapital(sanitizeDecimalInput(e.target.value))}
-                onFocus={selectAllOnFocus}
-                placeholder={capitalHint ?? "10000"}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Risk : reward
-              </Label>
-              <Input
-                className={numberInputClass}
-                value={riskReward}
-                onChange={(e) => setRiskReward(e.target.value)}
-                onFocus={selectAllOnFocus}
-                placeholder={riskRewardHint}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Stop % from entry
-              </Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                className={numberInputClass}
-                value={stopPercent}
-                onChange={(e) => setStopPercent(sanitizeDecimalInput(e.target.value))}
-                onFocus={selectAllOnFocus}
-                placeholder="2"
-              />
-            </div>
-          </div>
 
-          {error ? (
-            <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>
-          ) : null}
+            {error ? (
+              <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>
+            ) : null}
 
-          {preview ? (
-            <div className="grid grid-cols-2 gap-2 rounded-md border border-border/80 bg-background/80 p-3 text-xs sm:grid-cols-3 lg:grid-cols-6">
-              <div className="text-center">
-                <p className="text-muted-foreground">Quantity</p>
-                <p className="font-semibold tabular-nums">{preview.quantity}</p>
+            {preview ? (
+              <div className="grid grid-cols-2 gap-2 rounded-md border border-border/80 bg-background/80 p-3 text-xs sm:grid-cols-3 lg:grid-cols-6">
+                <div className="text-center">
+                  <p className="text-muted-foreground">Quantity</p>
+                  <p className="font-semibold tabular-nums">{preview.quantity}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-muted-foreground">Stop loss</p>
+                  <p className="font-semibold tabular-nums">{preview.stopLoss}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-muted-foreground">Profit target</p>
+                  <p className="font-semibold tabular-nums">
+                    {preview.profitTarget}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-muted-foreground">Position</p>
+                  <p className="font-semibold tabular-nums">
+                    {preview.positionValue}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-muted-foreground">Max profit</p>
+                  <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(preview.maxProfit)}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-muted-foreground">Max loss</p>
+                  <p className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                    {formatCurrency(-preview.maxLoss)}
+                  </p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">Stop loss</p>
-                <p className="font-semibold tabular-nums">{preview.stopLoss}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">Profit target</p>
-                <p className="font-semibold tabular-nums">{preview.profitTarget}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">Position</p>
-                <p className="font-semibold tabular-nums">{preview.positionValue}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">Max profit</p>
-                <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(preview.maxProfit)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">Max loss</p>
-                <p className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                  {formatCurrency(-preview.maxLoss)}
-                </p>
-              </div>
+            ) : null}
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 bg-emerald-600 hover:bg-emerald-600/90"
+                disabled={!preview}
+                onClick={handleApply}
+              >
+                Apply
+              </Button>
             </div>
-          ) : null}
-
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 bg-emerald-600 hover:bg-emerald-600/90"
-              disabled={!preview}
-              onClick={handleApply}
-            >
-              Apply
-            </Button>
           </div>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

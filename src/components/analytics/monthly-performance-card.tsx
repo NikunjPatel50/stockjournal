@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import {
   computePerformanceForYear,
+  formatMoney,
   formatSignedPercent,
   getAnalyticsYears,
   type MonthlyPerformancePoint,
@@ -33,7 +34,7 @@ import { useSettings } from "@/components/settings/settings-provider";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 const chartConfig = {
-  returnPct: { label: "Return", color: "#10b981" },
+  monthPnl: { label: "P&L", color: "#10b981" },
 } satisfies ChartConfig;
 
 const GRANULARITY_OPTIONS: { value: PerformanceGranularity; label: string }[] = [
@@ -49,11 +50,11 @@ const GRANULARITY_TITLE: Record<PerformanceGranularity, string> = {
 };
 
 function yDomain(values: number[]): [number, number] {
-  if (values.every((v) => v === 0)) return [-10, 10];
+  if (values.length === 0) return [-100, 100];
   const min = Math.min(...values, 0);
   const max = Math.max(...values, 0);
-  const span = Math.max(max - min, 4);
-  const pad = span * 0.15;
+  const span = Math.max(max - min, 1);
+  const pad = Math.max(span * 0.2, 1);
   return [min - pad, max + pad];
 }
 
@@ -101,6 +102,21 @@ function PerformancePeriodTooltip({
     <div className="z-50 min-w-[12.5rem] rounded-lg border border-border bg-popover px-3 py-2.5 text-xs shadow-md">
       <p className="mb-2 font-semibold text-foreground">{row.monthTitle}</p>
       <div className="space-y-1">
+        <TooltipStatRow
+          label="P&L"
+          value={formatSignedMoney(row.monthPnl, currency)}
+          valueClassName={
+            row.monthPnl > 0
+              ? "text-emerald-600 dark:text-emerald-400"
+              : row.monthPnl < 0
+                ? "text-rose-600 dark:text-rose-400"
+                : undefined
+          }
+        />
+        <TooltipStatRow
+          label="Return"
+          value={formatSignedPercent(row.returnPct, 2)}
+        />
         <TooltipStatRow label="Trades" value={String(s.totalTrades)} />
         <TooltipStatRow
           label="Winners"
@@ -183,14 +199,14 @@ export function MonthlyPerformanceCard({
   }, [periods, selectedPeriodKey]);
 
   const domain = useMemo(
-    () => yDomain(periods.map((p) => p.returnPct)),
+    () => yDomain(periods.map((p) => p.monthPnl)),
     [periods]
   );
 
   const latest = periods[periods.length - 1];
   const display = selectedPeriod ?? latest;
-  const displayUp = (display?.returnPct ?? 0) > 0;
-  const displayDown = (display?.returnPct ?? 0) < 0;
+  const displayUp = (display?.monthPnl ?? 0) > 0;
+  const displayDown = (display?.monthPnl ?? 0) < 0;
   const tickInterval = xAxisInterval(periods.length, granularity);
   const maxBarSize =
     granularity === "daily" ? 8 : granularity === "weekly" ? 20 : 36;
@@ -267,10 +283,10 @@ export function MonthlyPerformanceCard({
             <YAxis
               tickLine={false}
               axisLine={false}
-              width={36}
+              width={52}
               tick={{ fontSize: 10 }}
               domain={domain}
-              tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+              tickFormatter={(v) => formatMoney(Number(v), false, currency)}
             />
             <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="4 4" />
             <ChartTooltip
@@ -280,7 +296,7 @@ export function MonthlyPerformanceCard({
               }
             />
             <Bar
-              dataKey="returnPct"
+              dataKey="monthPnl"
               radius={[4, 4, 0, 0]}
               maxBarSize={maxBarSize}
               cursor="pointer"
@@ -294,11 +310,11 @@ export function MonthlyPerformanceCard({
                 return (
                   <Cell
                     key={p.monthKey}
-                    fill={p.returnPct >= 0 ? "#10b981" : "#f43f5e"}
+                    fill={p.monthPnl >= 0 ? "#10b981" : "#f43f5e"}
                     fillOpacity={isSelected ? 1 : 0.4}
                     stroke={
                       isSelected
-                        ? p.returnPct >= 0
+                        ? p.monthPnl >= 0
                           ? "#059669"
                           : "#e11d48"
                         : "none"
@@ -324,7 +340,10 @@ export function MonthlyPerformanceCard({
                 !displayUp && !displayDown && "text-foreground"
               )}
             >
-              {formatSignedPercent(display.returnPct, 2)}
+              {formatSignedMoney(display.monthPnl, currency)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {formatSignedPercent(display.returnPct, 2)} return
             </p>
           </div>
         ) : null}

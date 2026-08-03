@@ -179,7 +179,7 @@ export function JournalSummaryBar({
       <Stat
         label="Total invested"
         value={formatMarketPrice(summary.totalInvested)}
-        subValue={tradeCountLabel(summary.count)}
+        subValue={tradeCountLabel(summary.activeCount)}
       />
       <Stat
         label="Total win"

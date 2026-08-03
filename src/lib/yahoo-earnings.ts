@@ -41,7 +41,7 @@ export async function prewarmYahooEarningsCache(): Promise<void> {
   await getYahooAuth();
 }
 
-async function getYahooAuth(): Promise<{ cookie: string; crumb: string } | null> {
+export async function getYahooAuth(): Promise<{ cookie: string; crumb: string } | null> {
   if (yahooAuthCache && Date.now() < yahooAuthCache.expiresAt) {
     return yahooAuthCache;
   }

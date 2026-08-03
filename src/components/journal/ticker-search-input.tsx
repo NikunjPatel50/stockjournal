@@ -12,12 +12,20 @@ import {
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import {
+  getListingMarket,
+  type ListingMarketId,
+} from "@/lib/equity-listing-markets";
+import {
+  filterSymbolSearchResultsForMarket,
+  finalizeSymbolSearchResults,
   pickBestSymbolMatch,
+  rankSymbolSearchResults,
   symbolNotFoundMessage,
   type SymbolSearchResult,
 } from "@/lib/symbol-search";
+import { filterNseSymbolDirectory } from "@/lib/nse-symbol-directory-shared";
+import { getClientNseSymbolDirectory } from "@/lib/nse-symbol-directory-client";
 import {
   formatTickerDisplayLabel,
   isTickerDisplayLabel,
@@ -40,17 +48,61 @@ type TickerSearchInputProps = {
   disabled?: boolean;
 };
 
-async function fetchSymbolSuggestions(
+async function searchLocalNseSymbols(
   query: string,
   listingMarket: ListingMarketId
 ): Promise<SymbolSearchResult[]> {
-  const params = new URLSearchParams({ q: query, listingMarket });
-  const res = await fetch(`/api/symbol-search?${params.toString()}`);
-  if (!res.ok) {
-    throw new Error("search_failed");
+  const directory = await getClientNseSymbolDirectory();
+  const hits = filterNseSymbolDirectory(directory, query, 20, "NSE");
+  const ranked = rankSymbolSearchResults(hits, listingMarket, query);
+  const filtered = filterSymbolSearchResultsForMarket(ranked, listingMarket);
+  return finalizeSymbolSearchResults(
+    filtered.slice(0, 20),
+    listingMarket,
+    query
+  );
+}
+
+async function searchSymbols(
+  query: string,
+  listingMarket: ListingMarketId,
+  signal?: AbortSignal
+): Promise<SymbolSearchResult[]> {
+  if (listingMarket === "IN_NSE") {
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    return searchLocalNseSymbols(query, listingMarket);
   }
-  const data = (await res.json()) as { results?: SymbolSearchResult[] };
-  return data.results ?? [];
+
+  return fetchSymbolSuggestions(query, listingMarket, signal);
+}
+
+async function fetchSymbolSuggestions(
+  query: string,
+  listingMarket: ListingMarketId,
+  signal?: AbortSignal
+): Promise<SymbolSearchResult[]> {
+  const params = new URLSearchParams({ q: query, listingMarket });
+  const timeoutController = new AbortController();
+  const timeoutId = window.setTimeout(() => timeoutController.abort(), 8000);
+
+  const onAbort = () => timeoutController.abort();
+  signal?.addEventListener("abort", onAbort);
+
+  try {
+    const res = await fetch(`/api/symbol-search?${params.toString()}`, {
+      signal: timeoutController.signal,
+    });
+    if (!res.ok) {
+      throw new Error("search_failed");
+    }
+    const data = (await res.json()) as { results?: SymbolSearchResult[] };
+    return data.results ?? [];
+  } finally {
+    window.clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", onAbort);
+  }
 }
 
 export const TickerSearchInput = forwardRef<
@@ -71,6 +123,7 @@ export const TickerSearchInput = forwardRef<
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const requestIdRef = useRef(0);
+  const searchAbortRef = useRef<AbortController | null>(null);
   const committedCodeRef = useRef<string | null>(null);
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<SymbolSearchResult[]>([]);
@@ -112,7 +165,7 @@ export const TickerSearchInput = forwardRef<
       }
 
       try {
-        const results = await fetchSymbolSuggestions(searchText, listingMarket);
+        const results = await searchSymbols(searchText, listingMarket);
         const match = pickBestSymbolMatch(searchText, results);
         if (!match) {
           setError(symbolNotFoundMessage(listingMarket));
@@ -167,6 +220,13 @@ export const TickerSearchInput = forwardRef<
   useEffect(() => {
     setLocalError(undefined);
     setSearchError(false);
+    setSuggestions([]);
+    setActiveIndex(-1);
+    searchAbortRef.current?.abort();
+
+    if (listingMarket === "IN_NSE") {
+      void getClientNseSymbolDirectory();
+    }
   }, [listingMarket]);
 
   useEffect(() => {
@@ -192,19 +252,12 @@ export const TickerSearchInput = forwardRef<
 
   useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length < 1) {
-      setSuggestions([]);
-      setLoading(false);
-      setSearchError(false);
-      setOpen(false);
-      return;
-    }
-
-    const parsed = parseTickerInput(trimmed);
     const committedTicker = value ? normalizeEquityTicker(value) : null;
+    const parsed = trimmed ? parseTickerInput(trimmed) : "";
     if (
-      (committedTicker && parsed === committedTicker) ||
-      (committedCodeRef.current && parsed === committedCodeRef.current)
+      trimmed &&
+      ((committedTicker && parsed === committedTicker) ||
+        (committedCodeRef.current && parsed === committedCodeRef.current))
     ) {
       setSuggestions([]);
       setLoading(false);
@@ -214,33 +267,51 @@ export const TickerSearchInput = forwardRef<
     }
 
     const requestId = ++requestIdRef.current;
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    let cancelled = false;
     setLoading(true);
     setSearchError(false);
     setOpen(true);
 
     const timer = window.setTimeout(async () => {
       try {
-        const searchText = isTickerDisplayLabel(trimmed)
-          ? parsed
-          : trimmed;
-        const results = await fetchSymbolSuggestions(searchText, listingMarket);
-        if (requestId !== requestIdRef.current) return;
+        const searchText = trimmed
+          ? isTickerDisplayLabel(trimmed)
+            ? parsed
+            : trimmed
+          : "";
+        const results = await searchSymbols(
+          searchText,
+          listingMarket,
+          controller.signal
+        );
+        if (cancelled || requestId !== requestIdRef.current) return;
         setSuggestions(results);
         setOpen(true);
         setActiveIndex(-1);
-      } catch {
-        if (requestId !== requestIdRef.current) return;
+      } catch (error) {
+        if (cancelled || requestId !== requestIdRef.current) return;
+        if (error instanceof Error && error.name === "AbortError") return;
         setSuggestions([]);
         setSearchError(true);
         setOpen(true);
       } finally {
-        if (requestId === requestIdRef.current) {
+        if (!cancelled && requestId === requestIdRef.current) {
           setLoading(false);
         }
       }
-    }, 280);
+    }, trimmed ? 150 : 0);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      controller.abort();
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    };
   }, [listingMarket, query, value]);
 
   useEffect(() => {
@@ -341,7 +412,7 @@ export const TickerSearchInput = forwardRef<
   }
 
   const shownError = error ?? localError;
-  const showDropdown = open && query.trim().length > 0;
+  const showDropdown = open;
 
   const dropdown =
     showDropdown && typeof document !== "undefined"
@@ -369,10 +440,18 @@ export const TickerSearchInput = forwardRef<
               </p>
             ) : suggestions.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">
-                No symbols found for this market.
+                {query.trim()
+                  ? "No symbols found for this market."
+                  : `Type to search ${getListingMarket(listingMarket).label} symbols.`}
               </p>
             ) : (
-              <ul role="listbox" className="max-h-64 overflow-auto py-1">
+              <>
+                {!query.trim() ? (
+                  <p className="border-b border-border px-4 py-2 text-[11px] text-muted-foreground">
+                    Type to filter symbols
+                  </p>
+                ) : null}
+                <ul role="listbox" className="max-h-64 overflow-auto py-1">
                 {suggestions.map((result, index) => (
                   <li key={`${result.exchange}-${result.code}`} role="option">
                     <button
@@ -396,6 +475,7 @@ export const TickerSearchInput = forwardRef<
                   </li>
                 ))}
               </ul>
+              </>
             )}
           </div>,
           document.body
@@ -410,19 +490,8 @@ export const TickerSearchInput = forwardRef<
           value={query}
           onChange={(event) => handleInputChange(event.target.value)}
           onFocus={() => {
-            const trimmed = query.trim();
-            if (!trimmed) return;
-
-            const parsed = parseTickerInput(trimmed);
-            const committedTicker = value ? normalizeEquityTicker(value) : null;
-            const isCommitted =
-              (committedTicker && parsed === committedTicker) ||
-              (committedCodeRef.current && parsed === committedCodeRef.current);
-
-            if (!isCommitted) {
-              setOpen(true);
-              updateDropdownPosition();
-            }
+            setOpen(true);
+            updateDropdownPosition();
           }}
           onBlur={() => {
             void handleBlur();

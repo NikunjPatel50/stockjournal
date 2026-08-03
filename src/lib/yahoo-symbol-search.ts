@@ -37,6 +37,48 @@ function codeFromYahooSymbol(symbol: string, suffix: string): string {
   return normalizeEquityTicker(symbol.split(".")[0] ?? symbol);
 }
 
+function exchangeForListingMarket(
+  listingMarket: ListingMarketId,
+  detected: string
+): string {
+  switch (listingMarket) {
+    case "IN_NSE":
+      return "NSE";
+    case "IN_BSE":
+      return "BSE";
+    case "US":
+      return "US";
+    case "UK":
+      return "LSE";
+    case "CA":
+      return "TO";
+    case "DE":
+      return "XETRA";
+    case "FR":
+      return "PA";
+    case "NL":
+      return "AS";
+    case "CH":
+      return "SW";
+    case "HK":
+      return "HK";
+    case "AU":
+      return "AU";
+    case "JP":
+      return "T";
+    case "KR":
+      return "KO";
+    case "SG":
+      return "SI";
+    case "BR":
+      return "SA";
+    case "MX":
+      return "MX";
+    default:
+      return detected;
+  }
+}
+
 function yahooQuoteMatchesMarket(
   symbol: string,
   listingMarket: ListingMarketId,
@@ -88,7 +130,10 @@ export async function searchYahooSymbols(
     .map((quote) => ({
       code: codeFromYahooSymbol(quote.symbol!, suffix),
       name: (quote.longname || quote.shortname || quote.symbol!).trim(),
-      exchange: normalizeYahooExchange(quote.exchange, quote.exchDisp),
+      exchange: exchangeForListingMarket(
+        listingMarket,
+        normalizeYahooExchange(quote.exchange, quote.exchDisp)
+      ),
       type: quote.quoteType ?? "Equity",
       currency: null,
     }))

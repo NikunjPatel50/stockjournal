@@ -5,7 +5,7 @@ import { AnalyticsHeader } from "@/components/analytics/analytics-header";
 import { DrawdownUnderwater } from "@/components/analytics-hub/drawdown-underwater";
 import { EdgePanel } from "@/components/analytics-hub/edge-panel";
 import { HoldTimeBreakdown } from "@/components/analytics-hub/hold-time-breakdown";
-import { InsightCards } from "@/components/analytics-hub/insight-cards";
+import { PerformanceBreakdownCards } from "@/components/analytics-hub/performance-breakdown-cards";
 import { MetricStrip } from "@/components/analytics-hub/metric-strip";
 import { PnlCalendar } from "@/components/analytics-hub/pnl-calendar";
 import { ReportSection } from "@/components/analytics-hub/report-section";
@@ -19,7 +19,6 @@ import {
   analyticsPeriodBadge,
   computeEquitySeries,
   computeKpis,
-  computeTradingInsights,
   computeWinLossStats,
   emptyAnalyticsFilters,
   filterAnalyticsTrades,
@@ -48,10 +47,6 @@ export default function AnalyticsPage() {
     [filtered, startingEquity]
   );
   const winLoss = useMemo(() => computeWinLossStats(filtered), [filtered]);
-  const insights = useMemo(
-    () => computeTradingInsights(filtered, startingEquity),
-    [filtered, startingEquity]
-  );
   const equity = useMemo(
     () => computeEquitySeries(filtered, startingEquity),
     [filtered, startingEquity]
@@ -109,13 +104,12 @@ export default function AnalyticsPage() {
         <>
           <ReportSection
             index="01"
-            title="Signals"
-            description="Derived read-outs on edge, consistency, and behavior"
+            title="Attribution"
+            description="How results cluster by sector and company size"
           >
-            <InsightCards
-              insights={insights}
+            <PerformanceBreakdownCards
+              trades={filtered}
               currency={currency}
-              tradeCount={filtered.length}
             />
           </ReportSection>
 
@@ -143,8 +137,8 @@ export default function AnalyticsPage() {
 
           <ReportSection
             index="04"
-            title="Attribution"
-            description="Which labels and durations produced the P&L"
+            title="Labels and duration"
+            description="Which tags and hold times produced the P&L"
           >
             <div className={GRID_CLASS}>
               <TagRankings trades={filtered} currency={currency} />

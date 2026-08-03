@@ -331,6 +331,7 @@ export default function JournalPage() {
           if (!open) setEditingTrade(null);
         }}
         initialTrade={editingTrade}
+        trades={trades}
         onSave={handleSave}
       />
 

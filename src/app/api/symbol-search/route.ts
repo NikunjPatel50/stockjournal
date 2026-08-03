@@ -2,14 +2,77 @@ import { NextResponse } from "next/server";
 import { searchEodhdSymbols } from "@/lib/eodhd-symbol-search";
 import { normalizeListingMarket, type ListingMarketId } from "@/lib/equity-listing-markets";
 import {
+  filterNseSymbolDirectory,
+  getNseSymbolDirectory,
+} from "@/lib/nse-symbol-directory";
+import {
   filterSymbolSearchResultsForMarket,
   finalizeSymbolSearchResults,
   rankSymbolSearchResults,
 } from "@/lib/symbol-search";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { searchYahooSymbols } from "@/lib/yahoo-symbol-search";
+import type { EodhdSymbolSearchHit } from "@/lib/eodhd-symbol-search";
 
-const YAHOO_PRIMARY_MARKETS = new Set<ListingMarketId>(["IN_NSE", "IN_BSE"]);
+const RESULT_LIMIT = 20;
+const REMOTE_TIMEOUT_MS = 4000;
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number
+): Promise<T | null> {
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
+function finalizeHits(
+  hits: EodhdSymbolSearchHit[],
+  listingMarket: ListingMarketId,
+  query: string
+) {
+  const ranked = rankSymbolSearchResults(hits, listingMarket, query);
+  const filtered = filterSymbolSearchResultsForMarket(ranked, listingMarket);
+  return finalizeSymbolSearchResults(
+    filtered.slice(0, RESULT_LIMIT),
+    listingMarket,
+    query
+  );
+}
+
+async function searchRemoteSymbols(
+  query: string,
+  listingMarket: ListingMarketId
+): Promise<EodhdSymbolSearchHit[]> {
+  if (!query) return [];
+
+  const apiKey = process.env.EODHD_API_KEY?.trim();
+  let remote =
+    (await withTimeout(
+      searchYahooSymbols(query, listingMarket, RESULT_LIMIT),
+      REMOTE_TIMEOUT_MS
+    )) ?? [];
+
+  if (remote.length === 0 && apiKey) {
+    remote =
+      (await withTimeout(
+        searchEodhdSymbols(query, apiKey, {
+          limit: RESULT_LIMIT,
+          listingMarket,
+        }),
+        REMOTE_TIMEOUT_MS
+      )) ?? [];
+  }
+
+  return remote;
+}
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -23,40 +86,32 @@ export async function GET(request: Request) {
     url.searchParams.get("listingMarket")
   );
 
-  if (!query) {
-    return NextResponse.json({ results: [] });
-  }
-
   if (query.length > 64) {
     return NextResponse.json({ error: "Query too long" }, { status: 400 });
   }
 
-  const apiKey = process.env.EODHD_API_KEY?.trim();
-  let hits = YAHOO_PRIMARY_MARKETS.has(listingMarket)
-    ? await searchYahooSymbols(query, listingMarket, 20)
-    : [];
+  let hits: EodhdSymbolSearchHit[] = [];
 
-  if (hits.length === 0 && apiKey) {
-    hits = await searchEodhdSymbols(query, apiKey, {
-      limit: 20,
-      listingMarket,
+  if (listingMarket === "IN_NSE") {
+    const directory = await getNseSymbolDirectory();
+    hits = filterNseSymbolDirectory(directory, query, RESULT_LIMIT, "NSE");
+
+    return NextResponse.json({
+      results: finalizeHits(hits, listingMarket, query),
     });
-    if (hits.length === 0) {
-      hits = await searchEodhdSymbols(query, apiKey, { limit: 20 });
-    }
   }
 
-  if (hits.length === 0) {
-    hits = await searchYahooSymbols(query, listingMarket, 20);
+  if (listingMarket === "IN_BSE") {
+    hits = await searchRemoteSymbols(query, listingMarket);
+
+    return NextResponse.json({
+      results: finalizeHits(hits, listingMarket, query),
+    });
   }
 
-  const ranked = rankSymbolSearchResults(hits, listingMarket, query);
-  const filtered = filterSymbolSearchResultsForMarket(ranked, listingMarket);
-  const results = finalizeSymbolSearchResults(
-    (filtered.length > 0 ? filtered : ranked).slice(0, 8),
-    listingMarket,
-    query
-  );
+  hits = await searchRemoteSymbols(query, listingMarket);
 
-  return NextResponse.json({ results });
+  return NextResponse.json({
+    results: finalizeHits(hits, listingMarket, query),
+  });
 }

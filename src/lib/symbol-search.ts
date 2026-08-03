@@ -87,16 +87,13 @@ export function rankSymbolSearchResults(
   );
 
   return [...results]
+    .filter((hit) => exchangeMatchesMarket(hit.exchange, allowed))
     .map((hit) => ({
       hit,
       score:
         exchangeScore(hit.exchange, allowed) * 50 +
         queryMatchScore(hit, query),
     }))
-    .filter(
-      ({ score, hit }) =>
-        score >= 50 || exchangeMatchesMarket(hit.exchange, allowed)
-    )
     .sort((a, b) => b.score - a.score)
     .map(({ hit }) => ({
       code: hit.code,
@@ -110,29 +107,35 @@ export function finalizeSymbolSearchResults(
   listingMarket: ListingMarketId,
   query: string
 ): SymbolSearchResult[] {
-  const ranked = attachBadges(results, listingMarket);
   const allowed = new Set(
     eodhdExchangesForListingMarket(listingMarket).map((e) => e.toUpperCase())
   );
 
-  return ranked
-    .map((row) => ({
-      row,
-      score:
-        (exchangeMatchesMarket(row.exchange, allowed) ? 100 : 0) +
-        queryMatchScore(
-          {
-            code: row.code,
-            name: row.name,
-            exchange: row.exchange,
-            type: "",
-            currency: null,
-          },
-          query
-        ),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .map(({ row }) => row);
+  const marketRows = results.filter((row) =>
+    exchangeMatchesMarket(row.exchange, allowed)
+  );
+
+  return attachBadges(
+    marketRows
+      .map((row) => ({
+        row,
+        score:
+          100 +
+          queryMatchScore(
+            {
+              code: row.code,
+              name: row.name,
+              exchange: row.exchange,
+              type: "",
+              currency: null,
+            },
+            query
+          ),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map(({ row }) => row),
+    listingMarket
+  );
 }
 
 export function filterSymbolSearchResultsForMarket(

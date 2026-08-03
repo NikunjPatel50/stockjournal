@@ -236,7 +236,8 @@ export function computeJournalSummary(trades: JournalTrade[]) {
       : trades.reduce((sum, t) => sum + t.holdTimeHours, 0) / trades.length;
 
   const totalVolume = trades.reduce((sum, t) => sum + t.quantity, 0);
-  const totalInvested = trades.reduce(
+  const activeTrades = trades.filter((t) => (t.status ?? "Closed") === "Active");
+  const totalInvested = activeTrades.reduce(
     (sum, t) => sum + t.entryPrice * t.quantity,
     0
   );
@@ -259,6 +260,7 @@ export function computeJournalSummary(trades: JournalTrade[]) {
     winningTrades: wins,
     losingTrades,
     count: trades.length,
+    activeCount: activeTrades.length,
   };
 }
 
