@@ -244,6 +244,145 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
   },
+  {
+    slug: "position-sizing-for-swing-traders",
+    title: "Position Sizing for Swing Traders: Rules That Survive Bad Weeks",
+    description:
+      "How to size swing trades as a percent of equity, cap daily loss, and keep one bad gap from wiping out a month of gains.",
+    publishedAt: "2026-08-03",
+    readMinutes: 8,
+    tags: ["Risk", "Position sizing", "Swing trading"],
+    coverImage: {
+      src: "/blog/position-sizing-for-swing-traders.jpg",
+      alt: "Trader planning position sizes with charts and notes at a desk",
+      credit: "Photo: SwingTradingLog",
+    },
+    blocks: [
+      {
+        type: "p",
+        text: "Most blown accounts are not bad stock picks — they are oversized positions. Swing traders hold through overnight gaps, so a single trade can move more than your planned stop on paper. Position sizing is how you stay in the game when the market opens against you.",
+      },
+      {
+        type: "h2",
+        text: "Start with risk per trade, not share count",
+      },
+      {
+        type: "p",
+        text: "Decide how much of your account you are willing to lose if the stop is hit — typically 0.5% to 2% per trade for most swing accounts. Then work backward from entry to stop distance. Quantity = risk amount ÷ (entry − stop) per share. Log that math before you enter so you are not guessing lot size at the open.",
+      },
+      {
+        type: "ul",
+        items: [
+          "Set a fixed rupee or dollar risk per trade (e.g. ₹2,000 on a ₹5 lakh account = 0.4%)",
+          "Never increase size after a win to “make more back”",
+          "Reduce size when volatility expands (ATR widens, earnings week)",
+          "Cap total open risk across all Active positions — not just one trade",
+        ],
+      },
+      {
+        type: "image",
+        src: "/blog/position-sizing-for-swing-traders.jpg",
+        alt: "Desk setup for planning swing trade position sizes",
+        caption: "Size from stop distance and account risk — not from how confident you feel.",
+      },
+      {
+        type: "h2",
+        text: "Account equity vs. notional exposure",
+      },
+      {
+        type: "p",
+        text: "Planned risk is what you lose at your stop. Notional exposure is how much capital is tied up while the trade is open. A ₹3 lakh position with a ₹6,000 stop still gaps through that stop on a bad headline. Track both: risk per trade and sum of active notional as a percent of equity.",
+      },
+      {
+        type: "h2",
+        text: "Rules that compound over time",
+      },
+      {
+        type: "ul",
+        items: [
+          "Daily loss limit: stop trading after −2R or −3% for the day",
+          "Max concurrent positions: e.g. three swings unless setups are uncorrelated",
+          "No adding to losers — size is fixed at entry",
+          "Scale out partial profits; do not double size on the next trade",
+        ],
+      },
+      {
+        type: "h3",
+        text: "Log size in your journal",
+      },
+      {
+        type: "p",
+        text: "Record quantity, stop, and target when you open the trade. SwingTradingLog shows overnight exposure and return on your starting balance so you see whether sizing drifted over the month — not just whether individual picks worked.",
+      },
+    ],
+  },
+  {
+    slug: "stop-loss-placement-for-swing-trades",
+    title: "Where to Place Stop Losses on Swing Trades (Without Getting Shaken Out)",
+    description:
+      "Structure-based stop placement for multi-day holds: swing lows, ATR buffers, and when to accept a wider stop with smaller size.",
+    publishedAt: "2026-08-03",
+    readMinutes: 7,
+    tags: ["Stops", "Risk management", "Setup"],
+    coverImage: {
+      src: "/blog/stop-loss-placement-for-swing-trades.jpg",
+      alt: "Candlestick chart with support level and stop loss zone marked",
+      credit: "Photo: SwingTradingLog",
+    },
+    blocks: [
+      {
+        type: "p",
+        text: "A stop too tight gets hit on normal noise. A stop too wide turns a small mistake into a large loss. Swing traders need stops that respect the chart structure of the setup — and position size that matches the distance to that level.",
+      },
+      {
+        type: "h2",
+        text: "Place stops where the thesis breaks",
+      },
+      {
+        type: "p",
+        text: "If you bought a pullback to support, the stop belongs below that support — not at an arbitrary 2% from entry. If you bought a breakout, the stop belongs below the breakout level or the last swing low that invalidates the pattern. The stop is a line in the sand: “If price is here, I was wrong.”",
+      },
+      {
+        type: "ul",
+        items: [
+          "Long swings: below recent swing low or breakout base",
+          "Short swings: above recent swing high or failed breakdown",
+          "Add a small buffer beyond the level (wick room), not a huge cushion",
+          "Avoid stops inside the average daily range with no structural reason",
+        ],
+      },
+      {
+        type: "image",
+        src: "/blog/stop-loss-placement-for-swing-trades.jpg",
+        alt: "Chart showing stop placement below a support level",
+        caption: "Structure first — then size the trade to the distance to your stop.",
+      },
+      {
+        type: "h2",
+        text: "ATR and volatility buffers",
+      },
+      {
+        type: "p",
+        text: "On volatile names, a few ticks below support is not enough. Many traders use 0.5× to 1× ATR beyond the level as a buffer so a normal wick does not stop them out before the move. If that makes the stop too wide for your risk budget, size down — do not move the stop closer without a structural reason.",
+      },
+      {
+        type: "h2",
+        text: "Set the stop before entry — and do not move it",
+      },
+      {
+        type: "p",
+        text: "Log stop and target when the trade is Active. Moving a stop farther away after entry is hope, not risk management. Trailing stops are fine when price moves in your favor; widening against you is how small losses become account damage.",
+      },
+      {
+        type: "h3",
+        text: "Review stop quality in your journal",
+      },
+      {
+        type: "p",
+        text: "In weekly review, sort losers and ask: Was I stopped on noise or was the thesis wrong? If noise stops repeat on the same setup, widen the buffer or trade a cleaner timeframe. SwingTradingLog keeps stop and target on every active trade so you can audit placement without scrolling old charts.",
+      },
+    ],
+  },
 ];
 
 export function getBlogPost(slug: string): BlogPost | undefined {

@@ -28,8 +28,8 @@ export default function BlogPage() {
             Swing Trading Insights &amp; Strategies
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Practical articles on journaling, overnight gap risk, and weekly
-            reviews for multi-day traders.
+            Practical articles on journaling, position sizing, stop placement,
+            overnight gap risk, and weekly reviews for multi-day traders.
           </p>
         </header>
 
