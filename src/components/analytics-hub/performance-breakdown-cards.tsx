@@ -2,7 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import {
+  Cell,
+  Pie,
+  PieChart,
+} from "recharts";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import {
   Table,
   TableBody,
@@ -32,11 +45,110 @@ type PerformanceBreakdownCardsProps = {
 
 const MAX_ROWS = 8;
 
+const PIE_COLORS_POSITIVE = ["#10b981", "#34d399", "#059669", "#6ee7b7"];
+const PIE_COLORS_NEGATIVE = ["#f43f5e", "#fb7185", "#e11d48", "#fda4af"];
+
 const headClass =
   "h-9 bg-muted/30 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
 const numericHeadClass = cn(headClass, "text-right");
 const cellClass = "px-3 py-2.5 text-xs";
 const numericCellClass = cn(cellClass, "text-right", NUMERIC_CLASS);
+
+function sliceColor(pnl: number, index: number): string {
+  const palette = pnl >= 0 ? PIE_COLORS_POSITIVE : PIE_COLORS_NEGATIVE;
+  return palette[index % palette.length];
+}
+
+function BreakdownPnlChart({
+  rows,
+  currency,
+}: {
+  rows: PerformanceBreakdownRow[];
+  currency: CurrencyCode;
+}) {
+  const chartData = useMemo(() => {
+    const totalAbs = rows.reduce(
+      (sum, row) => sum + Math.abs(row.totalPnl),
+      0
+    );
+
+    return rows.map((row, index) => ({
+      name: row.label,
+      value: totalAbs > 0 ? Math.abs(row.totalPnl) : 1,
+      pnl: row.totalPnl,
+      trades: row.trades,
+      winRate: row.winRate,
+      share:
+        totalAbs > 0 ? (Math.abs(row.totalPnl) / totalAbs) * 100 : 100 / rows.length,
+      fill: sliceColor(row.totalPnl, index),
+    }));
+  }, [rows]);
+
+  const chartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    for (const row of chartData) {
+      config[row.name] = {
+        label: row.name,
+        color: row.fill,
+      };
+    }
+    return config;
+  }, [chartData]);
+
+  return (
+    <ChartContainer config={chartConfig} className="mx-auto h-[220px] w-full">
+      <PieChart>
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              nameKey="name"
+              hideLabel
+              formatter={(value, _name, item) => {
+                const row = item?.payload as
+                  | {
+                      name?: string;
+                      pnl?: number;
+                      trades?: number;
+                      winRate?: number;
+                      share?: number;
+                    }
+                  | undefined;
+                return (
+                  <div className="space-y-0.5">
+                    <div className="font-medium">{row?.name}</div>
+                    <div>
+                      Net P&L: {formatMoney(row?.pnl ?? 0, true, currency)}
+                    </div>
+                    <div>Share: {formatPercent(row?.share ?? 0)}</div>
+                    <div>Trades: {row?.trades ?? 0}</div>
+                    <div>Win rate: {formatPercent(row?.winRate ?? 0)}</div>
+                  </div>
+                );
+              }}
+            />
+          }
+        />
+        <Pie
+          data={chartData}
+          dataKey="value"
+          nameKey="name"
+          innerRadius={52}
+          outerRadius={82}
+          strokeWidth={2}
+          paddingAngle={chartData.length > 1 ? 2 : 0}
+        >
+          {chartData.map((entry) => (
+            <Cell key={entry.name} fill={entry.fill} />
+          ))}
+        </Pie>
+        <ChartLegend
+          content={<ChartLegendContent nameKey="name" />}
+          className="-translate-y-1 flex-wrap gap-2"
+        />
+      </PieChart>
+    </ChartContainer>
+  );
+}
 
 function BreakdownTable({
   title,
@@ -88,7 +200,11 @@ function BreakdownTable({
           <PanelEmpty title={emptyTitle} hint={emptyHint} />
         </div>
       ) : (
-        <Table>
+        <div>
+          <div className="border-b border-border/60 px-4 py-4 sm:px-5">
+            <BreakdownPnlChart rows={visibleRows} currency={currency} />
+          </div>
+          <Table>
           <TableHeader>
             <TableRow className="border-border/70 hover:bg-transparent">
               <TableHead className={headClass}>Group</TableHead>
@@ -129,6 +245,7 @@ function BreakdownTable({
             ))}
           </TableBody>
         </Table>
+        </div>
       )}
     </DataPanel>
   );

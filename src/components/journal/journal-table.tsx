@@ -42,7 +42,7 @@ import {
   type JournalTrade,
 } from "@/lib/journal-types";
 import { useHoldTimeClock } from "@/hooks/use-hold-time-clock";
-import { resolveTradePnlDisplay, resolveMaxProfitLossDisplay, formatTradeRiskReward } from "@/lib/trade-pnl";
+import { resolveTradePnlDisplay, resolveMaxProfitLossDisplay, formatTradeRiskReward, computePositionPortfolioPct } from "@/lib/trade-pnl";
 import {
   loadJournalColumnPrefs,
   saveJournalColumnPrefs,
@@ -344,18 +344,42 @@ function NextEarningsDateValue({
   );
 }
 
+function PortfolioWeightValue({
+  trade,
+  accountEquity,
+}: {
+  trade: JournalTrade;
+  accountEquity: number;
+}) {
+  const pct = computePositionPortfolioPct(trade, accountEquity);
+
+  if (pct == null) {
+    return (
+      <span className="text-sm text-muted-foreground">
+        {accountEquity <= 0 ? "Set balance in Settings" : "—"}
+      </span>
+    );
+  }
+
+  return (
+    <span className={cn("text-sm font-medium", NUMERIC_CLASS)}>{pct.toFixed(1)}%</span>
+  );
+}
+
 function RowAccordionDetails({
   trade,
   quote,
   displayCurrency,
   earnings,
   earningsLoading,
+  accountEquity,
 }: {
   trade: JournalTrade;
   quote: ClientMarketQuote | null;
   displayCurrency: CurrencyCode;
   earnings: EarningsDateInfo | null;
   earningsLoading: boolean;
+  accountEquity: number;
 }) {
   return (
     <div
@@ -368,7 +392,7 @@ function RowAccordionDetails({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 divide-y divide-border/50 sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-5">
+      <div className="grid grid-cols-1 divide-y divide-border/50 sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-6">
         <AccordionDetailCell label="Status">
           <TradeStatusBadge trade={trade} />
         </AccordionDetailCell>
@@ -384,6 +408,9 @@ function RowAccordionDetails({
         </AccordionDetailCell>
         <AccordionDetailCell label="Max profit / Max loss">
           <MaxProfitLossValue trade={trade} displayCurrency={displayCurrency} />
+        </AccordionDetailCell>
+        <AccordionDetailCell label="% of portfolio">
+          <PortfolioWeightValue trade={trade} accountEquity={accountEquity} />
         </AccordionDetailCell>
         <AccordionDetailCell label="Next earnings date">
           <NextEarningsDateValue
@@ -692,6 +719,8 @@ function TradeActions({
 
 interface JournalTableProps {
   trades: JournalTrade[];
+  /** Account equity for portfolio-weight in row details (starting balance + realized P&L). */
+  accountEquity?: number;
   /** Section title in the card header. */
   title?: string;
   /** All trades in this section before header filters (for empty-state copy). */
@@ -705,6 +734,7 @@ interface JournalTableProps {
 
 export function JournalTable({
   trades,
+  accountEquity = 0,
   title = "Trade log",
   totalTradeCount,
   onEdit,
@@ -1388,6 +1418,7 @@ export function JournalTable({
                         displayCurrency={displayCurrency}
                         earnings={getEarningsDate(trade)}
                         earningsLoading={earningsLoading}
+                        accountEquity={accountEquity}
                       />
                     </div>
                   ) : null}
@@ -1497,6 +1528,7 @@ export function JournalTable({
                             displayCurrency={displayCurrency}
                             earnings={getEarningsDate(row.original)}
                             earningsLoading={earningsLoading}
+                            accountEquity={accountEquity}
                           />
                         </td>
                       </tr>

@@ -137,6 +137,78 @@ export function isSymbolQuoteSessionOpen(
   return isListingMarketOpen(listingMarket, now);
 }
 
+/** Whether the regular session has finished for a bar date on the listing exchange. */
+export function isExchangeSessionClosedForDate(
+  listingMarket: ListingMarketId,
+  barDateYmd: string,
+  now = new Date()
+): boolean {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return true;
+
+  const todayYmd = ymdInTimeZone(now, cfg.timeZone);
+  if (barDateYmd < todayYmd) return true;
+  if (barDateYmd > todayYmd) return false;
+
+  const dow = weekdayInTimeZone(now, cfg.timeZone);
+  if (dow === 0 || dow === 6) return false;
+  if (cfg.usHolidays && isUsMarketHoliday(todayYmd)) return false;
+
+  const mins = minutesSinceMidnightInTimeZone(now, cfg.timeZone);
+  return mins >= cfg.closeMinutes;
+}
+
+export function todayYmdForListingMarket(
+  listingMarket: ListingMarketId,
+  now = new Date()
+): string {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return ymdInTimeZone(now, "UTC");
+  return ymdInTimeZone(now, cfg.timeZone);
+}
+
+export function isExchangeSessionPendingForToday(
+  listingMarket: ListingMarketId,
+  now = new Date()
+): boolean {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return false;
+
+  const todayYmd = ymdInTimeZone(now, cfg.timeZone);
+  const dow = weekdayInTimeZone(now, cfg.timeZone);
+  if (dow === 0 || dow === 6) return false;
+  if (cfg.usHolidays && isUsMarketHoliday(todayYmd)) return false;
+
+  const mins = minutesSinceMidnightInTimeZone(now, cfg.timeZone);
+  return mins < cfg.closeMinutes;
+}
+
+export function sessionCloseDescription(
+  listingMarket: ListingMarketId
+): string {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return "market close";
+
+  const hours = Math.floor(cfg.closeMinutes / 60);
+  const minutes = cfg.closeMinutes % 60;
+  const period = hours >= 12 ? "PM" : "AM";
+  const h12 = hours % 12 || 12;
+  const time =
+    minutes === 0
+      ? `${h12} ${period}`
+      : `${h12}:${minutes.toString().padStart(2, "0")} ${period}`;
+
+  const timeZoneName =
+    new Intl.DateTimeFormat("en", {
+      timeZone: cfg.timeZone,
+      timeZoneName: "short",
+    })
+      .formatToParts(new Date())
+      .find((part) => part.type === "timeZoneName")?.value ?? "";
+
+  return timeZoneName ? `${time} ${timeZoneName}` : time;
+}
+
 export function quotePollIntervalMs(
   symbols: { assetClass: AssetClass; listingMarket: ListingMarketId }[],
   now = new Date()

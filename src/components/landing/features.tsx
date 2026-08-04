@@ -16,7 +16,7 @@ const features = [
     icon: LayoutDashboard,
     title: "Dashboard analytics",
     description:
-      "Net P&L, profit factor, win rate, average R:R, max drawdown, equity curve, weekly bars, monthly performance, and P&L breakdown — filterable by period.",
+      "Net P&L, profit factor, win rate, average R:R, max drawdown, Trade Pulse, overnight exposure, equity curve, and monthly performance — filterable by period.",
   },
   {
     icon: Moon,
@@ -28,7 +28,7 @@ const features = [
     icon: BookOpen,
     title: "Trading journal",
     description:
-      "Add and edit equities, options, forex, and crypto. Strategies, tags, stops, targets, notes, chart screenshots, and customizable columns.",
+      "Add and edit equities, options, forex, and crypto. Active and closed trades, strategies, tags, stops, targets, live P&L, notes, chart screenshots, and customizable columns.",
   },
   {
     icon: Share2,

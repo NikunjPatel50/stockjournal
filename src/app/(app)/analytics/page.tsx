@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnalyticsHeader } from "@/components/analytics/analytics-header";
-import { DrawdownUnderwater } from "@/components/analytics-hub/drawdown-underwater";
+import { PnlChartCard } from "@/components/analytics-hub/pnl-chart-card";
 import { EdgePanel } from "@/components/analytics-hub/edge-panel";
 import { HoldTimeBreakdown } from "@/components/analytics-hub/hold-time-breakdown";
 import { PerformanceBreakdownCards } from "@/components/analytics-hub/performance-breakdown-cards";
@@ -11,13 +11,11 @@ import { PnlCalendar } from "@/components/analytics-hub/pnl-calendar";
 import { ReportSection } from "@/components/analytics-hub/report-section";
 import { PanelEmpty } from "@/components/data-panel";
 import { RMultipleSpectrum } from "@/components/analytics-hub/r-multiple-spectrum";
-import { SessionGrid } from "@/components/analytics-hub/session-grid";
 import { TagRankings } from "@/components/analytics-hub/tag-rankings";
 import { useSettings } from "@/components/settings/settings-provider";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import {
   analyticsPeriodBadge,
-  computeEquitySeries,
   computeKpis,
   computeWinLossStats,
   emptyAnalyticsFilters,
@@ -42,15 +40,12 @@ export default function AnalyticsPage() {
     [trades, filters]
   );
 
+
   const kpis = useMemo(
     () => computeKpis(filtered, startingEquity),
     [filtered, startingEquity]
   );
   const winLoss = useMemo(() => computeWinLossStats(filtered), [filtered]);
-  const equity = useMemo(
-    () => computeEquitySeries(filtered, startingEquity),
-    [filtered, startingEquity]
-  );
 
   const activeCount = useMemo(
     () => trades.filter((trade) => trade.status === "Active").length,
@@ -95,11 +90,24 @@ export default function AnalyticsPage() {
       />
 
       {filtered.length === 0 ? (
-        <PanelEmpty
-          className="min-h-[16rem] bg-card/60"
-          title="No closed trades in this period"
-          hint="Analytics are built from realized results. Close a trade in the journal, or widen the timeframe above, to populate this report."
-        />
+        <>
+          <PanelEmpty
+            className="min-h-[16rem] bg-card/60"
+            title="No closed trades in this period"
+            hint="Analytics are built from realized results. Close a trade in the journal, or widen the timeframe above, to populate this report."
+          />
+          {activeCount > 0 ? (
+            <ReportSection
+              index="02"
+              title="Performance"
+              description="Daily P&L rhythm and period performance"
+            >
+              <div className={GRID_CLASS}>
+                <PnlChartCard trades={trades} currency={currency} />
+              </div>
+            </ReportSection>
+          ) : null}
+        </>
       ) : (
         <>
           <ReportSection
@@ -116,11 +124,11 @@ export default function AnalyticsPage() {
           <ReportSection
             index="02"
             title="Performance"
-            description="Realized results and distance from the equity peak"
+            description="Daily P&L rhythm and period performance"
           >
             <div className={GRID_CLASS}>
               <PnlCalendar trades={filtered} currency={currency} />
-              <DrawdownUnderwater equity={equity} />
+              <PnlChartCard trades={trades} currency={currency} />
             </div>
           </ReportSection>
 
@@ -144,14 +152,6 @@ export default function AnalyticsPage() {
               <TagRankings trades={filtered} currency={currency} />
               <HoldTimeBreakdown trades={filtered} currency={currency} />
             </div>
-          </ReportSection>
-
-          <ReportSection
-            index="05"
-            title="Timing"
-            description="Weekday and session concentration of results"
-          >
-            <SessionGrid trades={filtered} currency={currency} />
           </ReportSection>
         </>
       )}

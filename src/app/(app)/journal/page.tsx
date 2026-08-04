@@ -28,6 +28,7 @@ import {
   type JournalTrade,
 } from "@/lib/journal-types";
 import { computeLiveActivePnl, computeFilteredPnl } from "@/lib/trade-pnl";
+import { computeAccountEquity } from "@/lib/overnight-risk";
 import { useJournalTrades } from "@/lib/trades-storage";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 
@@ -132,6 +133,11 @@ export default function JournalPage() {
     () =>
       computeFilteredPnl(filtered, getQuote, settings.profile.currency),
     [filtered, getQuote, settings.profile.currency]
+  );
+
+  const accountEquity = useMemo(
+    () => computeAccountEquity(trades, settings.profile.startingBalance),
+    [trades, settings.profile.startingBalance]
   );
 
   function handleSave(trade: JournalTrade) {
@@ -306,6 +312,7 @@ export default function JournalPage() {
         <JournalTable
           title="Active trade log"
           trades={activeTrades}
+          accountEquity={accountEquity}
           totalTradeCount={activePoolCount}
           onEdit={openEditTrade}
           onDuplicate={handleDuplicate}
@@ -316,6 +323,7 @@ export default function JournalPage() {
           <JournalTable
             title="Closed trades"
             trades={closedTrades}
+            accountEquity={accountEquity}
             totalTradeCount={closedPoolCount}
             onEdit={openEditTrade}
             onDuplicate={handleDuplicate}

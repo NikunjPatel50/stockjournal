@@ -184,3 +184,13 @@ export function computeFilteredPnl(
     pricedActiveCount,
   };
 }
+
+/** Entry notional as a share of account equity (starting balance + realized P&L). */
+export function computePositionPortfolioPct(
+  trade: JournalTrade,
+  accountEquity: number
+): number | null {
+  if (accountEquity <= 0 || !trade.quantity || !trade.entryPrice) return null;
+  const notional = Math.abs(trade.quantity * trade.entryPrice);
+  return Math.round((notional / accountEquity) * 10000) / 100;
+}

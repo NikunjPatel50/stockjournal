@@ -74,14 +74,14 @@ function InsightKpiCard({
         "ring-1 ring-foreground/[0.04] dark:ring-foreground/[0.06]"
       )}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center gap-1">
         <p className="text-sm font-medium text-foreground">{title}</p>
         <MetricHint title={title} hint={hint} />
       </div>
 
       <p
         className={cn(
-          "mt-3 truncate text-3xl font-semibold text-foreground",
+          "mt-3 truncate text-center text-3xl font-semibold text-foreground",
           NUMERIC_DISPLAY_CLASS,
           valueClassName
         )}

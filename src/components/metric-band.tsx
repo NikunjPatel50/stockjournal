@@ -42,7 +42,10 @@ export function MetricBand({
       )}
     >
       {items.map((item) => (
-        <div key={item.label} className="min-w-0 bg-card px-4 py-3.5 sm:px-5">
+        <div
+          key={item.label}
+          className="min-w-0 bg-card px-4 py-3.5 text-center sm:px-5"
+        >
           <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {item.label}
           </p>

@@ -8,7 +8,7 @@ export const metadata: Metadata = getSeoMetadata("preview");
 export default function PreviewPage() {
   return (
     <MarketingPageShell breadcrumbs={[{ name: "Analytics", path: "/preview" }]}>
-      <LandingShowcase />
+      <LandingShowcase defaultTab="analytics" />
     </MarketingPageShell>
   );
 }

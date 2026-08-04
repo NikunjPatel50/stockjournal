@@ -63,7 +63,7 @@ export function LandingHero() {
           initial={reduceMotion ? false : { opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
-          className="relative mx-auto mt-14 max-w-4xl"
+          className="relative mx-auto mt-14 w-full max-w-6xl"
         >
           <div
             aria-hidden
@@ -72,6 +72,23 @@ export function LandingHero() {
           <DashboardMock
             className="relative isolate"
             previewLabel="SwingTradingLog dashboard with KPIs, overnight gap exposure, equity curve, and period filters"
+          />
+        </motion.div>
+
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.25 }}
+          className="relative mx-auto mt-10 w-full max-w-6xl"
+        >
+          <p className="mb-4 text-center text-sm font-medium text-muted-foreground">
+            Journal snapshot
+          </p>
+          <DashboardMock
+            variant="journal"
+            compact
+            className="relative isolate"
+            previewLabel="SwingTradingLog trade journal with filters, summary stats, and active trade log"
           />
         </motion.div>
       </div>

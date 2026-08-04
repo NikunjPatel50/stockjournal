@@ -48,6 +48,21 @@ export function classifyMarketCapBucket(
   return "Micro cap";
 }
 
+type YahooNumeric = number | { raw?: number } | null | undefined;
+
+export function parseYahooNumeric(value: YahooNumeric): number | null {
+  if (value == null) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (
+    typeof value === "object" &&
+    typeof value.raw === "number" &&
+    Number.isFinite(value.raw)
+  ) {
+    return value.raw;
+  }
+  return null;
+}
+
 function mapYahooCurrency(value?: string): CurrencyCode | null {
   const code = value?.trim().toUpperCase();
   if (
@@ -85,7 +100,10 @@ export async function fetchYahooFundamentals(
   const url = new URL(
     `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSymbol)}`
   );
-  url.searchParams.set("modules", "assetProfile,summaryDetail,price");
+  url.searchParams.set(
+    "modules",
+    "assetProfile,summaryDetail,price,defaultKeyStatistics"
+  );
   url.searchParams.set("crumb", auth.crumb);
 
   try {
@@ -107,8 +125,9 @@ export async function fetchYahooFundamentals(
       quoteSummary?: {
         result?: Array<{
           assetProfile?: { sector?: string; industry?: string };
-          summaryDetail?: { marketCap?: number };
-          price?: { marketCap?: number; currency?: string };
+          summaryDetail?: { marketCap?: YahooNumeric };
+          price?: { marketCap?: YahooNumeric; currency?: string };
+          defaultKeyStatistics?: { marketCap?: YahooNumeric };
         }>;
       };
     };
@@ -123,12 +142,14 @@ export async function fetchYahooFundamentals(
         ? "INR"
         : "USD");
     const marketCap =
-      row.summaryDetail?.marketCap ?? row.price?.marketCap ?? null;
+      parseYahooNumeric(row.summaryDetail?.marketCap) ??
+      parseYahooNumeric(row.price?.marketCap) ??
+      parseYahooNumeric(row.defaultKeyStatistics?.marketCap);
 
     return {
       sector,
-      marketCap: Number.isFinite(marketCap) ? marketCap : null,
-      marketCapBucket: classifyMarketCapBucket(marketCap ?? null, currency),
+      marketCap,
+      marketCapBucket: classifyMarketCapBucket(marketCap, currency),
       currency,
     };
   } catch {

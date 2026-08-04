@@ -17,7 +17,7 @@ const DEMO_STEPS = [
     variant: "dashboard" as const,
     headline: "Dashboard performance",
     detail:
-      "Pick Today through Custom, then review KPI cards, overnight exposure, equity / weekly charts, and recent trades.",
+      "Review KPI cards, Trade Pulse on open positions, overnight exposure, equity curve, and recent trades with period filters.",
   },
   {
     value: "journal",
@@ -25,15 +25,15 @@ const DEMO_STEPS = [
     variant: "journal" as const,
     headline: "Journal every trade",
     detail:
-      "Log ticker, asset class, strategy, risk, notes, and screenshots — then share a branded card on closed trades.",
+      "Search and filter trades, review daily and total P&L, then manage active and closed positions in the trade log.",
   },
   {
     value: "analytics",
-    label: "Charts",
+    label: "Analytics",
     variant: "analytics" as const,
-    headline: "Equity & weekly P&L",
+    headline: "Analytics deep-dive",
     detail:
-      "Equity curve and weekly bars live on the Dashboard with your KPIs — not a separate product.",
+      "Sector and market-cap attribution, P&L calendar, active-position P&L chart, R-multiple distribution, and tag rankings.",
   },
   {
     value: "goals",
@@ -47,9 +47,15 @@ const DEMO_STEPS = [
 
 type StepValue = (typeof DEMO_STEPS)[number]["value"];
 
-export function ShowcaseDemoPlayer() {
+type ShowcaseDemoPlayerProps = {
+  defaultTab?: StepValue;
+};
+
+export function ShowcaseDemoPlayer({
+  defaultTab = "dashboard",
+}: ShowcaseDemoPlayerProps) {
   const reduceMotion = useReducedMotion();
-  const [active, setActive] = useState<StepValue>("dashboard");
+  const [active, setActive] = useState<StepValue>(defaultTab);
 
   const step = DEMO_STEPS.find((s) => s.value === active) ?? DEMO_STEPS[0];
 
@@ -88,7 +94,7 @@ export function ShowcaseDemoPlayer() {
         </motion.div>
 
         <TabsContent value={active} className="mt-6 focus-visible:outline-none">
-          <div className="relative mx-auto max-w-4xl">
+          <div className="relative mx-auto w-full max-w-6xl">
             <div
               aria-hidden
               className="absolute -inset-4 rounded-3xl bg-emerald-500/10 dark:hidden"

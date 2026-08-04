@@ -2,7 +2,11 @@
 
 import { ShowcaseDemoPlayer } from "@/components/landing/showcase-demo-player";
 
-export function LandingShowcase() {
+type LandingShowcaseProps = {
+  defaultTab?: "dashboard" | "journal" | "analytics" | "goals";
+};
+
+export function LandingShowcase({ defaultTab = "dashboard" }: LandingShowcaseProps) {
   return (
     <section
       id="showcase"
@@ -15,13 +19,13 @@ export function LandingShowcase() {
             Preview the same screens as the live app
           </h2>
           <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            Switch between Dashboard, Journal, charts, and Goals — matching the
+            Switch between Dashboard, Journal, Analytics, and Goals — matching the
             navigation and layout you get after a free sign-up at
             swingtradinglog.com.
           </p>
         </div>
 
-        <ShowcaseDemoPlayer />
+        <ShowcaseDemoPlayer defaultTab={defaultTab} />
       </div>
     </section>
   );
