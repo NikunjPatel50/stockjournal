@@ -17,7 +17,31 @@ import {
 export const TRADES_UPDATED_EVENT = "tradetracker-trades-updated";
 export const USER_STORAGE_BOUND_EVENT = "tradetracker-user-storage-bound";
 
+const CLOUD_PUSH_DEBOUNCE_MS = 1500;
+
 const LEGACY_DEMO_SEED_KEY = "tradetracker_journal_demo_seeded_v1";
+
+const cloudPushTimers = new Map<string, number>();
+const cloudPushPending = new Map<string, JournalTrade[]>();
+
+function scheduleCloudPush(userId: string, trades: JournalTrade[]) {
+  cloudPushPending.set(userId, trades);
+  const existing = cloudPushTimers.get(userId);
+  if (existing != null) {
+    window.clearTimeout(existing);
+  }
+
+  const timer = window.setTimeout(() => {
+    cloudPushTimers.delete(userId);
+    const pending = cloudPushPending.get(userId);
+    cloudPushPending.delete(userId);
+    if (pending) {
+      void pushTradesToCloud(userId, pending);
+    }
+  }, CLOUD_PUSH_DEBOUNCE_MS);
+
+  cloudPushTimers.set(userId, timer);
+}
 
 function isLegacyDemoTrade(trade: JournalTrade): boolean {
   if (trade.id.startsWith("mock-journal-")) return true;
@@ -80,7 +104,7 @@ export function saveJournalTrades(trades: JournalTrade[]) {
   if (!key || !userId) return;
   localStorage.setItem(key, JSON.stringify(trades));
   setLocalTradesSyncTime(userId, Date.now());
-  void pushTradesToCloud(userId, trades);
+  scheduleCloudPush(userId, trades);
   queueMicrotask(() => {
     window.dispatchEvent(new Event(TRADES_UPDATED_EVENT));
   });

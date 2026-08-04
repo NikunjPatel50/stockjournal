@@ -1,14 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { OvernightRiskCard } from "@/components/analytics/overnight-risk-card";
 import { AnalyticsHeader } from "@/components/analytics/analytics-header";
 import { MonthlyPerformanceCard } from "@/components/analytics/monthly-performance-card";
 import { PnlBreakdownCard } from "@/components/analytics/pnl-breakdown-card";
 import { RecentTradesCard } from "@/components/analytics/recent-trades-card";
-import { TradePulseSection } from "@/components/trade-pulse/trade-pulse-section";
 import { KpiRibbon } from "@/components/analytics/kpi-ribbon";
-import { MainCharts } from "@/components/analytics/main-charts";
 import { useSettings } from "@/components/settings/settings-provider";
 import {
   computeWeeklyPnl,
@@ -21,6 +20,22 @@ import {
 import { useJournalTrades } from "@/lib/trades-storage";
 import { computeOvernightRisk } from "@/lib/overnight-risk";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
+
+const TradePulseSection = dynamic(
+  () =>
+    import("@/components/trade-pulse/trade-pulse-section").then((mod) => ({
+      default: mod.TradePulseSection,
+    })),
+  { loading: () => <div className="min-h-[8rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const MainCharts = dynamic(
+  () =>
+    import("@/components/analytics/main-charts").then((mod) => ({
+      default: mod.MainCharts,
+    })),
+  { loading: () => <div className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
 
 export default function DashboardPage() {
   const { settings } = useSettings();

@@ -32,6 +32,7 @@ export function computeAccountEquity(
   const realized = trades
     .filter((t) => isClosedTrade(t))
     .reduce((sum, t) => sum + t.pnl, 0);
+  // `startingBalance` stores total money invested (Settings → Profile).
   return startingBalance + realized;
 }
 

@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import {
   defaultListingMarketForCurrency,
@@ -37,6 +45,16 @@ type QuotesState = {
   sessionOpen: boolean;
 };
 
+export type MarketQuotesValue = {
+  getQuote: (trade: JournalTrade) => ClientMarketQuote | null;
+  loading: boolean;
+  error: string | null;
+  fetchedAt: number | null;
+  delayed: boolean;
+  sessionOpen: boolean;
+  refresh: () => Promise<void>;
+};
+
 type SymbolRequest = {
   ticker: string;
   assetClass: JournalTrade["assetClass"];
@@ -71,10 +89,14 @@ function anySymbolSessionOpen(symbols: SymbolRequest[], now = new Date()) {
   );
 }
 
-export function useMarketQuotes(
+export const MarketQuotesContext = createContext<MarketQuotesValue | null>(
+  null
+);
+
+export function useMarketQuotesPoller(
   trades: JournalTrade[],
   currency: CurrencyCode = DEFAULT_CURRENCY
-) {
+): MarketQuotesValue {
   const symbols = useMemo(
     () => uniqueSymbolRequests(trades, currency),
     [trades, currency]
@@ -245,4 +267,15 @@ export function useMarketQuotes(
     sessionOpen: state.sessionOpen,
     refresh: fetchQuotes,
   };
+}
+
+/** Read shared quotes from the app-wide MarketQuotesProvider. */
+export function useMarketQuotes(): MarketQuotesValue {
+  const context = useContext(MarketQuotesContext);
+  if (!context) {
+    throw new Error(
+      "useMarketQuotes must be used within MarketQuotesProvider"
+    );
+  }
+  return context;
 }

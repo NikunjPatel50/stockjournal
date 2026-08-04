@@ -1,17 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { AnalyticsHeader } from "@/components/analytics/analytics-header";
-import { PnlChartCard } from "@/components/analytics-hub/pnl-chart-card";
-import { EdgePanel } from "@/components/analytics-hub/edge-panel";
-import { HoldTimeBreakdown } from "@/components/analytics-hub/hold-time-breakdown";
-import { PerformanceBreakdownCards } from "@/components/analytics-hub/performance-breakdown-cards";
 import { MetricStrip } from "@/components/analytics-hub/metric-strip";
-import { PnlCalendar } from "@/components/analytics-hub/pnl-calendar";
 import { ReportSection } from "@/components/analytics-hub/report-section";
 import { PanelEmpty } from "@/components/data-panel";
-import { RMultipleSpectrum } from "@/components/analytics-hub/r-multiple-spectrum";
-import { TagRankings } from "@/components/analytics-hub/tag-rankings";
 import { useSettings } from "@/components/settings/settings-provider";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import {
@@ -25,6 +19,62 @@ import {
 import { useJournalTrades } from "@/lib/trades-storage";
 
 const GRID_CLASS = "grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch";
+
+const PerformanceBreakdownCards = dynamic(
+  () =>
+    import("@/components/analytics-hub/performance-breakdown-cards").then(
+      (mod) => ({ default: mod.PerformanceBreakdownCards })
+    ),
+  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const PnlChartCard = dynamic(
+  () =>
+    import("@/components/analytics-hub/pnl-chart-card").then((mod) => ({
+      default: mod.PnlChartCard,
+    })),
+  { loading: () => <div className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const PnlCalendar = dynamic(
+  () =>
+    import("@/components/analytics-hub/pnl-calendar").then((mod) => ({
+      default: mod.PnlCalendar,
+    })),
+  { loading: () => <div className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const EdgePanel = dynamic(
+  () =>
+    import("@/components/analytics-hub/edge-panel").then((mod) => ({
+      default: mod.EdgePanel,
+    })),
+  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const HoldTimeBreakdown = dynamic(
+  () =>
+    import("@/components/analytics-hub/hold-time-breakdown").then((mod) => ({
+      default: mod.HoldTimeBreakdown,
+    })),
+  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const RMultipleSpectrum = dynamic(
+  () =>
+    import("@/components/analytics-hub/r-multiple-spectrum").then((mod) => ({
+      default: mod.RMultipleSpectrum,
+    })),
+  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const TagRankings = dynamic(
+  () =>
+    import("@/components/analytics-hub/tag-rankings").then((mod) => ({
+      default: mod.TagRankings,
+    })),
+  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
 
 export default function AnalyticsPage() {
   const { settings } = useSettings();

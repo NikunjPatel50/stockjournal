@@ -158,6 +158,39 @@ export function isExchangeSessionClosedForDate(
   return mins >= cfg.closeMinutes;
 }
 
+/**
+ * Whether the regular session has opened (or already finished) for a given
+ * date — true from market open onward, false before open (or on a
+ * weekend/holiday when the market never opens). Use this to gate live-quote
+ * P&L so it starts fresh at zero pre-market and updates continuously once
+ * trading begins, instead of waiting until the session fully closes.
+ */
+export function hasExchangeSessionStartedForDate(
+  listingMarket: ListingMarketId,
+  barDateYmd: string,
+  now = new Date()
+): boolean {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return true;
+
+  const todayYmd = ymdInTimeZone(now, cfg.timeZone);
+  if (barDateYmd < todayYmd) return true;
+  if (barDateYmd > todayYmd) return false;
+
+  const dow = weekdayInTimeZone(now, cfg.timeZone);
+  if (dow === 0 || dow === 6) return false;
+  if (cfg.usHolidays && isUsMarketHoliday(todayYmd)) return false;
+
+  const mins = minutesSinceMidnightInTimeZone(now, cfg.timeZone);
+  return mins >= cfg.openMinutes;
+}
+
+export function timeZoneForListingMarket(
+  listingMarket: ListingMarketId
+): string {
+  return LISTING_MARKET_SESSIONS[listingMarket]?.timeZone ?? "UTC";
+}
+
 export function todayYmdForListingMarket(
   listingMarket: ListingMarketId,
   now = new Date()

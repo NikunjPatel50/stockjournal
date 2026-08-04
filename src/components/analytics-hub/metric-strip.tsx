@@ -54,7 +54,7 @@ export function MetricStrip({
           detail:
             startingEquity > 0
               ? `Base ${formatMoney(startingEquity, false, currency)}`
-              : "Set starting balance in Settings",
+              : "Set total invested in Settings",
           tone: startingEquity > 0 ? pnlTone : "neutral",
         },
         {

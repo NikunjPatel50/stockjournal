@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AdminAccessProvider } from "@/components/admin/admin-access-provider";
+import { MarketQuotesProvider } from "@/components/market-quotes-provider";
 import { Sidebar } from "@/components/sidebar";
 import { UserStorageProvider } from "@/components/user-storage-provider";
 import { isAdminUser } from "@/lib/admin";
@@ -32,12 +33,14 @@ export default async function AppLayout({
         userId={user.id}
         userDisplayName={user.profile?.name ?? user.email}
       >
-        <div className="flex h-dvh min-h-0 w-full min-w-0 overflow-hidden">
-          <Sidebar user={user} />
-          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background supports-[padding:max(0px)]:pb-[max(0px,env(safe-area-inset-bottom))]">
-            {children}
-          </main>
-        </div>
+        <MarketQuotesProvider>
+          <div className="flex h-dvh min-h-0 w-full min-w-0 overflow-hidden">
+            <Sidebar user={user} />
+            <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background supports-[padding:max(0px)]:pb-[max(0px,env(safe-area-inset-bottom))]">
+              {children}
+            </main>
+          </div>
+        </MarketQuotesProvider>
       </UserStorageProvider>
     </AdminAccessProvider>
   );

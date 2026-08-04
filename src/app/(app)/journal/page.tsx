@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { AddTradeModal } from "@/components/journal/add-trade-modal";
 import { JournalHeader } from "@/components/journal/journal-header";
 import { JournalSummaryBar } from "@/components/journal/journal-summary-bar";
 import { JournalTable } from "@/components/journal/journal-table";
@@ -27,10 +27,22 @@ import {
   type JournalFilters,
   type JournalTrade,
 } from "@/lib/journal-types";
-import { computeLiveActivePnl, computeFilteredPnl } from "@/lib/trade-pnl";
+import {
+  computeTodayDailyPnlFromQuotes,
+  toActivePositionPnlInput,
+} from "@/lib/active-position-daily-pnl";
+import { computeFilteredPnl } from "@/lib/trade-pnl";
 import { computeAccountEquity } from "@/lib/overnight-risk";
 import { useJournalTrades } from "@/lib/trades-storage";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
+
+const AddTradeModal = dynamic(
+  () =>
+    import("@/components/journal/add-trade-modal").then((mod) => ({
+      default: mod.AddTradeModal,
+    })),
+  { ssr: false }
+);
 
 function tradesToCsv(trades: JournalTrade[]) {
   const headers = [
@@ -111,24 +123,32 @@ export default function JournalPage() {
   );
   const summary = useMemo(() => computeJournalSummary(filtered), [filtered]);
 
-  const activePool = useMemo(
-    () => trades.filter((t) => (t.status ?? "Closed") === "Active"),
-    [trades]
-  );
+  const { getQuote, loading: quotesLoading, fetchedAt } = useMarketQuotes();
+  const livePnl = useMemo(() => {
+    const inputs = activeTrades
+      .map(toActivePositionPnlInput)
+      .filter((trade): trade is NonNullable<typeof trade> => trade != null);
 
-  const { getQuote, loading: quotesLoading } = useMarketQuotes(
-    activePool,
-    settings.profile.currency
-  );
-  const livePnl = useMemo(
-    () =>
-      computeLiveActivePnl(
-        activeTrades,
-        getQuote,
-        settings.profile.currency
-      ),
-    [activeTrades, getQuote, settings.profile.currency]
-  );
+    const quotesByTradeId: Record<
+      string,
+      { price: number; changePercent?: number | null }
+    > = {};
+    for (const trade of activeTrades) {
+      const quote = getQuote(trade);
+      if (quote?.price != null && quote.price > 0) {
+        quotesByTradeId[trade.id] = {
+          price: quote.price,
+          changePercent: quote.changePercent,
+        };
+      }
+    }
+
+    return computeTodayDailyPnlFromQuotes(
+      inputs,
+      quotesByTradeId,
+      settings.profile.currency
+    );
+  }, [activeTrades, fetchedAt, getQuote, quotesLoading, settings.profile.currency]);
   const filteredPnl = useMemo(
     () =>
       computeFilteredPnl(filtered, getQuote, settings.profile.currency),
@@ -325,6 +345,7 @@ export default function JournalPage() {
             trades={closedTrades}
             accountEquity={accountEquity}
             totalTradeCount={closedPoolCount}
+            enableLiveQuotes={false}
             onEdit={openEditTrade}
             onDuplicate={handleDuplicate}
             onDelete={handleDelete}

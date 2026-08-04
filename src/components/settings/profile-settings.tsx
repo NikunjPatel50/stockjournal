@@ -148,7 +148,7 @@ export function ProfileSettings() {
 
         <SettingsSection
           title="Account defaults"
-          description="Currency and starting balance for P&amp;L and equity calculations."
+          description="Currency and total invested capital for P&amp;L and equity calculations."
         >
           <div className="grid max-w-2xl gap-5 sm:grid-cols-2">
             <Field label="Default currency">
@@ -172,8 +172,8 @@ export function ProfileSettings() {
             </Field>
             <Field
               id="startingBalance"
-              label="Starting balance"
-              hint="Your account size before logged trades. Required for return % and overnight exposure %."
+              label="Total money invested"
+              hint="Total capital in your account. Used for return %, overnight exposure %, and portfolio weight."
             >
               <Input
                 id="startingBalance"

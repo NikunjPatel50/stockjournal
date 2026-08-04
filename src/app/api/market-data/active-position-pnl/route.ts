@@ -2,10 +2,17 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   computeActivePositionDailyPnl,
+  buildPriorSessionBarByTradeId,
   type ActivePositionPnlInput,
 } from "@/lib/active-position-daily-pnl";
-import { LISTING_MARKET_IDS } from "@/lib/equity-listing-markets";
-import { defaultListingMarketForCurrency } from "@/lib/equity-listing-markets";
+import {
+  defaultListingMarketForCurrency,
+  LISTING_MARKET_IDS,
+} from "@/lib/equity-listing-markets";
+import { defaultEquityExchangeForCurrency } from "@/lib/eodhd";
+import { fetchDailyBarsCached } from "@/lib/daily-bars-cache";
+import { fetchMarketQuoteForTrade } from "@/lib/market-quote";
+import { mapWithConcurrency } from "@/lib/map-with-concurrency";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getMarketDataProvider } from "@/lib/trade-pulse/providers";
 import type { CurrencyCode } from "@/lib/settings";
@@ -20,6 +27,7 @@ const tradeSchema = z.object({
   entryDate: z.string().min(1),
   assetClass: z.enum(["Equities", "Options", "Crypto", "Forex"]),
   listingMarket: z.enum(LISTING_MARKET_IDS).optional(),
+  fees: z.number().optional(),
 });
 
 const requestSchema = z.object({
@@ -28,6 +36,8 @@ const requestSchema = z.object({
 });
 
 export const maxDuration = 30;
+
+const FETCH_CONCURRENCY = 6;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -56,28 +66,71 @@ export async function POST(request: Request) {
     return NextResponse.json({ daily: [] });
   }
 
+  const apiKey = process.env.EODHD_API_KEY?.trim();
+  const equityExchange = defaultEquityExchangeForCurrency(currency);
   const provider = getMarketDataProvider();
-  const barsByTradeId: Record<string, Awaited<ReturnType<typeof provider.fetchDailyBars>>> = {};
+  const barsByTradeId: Record<
+    string,
+    Awaited<ReturnType<typeof provider.fetchDailyBars>>
+  > = {};
+  const quotesByTradeId: Record<
+    string,
+    { price: number; changePercent: number | null }
+  > = {};
 
-  await Promise.all(
-    trades.map(async (trade) => {
-      const listingMarket =
-        trade.listingMarket ?? defaultListingMarketForCurrency(currency);
-      try {
-        barsByTradeId[trade.id] = await provider.fetchDailyBars(
-          trade.ticker,
-          listingMarket
-        );
-      } catch {
-        barsByTradeId[trade.id] = [];
-      }
-    })
-  );
+  await mapWithConcurrency(trades, FETCH_CONCURRENCY, async (trade) => {
+    const listingMarket =
+      trade.listingMarket ?? defaultListingMarketForCurrency(currency);
+
+    const [bars, quote] = await Promise.all([
+      fetchDailyBarsCached(trade.ticker, listingMarket, () =>
+        provider
+          .fetchDailyBars(trade.ticker, listingMarket)
+          .catch(
+            () => [] as Awaited<ReturnType<typeof provider.fetchDailyBars>>
+          )
+      ),
+      apiKey
+        ? fetchMarketQuoteForTrade(
+            trade.ticker,
+            "Equities",
+            apiKey,
+            equityExchange,
+            {
+              entryPrice: trade.entryPrice,
+              profileCurrency: currency,
+              listingMarket,
+            }
+          ).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    barsByTradeId[trade.id] = bars;
+    if (quote?.price != null && quote.price > 0) {
+      quotesByTradeId[trade.id] = {
+        price: quote.price,
+        changePercent: quote.changePercent,
+      };
+    }
+  });
 
   const daily = computeActivePositionDailyPnl(trades, barsByTradeId, {
     asOf: new Date(),
     currency,
+    quotesByTradeId,
   });
 
-  return NextResponse.json({ daily, asOf: Date.now() });
+  const asOf = new Date();
+  const priorSessionBarByTradeId = buildPriorSessionBarByTradeId(
+    trades,
+    barsByTradeId,
+    currency,
+    asOf
+  );
+
+  return NextResponse.json({
+    daily,
+    priorSessionBarByTradeId,
+    asOf: Date.now(),
+  });
 }

@@ -185,7 +185,7 @@ export function computeFilteredPnl(
   };
 }
 
-/** Entry notional as a share of account equity (starting balance + realized P&L). */
+/** Entry notional as a share of account equity (total invested + realized P&L). */
 export function computePositionPortfolioPct(
   trade: JournalTrade,
   accountEquity: number

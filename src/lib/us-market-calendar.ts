@@ -18,34 +18,44 @@ export function isUsMarketHoliday(ymd: string): boolean {
   return HOLIDAY_SET.has(ymd);
 }
 
-/** YYYY-MM-DD in a given IANA timezone. */
+/** YYYY-MM-DD in a given IANA timezone. Returns "" for an invalid date instead of throwing. */
 export function ymdInTimeZone(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  if (Number.isNaN(date.getTime())) return "";
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  } catch {
+    return "";
+  }
 }
 
 export function weekdayInTimeZone(
   date: Date,
   timeZone: string
 ): number {
-  const label = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "short",
-  }).format(date);
-  const map: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
-  return map[label] ?? date.getDay();
+  if (Number.isNaN(date.getTime())) return date.getDay();
+  try {
+    const label = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      weekday: "short",
+    }).format(date);
+    const map: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    };
+    return map[label] ?? date.getDay();
+  } catch {
+    return date.getDay();
+  }
 }
 
 /** Minutes since midnight in timezone (0–1439). */
@@ -53,15 +63,20 @@ export function minutesSinceMidnightInTimeZone(
   date: Date,
   timeZone: string
 ): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "numeric",
-    minute: "numeric",
-    hour12: false,
-  }).formatToParts(date);
-  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
-  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
-  return hour * 60 + minute;
+  if (Number.isNaN(date.getTime())) return 0;
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+    }).formatToParts(date);
+    const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+    const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+    return hour * 60 + minute;
+  } catch {
+    return 0;
+  }
 }
 
 export function addCalendarDaysYmd(ymd: string, days: number): string {

@@ -181,7 +181,7 @@ export function OvernightRiskCard({
       footer={
         hasStartingBalance
           ? `Notional uses entry price. Caution above ${DEFAULT_OVERNIGHT_RISK_WARN_PCT}% of equity, high above ${DEFAULT_OVERNIGHT_RISK_DANGER_PCT}%.`
-          : "Set your starting balance in Settings to calculate exposure as a % of account equity."
+          : "Set your total money invested in Settings to calculate exposure as a % of account equity."
       }
       bodyClassName="flex flex-col gap-4 p-4 sm:p-5"
     >
@@ -212,7 +212,7 @@ export function OvernightRiskCard({
         <p className="mt-1 text-xs text-muted-foreground">
           {hasStartingBalance
             ? toneSummary(tone)
-            : "Entry notional at risk until starting balance is configured."}
+            : "Entry notional at risk until total money invested is configured."}
         </p>
       </div>
 

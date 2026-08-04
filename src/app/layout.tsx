@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
-import { GoogleAnalytics } from "@/components/google-analytics";
-import { MicrosoftClarity } from "@/components/microsoft-clarity";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init-script";
 import {
   DEFAULT_DESCRIPTION,
@@ -85,8 +83,6 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-dvh w-full overflow-x-hidden bg-background text-foreground">
-        <GoogleAnalytics />
-        <MicrosoftClarity />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -17,7 +17,7 @@ function todayRunKey() {
 }
 
 export function useTradePulseNotes(options: { autoGenerate?: boolean } = {}) {
-  const autoGenerate = options.autoGenerate ?? true;
+  const autoGenerate = options.autoGenerate ?? false;
   const [state, setState] = useState<TradePulseState>({
     notes: [],
     loading: true,

@@ -63,20 +63,6 @@ export function parseYahooNumeric(value: YahooNumeric): number | null {
   return null;
 }
 
-function mapYahooCurrency(value?: string): CurrencyCode | null {
-  const code = value?.trim().toUpperCase();
-  if (
-    code === "USD" ||
-    code === "EUR" ||
-    code === "GBP" ||
-    code === "INR" ||
-    code === "CAD"
-  ) {
-    return code;
-  }
-  return null;
-}
-
 type YahooFundamentalsRequest = {
   ticker: string;
   assetClass: AssetClass;
@@ -84,7 +70,8 @@ type YahooFundamentalsRequest = {
 };
 
 export async function fetchYahooFundamentals(
-  request: YahooFundamentalsRequest
+  request: YahooFundamentalsRequest,
+  auth?: { cookie: string; crumb: string } | null
 ): Promise<TickerFundamentals | null> {
   if (request.assetClass !== "Equities") return null;
 
@@ -94,17 +81,14 @@ export async function fetchYahooFundamentals(
   );
   if (!yahooSymbol) return null;
 
-  const auth = await getYahooAuth();
-  if (!auth) return null;
+  const resolvedAuth = auth ?? (await getYahooAuth());
+  if (!resolvedAuth) return null;
 
   const url = new URL(
     `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSymbol)}`
   );
-  url.searchParams.set(
-    "modules",
-    "assetProfile,summaryDetail,price,defaultKeyStatistics"
-  );
-  url.searchParams.set("crumb", auth.crumb);
+  url.searchParams.set("modules", "assetProfile,summaryDetail");
+  url.searchParams.set("crumb", resolvedAuth.crumb);
 
   try {
     const res = await fetchWithTimeout(
@@ -113,7 +97,7 @@ export async function fetchYahooFundamentals(
         cache: "no-store",
         headers: {
           "User-Agent": YAHOO_USER_AGENT,
-          Cookie: auth.cookie,
+          Cookie: resolvedAuth.cookie,
           Accept: "application/json",
         },
       },
@@ -126,8 +110,6 @@ export async function fetchYahooFundamentals(
         result?: Array<{
           assetProfile?: { sector?: string; industry?: string };
           summaryDetail?: { marketCap?: YahooNumeric };
-          price?: { marketCap?: YahooNumeric; currency?: string };
-          defaultKeyStatistics?: { marketCap?: YahooNumeric };
         }>;
       };
     };
@@ -137,14 +119,10 @@ export async function fetchYahooFundamentals(
 
     const sector = row.assetProfile?.sector?.trim() || null;
     const currency =
-      mapYahooCurrency(row.price?.currency) ??
-      (request.listingMarket === "IN_NSE" || request.listingMarket === "IN_BSE"
+      request.listingMarket === "IN_NSE" || request.listingMarket === "IN_BSE"
         ? "INR"
-        : "USD");
-    const marketCap =
-      parseYahooNumeric(row.summaryDetail?.marketCap) ??
-      parseYahooNumeric(row.price?.marketCap) ??
-      parseYahooNumeric(row.defaultKeyStatistics?.marketCap);
+        : "USD";
+    const marketCap = parseYahooNumeric(row.summaryDetail?.marketCap);
 
     return {
       sector,
@@ -155,6 +133,40 @@ export async function fetchYahooFundamentals(
   } catch {
     return null;
   }
+}
+
+const SERVER_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const FETCH_CONCURRENCY = 6;
+
+const serverFundamentalsCache = new Map<
+  string,
+  { data: TickerFundamentals | null; expiresAt: number }
+>();
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) return [];
+
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await fn(items[index], index);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 export async function fetchFundamentalsBatch(
@@ -171,12 +183,31 @@ export async function fetchFundamentalsBatch(
     if (!unique.has(key)) unique.set(key, request);
   }
 
-  const entries = await Promise.all(
-    [...unique.entries()].map(async ([key, request]) => {
-      const data = await fetchYahooFundamentals(request);
-      return [key, data] as const;
-    })
-  );
+  const result: Record<string, TickerFundamentals | null> = {};
+  const toFetch: Array<[string, YahooFundamentalsRequest]> = [];
+  const now = Date.now();
 
-  return Object.fromEntries(entries);
+  for (const [key, request] of unique) {
+    const cached = serverFundamentalsCache.get(key);
+    if (cached && now < cached.expiresAt) {
+      result[key] = cached.data;
+      continue;
+    }
+    toFetch.push([key, request]);
+  }
+
+  if (toFetch.length === 0) return result;
+
+  const auth = await getYahooAuth();
+
+  await mapWithConcurrency(toFetch, FETCH_CONCURRENCY, async ([key, request]) => {
+    const data = await fetchYahooFundamentals(request, auth);
+    serverFundamentalsCache.set(key, {
+      data,
+      expiresAt: Date.now() + SERVER_CACHE_TTL_MS,
+    });
+    result[key] = data;
+  });
+
+  return result;
 }

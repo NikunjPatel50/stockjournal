@@ -356,7 +356,7 @@ function PortfolioWeightValue({
   if (pct == null) {
     return (
       <span className="text-sm text-muted-foreground">
-        {accountEquity <= 0 ? "Set balance in Settings" : "—"}
+        {accountEquity <= 0 ? "Set total invested in Settings" : "—"}
       </span>
     );
   }
@@ -719,7 +719,7 @@ function TradeActions({
 
 interface JournalTableProps {
   trades: JournalTrade[];
-  /** Account equity for portfolio-weight in row details (starting balance + realized P&L). */
+  /** Account equity for portfolio-weight in row details (total invested + realized P&L). */
   accountEquity?: number;
   /** Section title in the card header. */
   title?: string;
@@ -730,6 +730,8 @@ interface JournalTableProps {
   onDelete: (ids: string[]) => void;
   /** Show column visibility menu (default true). */
   showColumnsMenu?: boolean;
+  /** Poll live quotes for active rows (default true). */
+  enableLiveQuotes?: boolean;
 }
 
 export function JournalTable({
@@ -741,6 +743,7 @@ export function JournalTable({
   onDuplicate,
   onDelete,
   showColumnsMenu = true,
+  enableLiveQuotes = true,
 }: JournalTableProps) {
   const isCompact = useMediaQuery("(max-width: 1023px)");
   const [sorting, setSorting] = useState<SortingState>([
@@ -758,13 +761,14 @@ export function JournalTable({
   const { settings } = useSettings();
   const displayCurrency = settings.profile.currency;
 
-  const {
-    getQuote,
-    loading: quotesLoading,
-    error: quotesError,
-    delayed: quotesDelayed,
-    sessionOpen: quotesSessionOpen,
-  } = useMarketQuotes(trades, displayCurrency);
+  const sharedQuotes = useMarketQuotes();
+  const getQuote = enableLiveQuotes
+    ? sharedQuotes.getQuote
+    : () => null as ClientMarketQuote | null;
+  const quotesLoading = enableLiveQuotes ? sharedQuotes.loading : false;
+  const quotesError = enableLiveQuotes ? sharedQuotes.error : null;
+  const quotesDelayed = enableLiveQuotes ? sharedQuotes.delayed : true;
+  const quotesSessionOpen = enableLiveQuotes ? sharedQuotes.sessionOpen : false;
 
   const {
     getEarningsDate,

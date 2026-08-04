@@ -36,7 +36,7 @@ export function resolveAccountRiskBase(input: {
 
   return {
     error:
-      "Account equity is negative — set a starting balance in Settings to size by % risk.",
+      "Account equity is negative — set total money invested in Settings to size by % risk.",
   };
 }
 

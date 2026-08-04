@@ -31,6 +31,11 @@ import {
   type PerformanceBreakdownRow,
 } from "@/lib/performance-breakdown";
 import {
+  fundamentalsCacheKeysForSymbols,
+  readFundamentalsCache,
+  writeFundamentalsCache,
+} from "@/lib/fundamentals-cache";
+import {
   defaultListingMarketForCurrency,
   normalizeListingMarket,
 } from "@/lib/equity-listing-markets";
@@ -156,6 +161,7 @@ function BreakdownTable({
   rows,
   currency,
   loading,
+  refreshing,
   emptyTitle,
   emptyHint,
 }: {
@@ -164,6 +170,7 @@ function BreakdownTable({
   rows: PerformanceBreakdownRow[];
   currency: CurrencyCode;
   loading: boolean;
+  refreshing?: boolean;
   emptyTitle: string;
   emptyHint: string;
 }) {
@@ -178,6 +185,11 @@ function BreakdownTable({
           <span className="inline-flex items-center gap-1.5">
             <Loader2 className="size-3 animate-spin" />
             Loading
+          </span>
+        ) : refreshing ? (
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" />
+            Updating
           </span>
         ) : (
           `${rows.length} group${rows.length === 1 ? "" : "s"}`
@@ -259,6 +271,7 @@ export function PerformanceBreakdownCards({
     Record<string, TickerFundamentals | null>
   >({});
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const equitySymbols = useMemo(() => {
@@ -266,14 +279,14 @@ export function PerformanceBreakdownCards({
     const symbols: Array<{
       ticker: string;
       assetClass: JournalTrade["assetClass"];
-      listingMarket: JournalTrade["listingMarket"];
+      listingMarket: NonNullable<JournalTrade["listingMarket"]>;
     }> = [];
 
     for (const trade of trades) {
       if (trade.assetClass !== "Equities") continue;
-      const listingMarket =
-        normalizeListingMarket(trade.listingMarket) ??
-        defaultListingMarketForCurrency(currency);
+      const listingMarket = normalizeListingMarket(
+        trade.listingMarket ?? defaultListingMarketForCurrency(currency)
+      );
       const key = `${trade.ticker}|${trade.assetClass}|${listingMarket}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -287,17 +300,55 @@ export function PerformanceBreakdownCards({
     return symbols;
   }, [trades, currency]);
 
+  const symbolsKey = useMemo(
+    () =>
+      equitySymbols
+        .map(
+          (symbol) =>
+            `${symbol.ticker}|${symbol.assetClass}|${symbol.listingMarket}`
+        )
+        .sort()
+        .join(","),
+    [equitySymbols]
+  );
+
+  const cacheKeys = useMemo(
+    () => fundamentalsCacheKeysForSymbols(equitySymbols),
+    [equitySymbols]
+  );
+
   useEffect(() => {
     if (equitySymbols.length === 0) {
       setFundamentals({});
       setLoading(false);
+      setRefreshing(false);
       setError(null);
       return;
     }
 
-    const controller = new AbortController();
-    setLoading(true);
+    const cached = readFundamentalsCache(cacheKeys);
+    const hasFullCache = cacheKeys.every((key) => key in cached);
+
+    if (hasFullCache) {
+      setFundamentals(cached);
+      setLoading(false);
+      setRefreshing(false);
+      setError(null);
+      return;
+    }
+
+    if (Object.keys(cached).length > 0) {
+      setFundamentals(cached);
+      setLoading(false);
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+      setRefreshing(false);
+    }
+
     setError(null);
+
+    const controller = new AbortController();
 
     void fetch("/api/market-data/fundamentals", {
       method: "POST",
@@ -313,19 +364,26 @@ export function PerformanceBreakdownCards({
         if (!res.ok) {
           throw new Error(data.error ?? "Could not load fundamentals");
         }
-        setFundamentals(data.fundamentals ?? {});
+        const next = data.fundamentals ?? {};
+        setFundamentals(next);
+        writeFundamentalsCache(next);
       })
       .catch((err) => {
         if (err instanceof Error && err.name === "AbortError") return;
-        setError(
-          err instanceof Error ? err.message : "Could not load fundamentals"
-        );
-        setFundamentals({});
+        if (Object.keys(cached).length === 0) {
+          setError(
+            err instanceof Error ? err.message : "Could not load fundamentals"
+          );
+          setFundamentals({});
+        }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
 
     return () => controller.abort();
-  }, [equitySymbols]);
+  }, [cacheKeys, equitySymbols, symbolsKey]);
 
   const sectorRows = useMemo(
     () => computePerformanceBreakdown(trades, fundamentals, currency, "sector"),
@@ -377,6 +435,7 @@ export function PerformanceBreakdownCards({
           rows={sectorRows}
           currency={currency}
           loading={loading}
+          refreshing={refreshing}
           emptyTitle="No sector data yet"
           emptyHint="Trade listed equities to populate sector breakdown."
         />
@@ -386,6 +445,7 @@ export function PerformanceBreakdownCards({
           rows={marketCapRows}
           currency={currency}
           loading={loading}
+          refreshing={refreshing}
           emptyTitle="No market-cap data yet"
           emptyHint="Trade listed equities to populate market-cap breakdown."
         />

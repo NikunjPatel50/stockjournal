@@ -21,7 +21,7 @@ export function TradePulseSection() {
   );
 
   const { notes, loading, generating, error, setupRequired, generateNotes } =
-    useTradePulseNotes({ autoGenerate: activeEquityCount > 0 });
+    useTradePulseNotes({ autoGenerate: false });
 
   if (activeEquityCount === 0) {
     return null;
@@ -85,7 +85,7 @@ export function TradePulseSection() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col gap-3">
           {notes.map((note) => (
             <TradePulseCard key={note.id} note={note} />
           ))}

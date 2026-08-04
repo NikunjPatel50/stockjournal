@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import {
   defaultEquityExchangeForCurrency,
+  eodhdSymbolCandidates,
+  fetchEodhdRealtimeQuotes,
   isLiveMarketQuote,
   normalizeQuoteAssetClass,
   quoteLookupKey,
   type EquityExchangeHint,
+  type MarketQuote,
 } from "@/lib/eodhd";
 import { fetchMarketQuoteForTrade } from "@/lib/market-quote";
 import { normalizeListingMarket } from "@/lib/equity-listing-markets";
+import { mapWithConcurrency } from "@/lib/map-with-concurrency";
 import { getCurrentUser } from "@/lib/supabase/server";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
@@ -20,6 +24,7 @@ type QuoteRequestItem = {
 };
 
 const CURRENCIES = new Set<CurrencyCode>(["USD", "EUR", "GBP", "INR", "CAD"]);
+const QUOTE_FETCH_CONCURRENCY = 6;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -80,62 +85,106 @@ export async function POST(request: Request) {
     } | null
   > = {};
 
+  const eodhdSymbols = new Set<string>();
+  for (const item of items) {
+    const ticker = String(item.ticker ?? "").trim();
+    if (!ticker) continue;
+    const assetClass = normalizeQuoteAssetClass(item.assetClass);
+    if (assetClass === "Options") continue;
+    for (const symbol of eodhdSymbolCandidates(
+      ticker,
+      assetClass,
+      equityExchange
+    )) {
+      eodhdSymbols.add(symbol);
+    }
+  }
+
+  let eodhdBatch = new Map<string, MarketQuote>();
+  if (eodhdSymbols.size > 0) {
+    try {
+      eodhdBatch = await fetchEodhdRealtimeQuotes(
+        [...eodhdSymbols],
+        apiKey
+      );
+    } catch {
+      eodhdBatch = new Map();
+    }
+  }
+
   try {
-    await Promise.all(
-      items.map(async (item) => {
-        const ticker = String(item.ticker ?? "").trim();
-        if (!ticker) return;
+    await mapWithConcurrency(items, QUOTE_FETCH_CONCURRENCY, async (item) => {
+      const ticker = String(item.ticker ?? "").trim();
+      if (!ticker) return;
 
-        const assetClass = normalizeQuoteAssetClass(item.assetClass);
-        const key = quoteLookupKey(ticker, assetClass);
+      const assetClass = normalizeQuoteAssetClass(item.assetClass);
+      const key = quoteLookupKey(ticker, assetClass);
 
-        if (assetClass === "Options") {
-          quotes[key] = null;
-          return;
+      if (assetClass === "Options") {
+        quotes[key] = null;
+        return;
+      }
+
+      try {
+        const entryRaw = item.entryPrice;
+        const entryPrice =
+          typeof entryRaw === "number" && Number.isFinite(entryRaw)
+            ? entryRaw
+            : typeof entryRaw === "string"
+              ? Number(entryRaw)
+              : undefined;
+
+        const candidates = eodhdSymbolCandidates(
+          ticker,
+          assetClass,
+          equityExchange
+        );
+        let eodhdQuote = null;
+        for (const symbol of candidates) {
+          const hit = eodhdBatch.get(symbol);
+          if (hit?.price != null && hit.price > 0) {
+            eodhdQuote = hit;
+            if (isLiveMarketQuote(hit)) break;
+          }
         }
 
-        try {
-          const entryRaw = item.entryPrice;
-          const entryPrice =
-            typeof entryRaw === "number" && Number.isFinite(entryRaw)
-              ? entryRaw
-              : typeof entryRaw === "string"
-                ? Number(entryRaw)
-                : undefined;
+        const quote =
+          eodhdQuote && isLiveMarketQuote(eodhdQuote)
+            ? eodhdQuote
+            : await fetchMarketQuoteForTrade(
+                ticker,
+                assetClass,
+                apiKey,
+                equityExchange,
+                {
+                  entryPrice:
+                    entryPrice != null &&
+                    Number.isFinite(entryPrice) &&
+                    entryPrice > 0
+                      ? entryPrice
+                      : undefined,
+                  profileCurrency: currency,
+                  listingMarket: item.listingMarket
+                    ? normalizeListingMarket(item.listingMarket)
+                    : undefined,
+                }
+              );
 
-          const quote = await fetchMarketQuoteForTrade(
-            ticker,
-            assetClass,
-            apiKey,
-            equityExchange,
-            {
-              entryPrice:
-                entryPrice != null && Number.isFinite(entryPrice) && entryPrice > 0
-                  ? entryPrice
-                  : undefined,
-              profileCurrency: currency,
-              listingMarket: item.listingMarket
-                ? normalizeListingMarket(item.listingMarket)
-                : undefined,
-            }
-          );
-
-          quotes[key] =
-            quote === null
-              ? null
-              : {
-                  price: quote.price,
-                  changePercent: quote.changePercent,
-                  timestamp: quote.timestamp,
-                  symbol: quote.symbol,
-                  currency: quote.currency,
-                  isLive: isLiveMarketQuote(quote),
-                };
-        } catch {
-          quotes[key] = null;
-        }
-      })
-    );
+        quotes[key] =
+          quote === null
+            ? null
+            : {
+                price: quote.price,
+                changePercent: quote.changePercent,
+                timestamp: quote.timestamp,
+                symbol: quote.symbol,
+                currency: quote.currency,
+                isLive: isLiveMarketQuote(quote),
+              };
+      } catch {
+        quotes[key] = null;
+      }
+    });
 
     return NextResponse.json({
       quotes,

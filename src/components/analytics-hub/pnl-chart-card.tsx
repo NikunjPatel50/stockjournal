@@ -28,9 +28,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-media-query";
+import { useMarketQuotes } from "@/hooks/use-market-quotes";
 import {
   activePositionTodayPnl,
   isActivePositionTodayPnlPending,
+  patchTodayDailyFromQuotes,
   toActivePositionPnlInput,
 } from "@/lib/active-position-daily-pnl";
 import {
@@ -114,10 +116,20 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
   });
   const [dateOpen, setDateOpen] = useState(false);
   const [daily, setDaily] = useState<DailyPnlPoint[]>([]);
+  const [priorSessionBarByTradeId, setPriorSessionBarByTradeId] = useState<
+    Record<string, boolean>
+  >({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const isMobile = useIsMobile();
+
+  const activePool = useMemo(
+    () => trades.filter((trade) => (trade.status ?? "Closed") === "Active"),
+    [trades]
+  );
+
+  const { getQuote, loading: quotesLoading, fetchedAt } = useMarketQuotes();
 
   const activeTrades = useMemo(
     () =>
@@ -175,11 +187,13 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
         const data = (await res.json()) as {
           error?: string;
           daily?: DailyPnlPoint[];
+          priorSessionBarByTradeId?: Record<string, boolean>;
         };
         if (!res.ok) {
           throw new Error(data.error ?? "Could not load active position P&L");
         }
         setDaily(data.daily ?? []);
+        setPriorSessionBarByTradeId(data.priorSessionBarByTradeId ?? {});
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
         setError(
@@ -214,13 +228,52 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
     return () => window.clearInterval(timer);
   }, [todayPending, activeTrades.length, fetchDailyPnl]);
 
+  const dailyWithQuotes = useMemo(() => {
+    if (activeTrades.length === 0) return daily;
+
+    const quotesByTradeId: Record<
+      string,
+      { price: number; changePercent?: number | null }
+    > = {};
+    for (const trade of activePool) {
+      const input = toActivePositionPnlInput(trade);
+      if (!input) continue;
+      const quote = getQuote(trade);
+      if (quote?.price != null && quote.price > 0) {
+        quotesByTradeId[input.id] = {
+          price: quote.price,
+          changePercent: quote.changePercent,
+        };
+      }
+    }
+
+    return patchTodayDailyFromQuotes(
+      daily,
+      activeTrades,
+      quotesByTradeId,
+      currency,
+      now,
+      priorSessionBarByTradeId
+    );
+  }, [
+    activeTrades,
+    activePool,
+    currency,
+    daily,
+    fetchedAt,
+    getQuote,
+    now,
+    priorSessionBarByTradeId,
+    quotesLoading,
+  ]);
+
   const filteredDaily = useMemo(() => {
-    const points = filterDailyByTimeframe(daily, filters).map((point) => ({
+    const points = filterDailyByTimeframe(dailyWithQuotes, filters).map((point) => ({
       ...point,
       label: format(parseISO(point.date), "MMM d"),
     }));
     return points;
-  }, [daily, filters]);
+  }, [dailyWithQuotes, filters]);
 
   const netPnl = useMemo(
     () =>
@@ -231,8 +284,8 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
   );
 
   const todayPnl = useMemo(
-    () => activePositionTodayPnl(daily, activeTrades, currency, now),
-    [daily, activeTrades, currency, now]
+    () => activePositionTodayPnl(dailyWithQuotes, activeTrades, currency, now),
+    [dailyWithQuotes, activeTrades, currency, now]
   );
 
   const marketCloseHint = useMemo(
@@ -311,7 +364,7 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
       title="P&L chart"
       subtitle="Daily mark-to-market P&L on your open positions"
       meta={
-        loading ? (
+        loading || quotesLoading ? (
           <span className="inline-flex items-center gap-1.5">
             <Loader2 className="size-3 animate-spin" />
             Loading
