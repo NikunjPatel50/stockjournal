@@ -383,6 +383,95 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
   },
+  {
+    slug: "sector-and-market-cap-performance-for-swing-traders",
+    title: "Sector and Market Cap Performance: What Your Swing Journal Should Show You",
+    description:
+      "How to break down swing trade P&L by sector and company size so you stop repeating the same mistakes in the wrong part of the market.",
+    publishedAt: "2026-08-04",
+    readMinutes: 8,
+    tags: ["Analytics", "Attribution", "Swing trading"],
+    coverImage: {
+      src: "/blog/sector-and-market-cap-performance-for-swing-traders.jpg",
+      alt: "Trading analytics dashboard showing sector and market cap performance breakdown",
+      credit: "Photo: SwingTradingLog",
+    },
+    blocks: [
+      {
+        type: "p",
+        text: "Most swing traders review trades one ticker at a time. That works for execution mistakes — late entries, moved stops, oversizing. It misses a bigger question: are you actually profitable in the parts of the market where you spend most of your time? Sector and market-cap attribution turns a pile of closed trades into a map of where your edge lives.",
+      },
+      {
+        type: "h2",
+        text: "Why sector breakdown matters for swing traders",
+      },
+      {
+        type: "p",
+        text: "Sectors do not move in lockstep. A pullback setup that works in defensives can fail in high-beta tech during the same week. If you trade NSE names in INR, banking, IT, and energy often behave differently through rate cycles and earnings seasons. Without grouping P&L by sector, you might keep trading a style that only worked because one sector was trending.",
+      },
+      {
+        type: "ul",
+        items: [
+          "See which sectors contribute most of your net P&L over 30–90 days",
+          "Spot win-rate gaps between sectors you trade equally often",
+          "Notice when losses cluster in one theme (e.g. small-cap momentum)",
+          "Align position size with sector volatility instead of using one fixed rule everywhere",
+        ],
+      },
+      {
+        type: "image",
+        src: "/blog/sector-and-market-cap-performance-for-swing-traders.jpg",
+        alt: "Analytics view with sector and market cap performance tables",
+        caption: "Attribution by sector and size beats guessing which setups actually pay.",
+      },
+      {
+        type: "h2",
+        text: "Market cap: large, mid, small, and micro",
+      },
+      {
+        type: "p",
+        text: "Market cap changes how a stock trades — liquidity at the open, gap size, and how fast support breaks. Large caps on NSE often gap less but move slower; small caps can offer bigger swings with wider stops and more overnight risk. Breaking performance into large, mid, small, and micro buckets shows whether you are forcing the same hold time on names that need different rules.",
+      },
+      {
+        type: "ul",
+        items: [
+          "Large cap: tighter spreads, cleaner levels — often better for newer swing systems",
+          "Mid cap: balance of movement and liquidity; watch earnings and promoter news",
+          "Small / micro cap: size down; gaps and slippage punish wide notional",
+          "Compare avg R and win rate per bucket, not just total P&L",
+        ],
+      },
+      {
+        type: "h2",
+        text: "What to look for each month",
+      },
+      {
+        type: "p",
+        text: "Run attribution after at least 15–20 closed equity trades so one lucky winner does not dominate. Sort groups by net P&L, then read the losers within the worst group. Ask: was the setup wrong for that sector, or was execution the problem? If IT shows a high win rate but negative P&L, your winners may be too small — a sizing issue, not a sector ban.",
+      },
+      {
+        type: "h2",
+        text: "Turn insight into rules",
+      },
+      {
+        type: "ul",
+        items: [
+          "Cap concurrent positions in your weakest sector until stats improve",
+          "Trade smaller in market-cap buckets with poor avg R",
+          "Tag trades with strategy + sector context in your journal notes",
+          "Re-check attribution quarterly — edges drift as volatility regimes change",
+        ],
+      },
+      {
+        type: "h3",
+        text: "Log trades with enough structure to attribute later",
+      },
+      {
+        type: "p",
+        text: "You need closed trades with ticker, P&L, stop, and target logged consistently. SwingTradingLog groups realized results by sector and market cap on the Analytics page so you see which parts of the market fund your account — and which ones only feel active. Start logging the next swing with stop and target filled in; let the breakdown tell you where to focus next month.",
+      },
+    ],
+  },
 ];
 
 export function getBlogPost(slug: string): BlogPost | undefined {
