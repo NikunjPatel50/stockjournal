@@ -89,7 +89,7 @@ function tradesToCsv(trades: JournalTrade[]) {
 }
 
 export default function JournalPage() {
-  const { trades, setTrades } = useJournalTrades();
+  const { trades, setTrades, hydrated: tradesHydrated } = useJournalTrades();
   const { settings } = useSettings();
   const [filters, setFilters] = useState<JournalFilters>(emptyFilters);
   const [modalOpen, setModalOpen] = useState(false);
@@ -326,6 +326,7 @@ export default function JournalPage() {
         livePnl={livePnl}
         filteredPnl={filteredPnl}
         livePnlLoading={quotesLoading}
+        liveDataReady={tradesHydrated}
       />
 
       <div className="space-y-6">

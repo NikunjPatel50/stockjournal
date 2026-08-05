@@ -86,6 +86,15 @@ function pickEquityYahooQuote(
   return pickBetterQuote(us, nse);
 }
 
+export function resolveMarketQuoteFromSources(
+  eodhd: MarketQuote | null,
+  yahoo: MarketQuote | null
+): MarketQuote | null {
+  if (yahoo && isLiveMarketQuote(yahoo)) return yahoo;
+  if (eodhd && isLiveMarketQuote(eodhd)) return eodhd;
+  return pickBetterQuote(eodhd, yahoo);
+}
+
 /** EODHD first; Yahoo chart feed when EODHD only has stale close (common for NSE). */
 export async function fetchMarketQuoteForTrade(
   ticker: string,

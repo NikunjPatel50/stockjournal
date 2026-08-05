@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
-import { THEME_INIT_SCRIPT } from "@/lib/theme-init-script";
+import { SiteJsonLd } from "@/components/seo/site-json-ld";
 import {
   DEFAULT_DESCRIPTION,
   getSiteUrl,
@@ -80,7 +80,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/theme-init.js" />
+        <SiteJsonLd />
       </head>
       <body className="min-h-dvh w-full overflow-x-hidden bg-background text-foreground">
         <Providers>{children}</Providers>

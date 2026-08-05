@@ -15,6 +15,8 @@ export function UserStorageProvider({
   userDisplayName?: string | null;
   children: ReactNode;
 }) {
+  setActiveStorageUserId(userId);
+
   const { replaceSettings, hydrated } = useSettings();
 
   useLayoutEffect(() => {

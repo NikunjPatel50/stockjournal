@@ -20,6 +20,7 @@ export const JOURNAL_REORDERABLE_COLUMNS = [
   { id: "quantity", label: "Qty" },
   { id: "invested", label: "Invested" },
   { id: "pnl", label: "Net P&L" },
+  { id: "dailyPnl", label: "Daily P/L" },
   { id: "riskReward", label: "R:R" },
   { id: "targetStopProgress", label: "Target / Stop" },
   { id: "holdTimeHours", label: "Hold" },
@@ -76,8 +77,17 @@ function migrateLegacyColumnOrder(order: string[]): string[] {
   return next;
 }
 
+function migrateDailyPnlColumn(order: string[]): string[] {
+  if (order.includes("dailyPnl")) return order;
+  const pnlIdx = order.indexOf("pnl");
+  if (pnlIdx === -1) return order;
+  const next = [...order];
+  next.splice(pnlIdx + 1, 0, "dailyPnl");
+  return next;
+}
+
 function sanitizeOrder(order: string[]): string[] {
-  const migrated = migrateLegacyColumnOrder(order);
+  const migrated = migrateDailyPnlColumn(migrateLegacyColumnOrder(order));
   const actionsIdx = migrated.indexOf("actions");
   const beforeActions =
     actionsIdx === -1 ? migrated : migrated.slice(0, actionsIdx);
@@ -121,6 +131,9 @@ export function loadJournalColumnPrefs(): JournalColumnPrefs {
         parsed.visibility?.maxProfit !== false ||
         parsed.visibility?.maxLoss !== false;
       vis.targetStop = legacyVisible;
+    }
+    if (vis.dailyPnl === undefined) {
+      vis.dailyPnl = true;
     }
     return {
       order: sanitizeOrder(parsed.order ?? base.order),

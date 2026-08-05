@@ -1,4 +1,3 @@
-import { SiteJsonLd } from "@/components/seo/site-json-ld";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { MicrosoftClarity } from "@/components/microsoft-clarity";
 
@@ -11,7 +10,6 @@ export default function MarketingLayout({
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground antialiased">
       <GoogleAnalytics />
       <MicrosoftClarity />
-      <SiteJsonLd />
       {children}
     </div>
   );

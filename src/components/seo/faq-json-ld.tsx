@@ -1,4 +1,5 @@
 import { LANDING_FAQS } from "@/lib/faq-content";
+import { JsonLd } from "@/components/seo/json-ld";
 
 export function FaqJsonLd() {
   const schema = {
@@ -14,10 +15,5 @@ export function FaqJsonLd() {
     })),
   };
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
+  return <JsonLd data={schema} />;
 }

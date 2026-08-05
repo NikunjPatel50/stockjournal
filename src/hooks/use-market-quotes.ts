@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
+import { readQuotesCache, writeQuotesCache } from "@/lib/quotes-cache";
 
 export type ClientMarketQuote = {
   price: number | null;
@@ -122,6 +124,25 @@ export function useMarketQuotesPoller(
   const pollGenerationRef = useRef(0);
   const pollTimerRef = useRef<number | null>(null);
 
+  useLayoutEffect(() => {
+    if (symbols.length === 0) return;
+    const cached = readQuotesCache(
+      symbols.map((s) => quoteLookupKey(s.ticker, s.assetClass))
+    );
+    if (Object.keys(cached).length === 0) return;
+    setState((prev) => {
+      const merged = { ...cached, ...prev.quotes };
+      const hasMissing = symbols.some(
+        (s) => merged[quoteLookupKey(s.ticker, s.assetClass)] == null
+      );
+      return {
+        ...prev,
+        quotes: merged,
+        loading: hasMissing,
+      };
+    });
+  }, [symbols, symbolsKey]);
+
   const fetchQuotes = useCallback(async () => {
     if (symbols.length === 0) {
       setState((prev) => ({
@@ -177,6 +198,8 @@ export function useMarketQuotesPoller(
       }
 
       const fetchedAt = data.fetchedAt ?? Date.now();
+
+      writeQuotesCache(data.quotes ?? {});
 
       setState((prev) => ({
         quotes: { ...prev.quotes, ...(data.quotes ?? {}) },

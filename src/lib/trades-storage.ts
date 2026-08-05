@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import type { JournalTrade } from "@/lib/journal-types";
 import { normalizeJournalTrade } from "@/lib/journal-types";
 import {
@@ -111,17 +111,18 @@ export function saveJournalTrades(trades: JournalTrade[]) {
 }
 
 export function useJournalTrades() {
+  const [userId, setUserId] = useState<string | null>(null);
   const [trades, setTradesState] = useState<JournalTrade[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [userId, setUserId] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : getActiveStorageUserId()
-  );
+
+  useLayoutEffect(() => {
+    setUserId(getActiveStorageUserId());
+  }, []);
 
   useEffect(() => {
     function syncUser() {
       setUserId(getActiveStorageUserId());
     }
-    syncUser();
     window.addEventListener(USER_STORAGE_BOUND_EVENT, syncUser);
     return () => window.removeEventListener(USER_STORAGE_BOUND_EVENT, syncUser);
   }, []);

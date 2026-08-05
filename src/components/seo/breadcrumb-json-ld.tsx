@@ -1,4 +1,5 @@
 import { absoluteUrl } from "@/lib/site";
+import { JsonLd } from "@/components/seo/json-ld";
 
 export type BreadcrumbItem = {
   name: string;
@@ -17,10 +18,5 @@ export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }) {
     })),
   };
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
+  return <JsonLd data={schema} />;
 }

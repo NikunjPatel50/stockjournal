@@ -11,6 +11,8 @@ interface JournalSummaryBarProps {
   livePnl?: LiveActivePnlSummary | null;
   filteredPnl?: FilteredPnlSummary | null;
   livePnlLoading?: boolean;
+  /** Wait until client storage/quotes are ready to avoid hydration mismatch. */
+  liveDataReady?: boolean;
 }
 
 function statValueFontClass(value: string, largeValue?: boolean): string {
@@ -88,6 +90,7 @@ export function JournalSummaryBar({
   livePnl,
   filteredPnl,
   livePnlLoading,
+  liveDataReady = true,
 }: JournalSummaryBarProps) {
   const filteredTotal = filteredPnl?.totalPnl ?? summary.totalPnl;
   const pnlUp = filteredTotal > 0;
@@ -100,16 +103,19 @@ export function JournalSummaryBar({
   const hasFilteredActive = (filteredPnl?.activeCount ?? 0) > 0;
   const hasFilteredLivePrice = (filteredPnl?.pricedActiveCount ?? 0) > 0;
 
-  const liveValue = !hasActive
-    ? formatCurrency(0)
-    : livePnlLoading && !hasLivePrice
-      ? "…"
-      : hasLivePrice
-        ? formatCurrency(livePnl!.totalPnl)
-        : "—";
+  const liveValue = !liveDataReady
+    ? "…"
+    : !hasActive
+      ? formatCurrency(0)
+      : livePnlLoading && !hasLivePrice
+        ? "…"
+        : hasLivePrice
+          ? formatCurrency(livePnl!.totalPnl)
+          : "—";
 
-  const filteredValue =
-    hasFilteredActive &&
+  const filteredValue = !liveDataReady
+    ? "…"
+    : hasFilteredActive &&
     filteredPnl!.activeCount === summary.count &&
     livePnlLoading &&
     !hasFilteredLivePrice
@@ -123,7 +129,7 @@ export function JournalSummaryBar({
         value={liveValue}
         largeValue
         accent={
-          !hasActive || !hasLivePrice
+          !liveDataReady || !hasActive || !hasLivePrice
             ? "slate"
             : liveUp
               ? "emerald"
@@ -132,7 +138,7 @@ export function JournalSummaryBar({
                 : "slate"
         }
         valueClass={
-          !hasActive || !hasLivePrice
+          !liveDataReady || !hasActive || !hasLivePrice
             ? undefined
             : liveUp
               ? "text-emerald-700 dark:text-emerald-400"

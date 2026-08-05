@@ -1,4 +1,5 @@
 import { absoluteUrl, DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { JsonLd } from "@/components/seo/json-ld";
 
 export function SoftwareApplicationJsonLd() {
   const schema = {
@@ -16,10 +17,5 @@ export function SoftwareApplicationJsonLd() {
     },
   };
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
+  return <JsonLd data={schema} />;
 }

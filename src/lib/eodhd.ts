@@ -350,6 +350,28 @@ export async function fetchEodhdRealtimeQuotes(
   return result;
 }
 
+/** Batch realtime quotes only — no per-symbol EOD/search fallback (use Yahoo for gaps). */
+export async function fetchEodhdRealtimeQuotesBatchOnly(
+  symbols: string[],
+  apiKey: string
+): Promise<Map<string, MarketQuote>> {
+  const unique = [...new Set(symbols.map((s) => s.trim()).filter(Boolean))];
+  const result = new Map<string, MarketQuote>();
+  if (unique.length === 0) return result;
+
+  const batches = chunk(unique, 20);
+  await Promise.all(
+    batches.map(async (batch) => {
+      const batchMap = await fetchEodhdRealtimeBatch(batch, apiKey);
+      for (const [symbol, quote] of batchMap) {
+        result.set(symbol, quote);
+      }
+    })
+  );
+
+  return result;
+}
+
 export async function fetchEodhdQuoteForTrade(
   ticker: string,
   assetClass: AssetClass,

@@ -44,6 +44,10 @@ import {
 import { useHoldTimeClock } from "@/hooks/use-hold-time-clock";
 import { resolveTradePnlDisplay, resolveMaxProfitLossDisplay, formatTradeRiskReward, computePositionPortfolioPct } from "@/lib/trade-pnl";
 import {
+  computeTradeDailyPnlFromQuote,
+  toActivePositionPnlInput,
+} from "@/lib/active-position-daily-pnl";
+import {
   loadJournalColumnPrefs,
   saveJournalColumnPrefs,
   sanitizeJournalColumnOrder,
@@ -71,6 +75,8 @@ const CELL_CENTER = "flex w-full items-center justify-center text-center";
 function journalCellClass(columnId: string) {
   return cn(
     columnId === "expand" ? "w-7 px-0" : CELL_X,
+    columnId === "currentPrice" && "pr-5 sm:pr-7",
+    columnId === "pnl" && "pl-5 sm:pl-7",
     "py-3 align-middle text-center [text-align:center]"
   );
 }
@@ -78,6 +84,8 @@ function journalCellClass(columnId: string) {
 function journalHeaderClass(columnId: string) {
   return cn(
     columnId === "expand" ? "w-7 px-0" : CELL_X,
+    columnId === "currentPrice" && "pr-5 sm:pr-7",
+    columnId === "pnl" && "pl-5 sm:pl-7",
     "h-10 border-r border-border/50 py-2 align-middle text-center [text-align:center] last:border-r-0"
   );
 }
@@ -454,6 +462,67 @@ function TradePnlCell({
         ({roi >= 0 ? "+" : ""}
         {roi.toFixed(2)}%)
       </span>
+    </p>
+  );
+}
+
+function DailyPnlCell({
+  trade,
+  quote,
+  displayCurrency,
+  loading,
+}: {
+  trade: JournalTrade;
+  quote: ClientMarketQuote | null;
+  displayCurrency: CurrencyCode;
+  loading: boolean;
+}) {
+  const isActive = (trade.status ?? "Closed") === "Active";
+
+  if (!isActive) {
+    return (
+      <span className="block w-full text-center text-sm text-muted-foreground">
+        —
+      </span>
+    );
+  }
+
+  const input = toActivePositionPnlInput(trade);
+  const daily =
+    input && quote?.price
+      ? computeTradeDailyPnlFromQuote(
+          input,
+          { price: quote.price, changePercent: quote.changePercent },
+          displayCurrency
+        )
+      : null;
+
+  if (daily == null) {
+    if (loading) {
+      return (
+        <span className="mx-auto inline-block h-4 w-14 animate-pulse rounded bg-muted" />
+      );
+    }
+    return (
+      <span className="block w-full text-center text-sm text-muted-foreground">
+        —
+      </span>
+    );
+  }
+
+  const currency = quoteDisplayCurrency(quote, displayCurrency);
+
+  return (
+    <p
+      className={cn(
+        "whitespace-nowrap text-center text-sm font-semibold",
+        NUMERIC_CLASS,
+        daily >= 0
+          ? "text-emerald-700 dark:text-emerald-400"
+          : "text-rose-700 dark:text-rose-400"
+      )}
+    >
+      {formatSignedMoney(daily, currency)}
     </p>
   );
 }
@@ -930,14 +999,18 @@ export function JournalTable({
         id: "currentPrice",
         header: () => <StaticHeader label="Market" />,
         enableSorting: false,
-        cell: ({ row }) => (
-          <LivePriceInline
-            trade={row.original}
-            quote={getQuote(row.original)}
-            loading={quotesLoading}
-            currency={displayCurrency}
-          />
-        ),
+        cell: ({ row }) => {
+          const quote = getQuote(row.original);
+          const isActive = (row.original.status ?? "Closed") === "Active";
+          return (
+            <LivePriceInline
+              trade={row.original}
+              quote={quote}
+              loading={isActive && quotesLoading && quote == null}
+              currency={displayCurrency}
+            />
+          );
+        },
       },
       {
         accessorKey: "quantity",
@@ -996,6 +1069,41 @@ export function JournalTable({
             displayCurrency={displayCurrency}
           />
         ),
+      },
+      {
+        id: "dailyPnl",
+        accessorFn: (row) => {
+          const input = toActivePositionPnlInput(row);
+          if (!input) return Number.NEGATIVE_INFINITY;
+          const quote = getQuote(row);
+          const daily = computeTradeDailyPnlFromQuote(
+            input,
+            quote?.price
+              ? { price: quote.price, changePercent: quote.changePercent }
+              : null,
+            displayCurrency
+          );
+          return daily ?? Number.NEGATIVE_INFINITY;
+        },
+        header: ({ column }) => (
+          <SortHeader
+            label="Daily P/L"
+            sorted={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        ),
+        cell: ({ row }) => {
+          const quote = getQuote(row.original);
+          const isActive = (row.original.status ?? "Closed") === "Active";
+          return (
+            <DailyPnlCell
+              trade={row.original}
+              quote={quote}
+              displayCurrency={displayCurrency}
+              loading={enableLiveQuotes && isActive && quotesLoading && quote == null}
+            />
+          );
+        },
       },
       {
         id: "targetStop",
@@ -1108,6 +1216,7 @@ export function JournalTable({
     ],
     [
       displayCurrency,
+      enableLiveQuotes,
       expandedRowIds,
       getQuote,
       holdNow,
@@ -1296,6 +1405,18 @@ export function JournalTable({
               quote,
               displayCurrency
             );
+            const dailyInput = toActivePositionPnlInput(trade);
+            const dailyPnl =
+              dailyInput && quote?.price
+                ? computeTradeDailyPnlFromQuote(
+                    dailyInput,
+                    {
+                      price: quote.price,
+                      changePercent: quote.changePercent,
+                    },
+                    displayCurrency
+                  )
+                : null;
             return (
               <li key={row.id}>
                 <div
@@ -1351,6 +1472,22 @@ export function JournalTable({
                           {pnlDisplay.isUnrealized
                             ? formatSignedMoney(pnlDisplay.pnl, pnlDisplay.currency)
                             : formatCurrency(pnlDisplay.pnl)}
+                          {dailyPnl != null ? (
+                            <p
+                              className={cn(
+                                "mt-0.5 text-[11px] font-semibold",
+                                dailyPnl >= 0
+                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  : "text-rose-700 dark:text-rose-400"
+                              )}
+                            >
+                              Daily{" "}
+                              {formatSignedMoney(
+                                dailyPnl,
+                                quoteDisplayCurrency(quote, displayCurrency)
+                              )}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
 
@@ -1370,7 +1507,11 @@ export function JournalTable({
                             <LivePrice
                               trade={trade}
                               quote={quote}
-                              loading={quotesLoading}
+                              loading={
+                                (trade.status ?? "Closed") === "Active" &&
+                                quotesLoading &&
+                                quote == null
+                              }
                               currency={quoteDisplayCurrency(quote, displayCurrency)}
                             />
                           </div>

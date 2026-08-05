@@ -304,6 +304,25 @@ export type TodayDailyPnlSummary = {
   pricedCount: number;
 };
 
+/** Today's session daily P&L for one active position from a live quote. */
+export function computeTradeDailyPnlFromQuote(
+  trade: ActivePositionPnlInput,
+  quote: LiveQuoteForDailyPnl | null | undefined,
+  currency: CurrencyCode,
+  asOf = new Date()
+): number | null {
+  if (trade.assetClass !== "Equities") return null;
+  if (!quote?.price || quote.price <= 0) return null;
+
+  const listingMarket = resolveListingMarket(trade, currency);
+  const today = todayYmdForListingMarket(listingMarket, asOf);
+  const entryDay = entryDayKey(trade.entryDate, listingMarket);
+
+  return quoteDailyPnlForSession(trade, quote, today, listingMarket, asOf, {
+    hasPriorSessionBar: entryDay < today,
+  });
+}
+
 /** Sum today's daily P&L for active positions using live/delayed quotes. */
 export function computeTodayDailyPnlFromQuotes(
   trades: ActivePositionPnlInput[],
@@ -315,21 +334,11 @@ export function computeTodayDailyPnlFromQuotes(
   let pricedCount = 0;
 
   for (const trade of trades) {
-    if (trade.assetClass !== "Equities") continue;
-
-    const quote = quotesByTradeId[trade.id];
-    if (!quote?.price || quote.price <= 0) continue;
-
-    const listingMarket = resolveListingMarket(trade, currency);
-    const today = todayYmdForListingMarket(listingMarket, asOf);
-    const entryDay = entryDayKey(trade.entryDate, listingMarket);
-    const daily = quoteDailyPnlForSession(
+    const daily = computeTradeDailyPnlFromQuote(
       trade,
-      quote,
-      today,
-      listingMarket,
-      asOf,
-      { hasPriorSessionBar: entryDay < today }
+      quotesByTradeId[trade.id],
+      currency,
+      asOf
     );
     if (daily == null) continue;
 

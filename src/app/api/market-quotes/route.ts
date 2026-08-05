@@ -1,20 +1,30 @@
 import { NextResponse } from "next/server";
 import {
+  defaultListingMarketForCurrency,
+  normalizeListingMarket,
+} from "@/lib/equity-listing-markets";
+import {
   defaultEquityExchangeForCurrency,
   eodhdSymbolCandidates,
-  fetchEodhdRealtimeQuotes,
+  fetchEodhdRealtimeQuotesBatchOnly,
   isLiveMarketQuote,
   normalizeQuoteAssetClass,
   quoteLookupKey,
   type EquityExchangeHint,
   type MarketQuote,
 } from "@/lib/eodhd";
-import { fetchMarketQuoteForTrade } from "@/lib/market-quote";
-import { normalizeListingMarket } from "@/lib/equity-listing-markets";
+import {
+  resolveMarketQuoteFromSources,
+} from "@/lib/market-quote";
 import { mapWithConcurrency } from "@/lib/map-with-concurrency";
 import { getCurrentUser } from "@/lib/supabase/server";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
+import {
+  fetchYahooEquityQuoteForMarket,
+} from "@/lib/yahoo-equity-quote";
+import type { AssetClass } from "@/lib/journal-types";
+import type { ListingMarketId } from "@/lib/equity-listing-markets";
 
 type QuoteRequestItem = {
   ticker?: string;
@@ -24,7 +34,54 @@ type QuoteRequestItem = {
 };
 
 const CURRENCIES = new Set<CurrencyCode>(["USD", "EUR", "GBP", "INR", "CAD"]);
-const QUOTE_FETCH_CONCURRENCY = 6;
+const YAHOO_CONCURRENCY = 12;
+
+const SERVER_CACHE_TTL_MS = 15_000;
+const serverQuoteCache = new Map<
+  string,
+  { quote: MarketQuote; expiresAt: number }
+>();
+
+function pickFromEodhdBatch(
+  candidates: string[],
+  batch: Map<string, MarketQuote>
+): MarketQuote | null {
+  let fallback: MarketQuote | null = null;
+  for (const symbol of candidates) {
+    const hit = batch.get(symbol);
+    if (hit?.price == null || hit.price <= 0) continue;
+    if (isLiveMarketQuote(hit)) return hit;
+    fallback ??= hit;
+  }
+  return fallback;
+}
+
+async function fetchYahooForItem(
+  ticker: string,
+  assetClass: AssetClass,
+  listingMarket: ListingMarketId
+): Promise<MarketQuote | null> {
+  const cacheKey = `${ticker}::${assetClass}::${listingMarket}`;
+  const cached = serverQuoteCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.quote;
+  }
+
+  let quote: MarketQuote | null = null;
+
+  if (assetClass === "Equities") {
+    quote = await fetchYahooEquityQuoteForMarket(ticker, listingMarket!);
+  }
+
+  if (quote?.price != null && quote.price > 0) {
+    serverQuoteCache.set(cacheKey, {
+      quote,
+      expiresAt: Date.now() + SERVER_CACHE_TTL_MS,
+    });
+  }
+
+  return quote;
+}
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -85,115 +142,98 @@ export async function POST(request: Request) {
     } | null
   > = {};
 
+  const normalizedItems = items
+    .map((item) => {
+      const ticker = String(item.ticker ?? "").trim();
+      if (!ticker) return null;
+
+      const assetClass = normalizeQuoteAssetClass(item.assetClass);
+      const key = quoteLookupKey(ticker, assetClass);
+      const entryRaw = item.entryPrice;
+      const entryPrice =
+        typeof entryRaw === "number" && Number.isFinite(entryRaw)
+          ? entryRaw
+          : typeof entryRaw === "string"
+            ? Number(entryRaw)
+            : undefined;
+      const listingMarket = item.listingMarket
+        ? normalizeListingMarket(item.listingMarket)
+        : defaultListingMarketForCurrency(currency);
+
+      return {
+        ticker,
+        assetClass,
+        key,
+        entryPrice:
+          entryPrice != null && Number.isFinite(entryPrice) && entryPrice > 0
+            ? entryPrice
+            : undefined,
+        listingMarket,
+        candidates: eodhdSymbolCandidates(ticker, assetClass, equityExchange),
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item != null);
+
   const eodhdSymbols = new Set<string>();
-  for (const item of items) {
-    const ticker = String(item.ticker ?? "").trim();
-    if (!ticker) continue;
-    const assetClass = normalizeQuoteAssetClass(item.assetClass);
-    if (assetClass === "Options") continue;
-    for (const symbol of eodhdSymbolCandidates(
-      ticker,
-      assetClass,
-      equityExchange
-    )) {
+  for (const item of normalizedItems) {
+    if (item.assetClass === "Options") continue;
+    for (const symbol of item.candidates) {
       eodhdSymbols.add(symbol);
     }
   }
 
-  let eodhdBatch = new Map<string, MarketQuote>();
-  if (eodhdSymbols.size > 0) {
-    try {
-      eodhdBatch = await fetchEodhdRealtimeQuotes(
-        [...eodhdSymbols],
-        apiKey
+  const equityItems = normalizedItems.filter(
+    (item) => item.assetClass === "Equities"
+  );
+
+  const [eodhdBatch, yahooByKey] = await Promise.all([
+    eodhdSymbols.size > 0
+      ? fetchEodhdRealtimeQuotesBatchOnly([...eodhdSymbols], apiKey).catch(
+          () => new Map<string, MarketQuote>()
+        )
+      : Promise.resolve(new Map<string, MarketQuote>()),
+    mapWithConcurrency(equityItems, YAHOO_CONCURRENCY, async (item) => {
+      const yahoo = await fetchYahooForItem(
+        item.ticker,
+        item.assetClass,
+        item.listingMarket
       );
-    } catch {
-      eodhdBatch = new Map();
+      return { key: item.key, yahoo };
+    }).then((rows) => {
+      const map = new Map<string, MarketQuote | null>();
+      for (const row of rows) {
+        map.set(row.key, row.yahoo);
+      }
+      return map;
+    }),
+  ]);
+
+  for (const item of normalizedItems) {
+    if (item.assetClass === "Options") {
+      quotes[item.key] = null;
+      continue;
     }
+
+    const eodhdQuote = pickFromEodhdBatch(item.candidates, eodhdBatch);
+    const yahooQuote = yahooByKey.get(item.key) ?? null;
+    const quote = resolveMarketQuoteFromSources(eodhdQuote, yahooQuote);
+
+    quotes[item.key] =
+      quote === null
+        ? null
+        : {
+            price: quote.price,
+            changePercent: quote.changePercent,
+            timestamp: quote.timestamp,
+            symbol: quote.symbol,
+            currency: quote.currency,
+            isLive: isLiveMarketQuote(quote),
+          };
   }
 
-  try {
-    await mapWithConcurrency(items, QUOTE_FETCH_CONCURRENCY, async (item) => {
-      const ticker = String(item.ticker ?? "").trim();
-      if (!ticker) return;
-
-      const assetClass = normalizeQuoteAssetClass(item.assetClass);
-      const key = quoteLookupKey(ticker, assetClass);
-
-      if (assetClass === "Options") {
-        quotes[key] = null;
-        return;
-      }
-
-      try {
-        const entryRaw = item.entryPrice;
-        const entryPrice =
-          typeof entryRaw === "number" && Number.isFinite(entryRaw)
-            ? entryRaw
-            : typeof entryRaw === "string"
-              ? Number(entryRaw)
-              : undefined;
-
-        const candidates = eodhdSymbolCandidates(
-          ticker,
-          assetClass,
-          equityExchange
-        );
-        let eodhdQuote = null;
-        for (const symbol of candidates) {
-          const hit = eodhdBatch.get(symbol);
-          if (hit?.price != null && hit.price > 0) {
-            eodhdQuote = hit;
-            if (isLiveMarketQuote(hit)) break;
-          }
-        }
-
-        const quote =
-          eodhdQuote && isLiveMarketQuote(eodhdQuote)
-            ? eodhdQuote
-            : await fetchMarketQuoteForTrade(
-                ticker,
-                assetClass,
-                apiKey,
-                equityExchange,
-                {
-                  entryPrice:
-                    entryPrice != null &&
-                    Number.isFinite(entryPrice) &&
-                    entryPrice > 0
-                      ? entryPrice
-                      : undefined,
-                  profileCurrency: currency,
-                  listingMarket: item.listingMarket
-                    ? normalizeListingMarket(item.listingMarket)
-                    : undefined,
-                }
-              );
-
-        quotes[key] =
-          quote === null
-            ? null
-            : {
-                price: quote.price,
-                changePercent: quote.changePercent,
-                timestamp: quote.timestamp,
-                symbol: quote.symbol,
-                currency: quote.currency,
-                isLive: isLiveMarketQuote(quote),
-              };
-      } catch {
-        quotes[key] = null;
-      }
-    });
-
-    return NextResponse.json({
-      quotes,
-      delayed: false,
-      fetchedAt: Date.now(),
-    });
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to fetch market quotes";
-    return NextResponse.json({ error: message }, { status: 502 });
-  }
+  return NextResponse.json({
+    quotes,
+    delayed: false,
+    fetchedAt: Date.now(),
+  });
 }

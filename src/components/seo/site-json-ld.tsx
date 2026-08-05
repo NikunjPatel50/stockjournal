@@ -4,6 +4,7 @@ import {
   getSiteUrl,
   SITE_NAME,
 } from "@/lib/site";
+import { JsonLd } from "@/components/seo/json-ld";
 
 /** Brand + site graph for search engines (homepage and marketing). */
 export function SiteJsonLd() {
@@ -57,10 +58,5 @@ export function SiteJsonLd() {
     ],
   };
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
+  return <JsonLd data={schema} />;
 }
