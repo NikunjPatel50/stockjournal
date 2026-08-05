@@ -12,10 +12,7 @@ import {
   Settings,
   Target,
 } from "lucide-react";
-import { AdminPanelButton } from "@/components/admin/admin-panel-button";
 import { BrandLogo } from "@/components/brand-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { UserProfileBadge } from "@/components/user-profile-badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -43,11 +40,6 @@ const navGroups = [
     ],
   },
 ] as const;
-
-type SidebarUser = {
-  email?: string | null;
-  profile?: { name?: string | null } | null;
-};
 
 function isActiveRoute(pathname: string, href: string) {
   return (
@@ -132,19 +124,11 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </div>
-
-      <div className="mt-auto space-y-2.5 border-t border-sidebar-border px-3 py-3">
-        <UserProfileBadge fullWidth align="start" className="w-full" />
-        <div className="flex items-center gap-2">
-          <AdminPanelButton className="border border-border bg-card hover:bg-muted" />
-          <ThemeToggle className="border border-border bg-card hover:bg-muted" />
-        </div>
-      </div>
     </div>
   );
 }
 
-export function Sidebar({ user: _user }: { user: SidebarUser }) {
+export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
