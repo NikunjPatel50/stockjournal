@@ -1,4 +1,5 @@
 import { RISK_REWARD_RATIO_POST } from "@/lib/blog-posts/risk-reward-ratio-swing-trading";
+import { SWING_TRADING_PSYCHOLOGY_POST } from "@/lib/blog-posts/swing-trading-psychology-journal";
 import { SWING_TRADING_WATCHLIST_POST } from "@/lib/blog-posts/swing-trading-watchlist";
 
 export type BlogFaqItem = { question: string; answer: string };
@@ -42,6 +43,7 @@ export type BlogPost = {
 };
 
 export const BLOG_POSTS: BlogPost[] = [
+  SWING_TRADING_PSYCHOLOGY_POST,
   RISK_REWARD_RATIO_POST,
   SWING_TRADING_WATCHLIST_POST,
   {
