@@ -329,7 +329,7 @@ export function MonthlyPerformanceCard({
         )}
 
         {display ? (
-          <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-center">
+          <div className="rounded-lg border-2 border-border/70 bg-muted/20 px-4 py-3 text-center">
             <p className="text-xs text-muted-foreground">{display.monthTitle}</p>
             <p
               className={cn(

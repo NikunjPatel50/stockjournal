@@ -51,11 +51,10 @@ export default function BlogPage() {
                     />
                   </Link>
                   <div className="p-6">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <time dateTime={post.publishedAt}>
                     {format(parseISO(post.publishedAt), "MMM d, yyyy")}
                   </time>
-                  <span aria-hidden>·</span>
                   <span>{post.readMinutes} min read</span>
                 </div>
                 <h2 className="mt-2 text-lg font-semibold text-foreground sm:text-xl">
@@ -96,7 +95,7 @@ export default function BlogPage() {
         <div className="mt-12 text-center">
           <Link href="/login">
             <Button className="bg-emerald-500 text-zinc-950 hover:bg-emerald-400">
-              Start free — no credit card
+              Start free, no credit card
             </Button>
           </Link>
         </div>

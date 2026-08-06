@@ -9,7 +9,7 @@ const WATCHLIST_FAQS: BlogFaqItem[] = [
   {
     question: "What is the difference between a daily watchlist and a weekly watchlist?",
     answer:
-      "A weekly watchlist is your researched universe of setups forming over days or weeks. A daily watchlist is the short list you actually monitor each session — names near trigger price, volume confirmation, or a breakout level. You promote stocks from weekly to daily; you do not scan the entire market every morning from scratch.",
+      "A weekly watchlist is your researched universe of setups forming over days or weeks. A daily watchlist is the short list you actually monitor each session, names near trigger price, volume confirmation, or a breakout level. You promote stocks from weekly to daily; you do not scan the entire market every morning from scratch.",
   },
   {
     question: "How do I find stocks for swing trading?",
@@ -24,17 +24,17 @@ const WATCHLIST_FAQS: BlogFaqItem[] = [
   {
     question: "What volume is good for swing trading?",
     answer:
-      "There is no single number — context matters. Look for volume at least 1.5× the 20-day average on breakout or reversal days. For Indian large caps, many traders prefer average daily value traded above ₹5–10 crore; for US names, average volume above 500k–1M shares is a common starting point for liquid swings.",
+      "There is no single number, context matters. Look for volume at least 1.5× the 20-day average on breakout or reversal days. For Indian large caps, many traders prefer average daily value traded above ₹5–10 crore; for US names, average volume above 500k–1M shares is a common starting point for liquid swings.",
   },
   {
     question: "What RSI level is best for swing trading entries?",
     answer:
-      "RSI is not a magic buy signal. Pullback entries often appear when RSI resets to 40–50 in an uptrend. Breakout entries may occur with RSI 60–70 as strength confirms. Avoid buying solely because RSI is oversold in a downtrend — trend and structure matter more than one oscillator reading.",
+      "RSI is not a magic buy signal. Pullback entries often appear when RSI resets to 40–50 in an uptrend. Breakout entries may occur with RSI 60–70 as strength confirms. Avoid buying solely because RSI is oversold in a downtrend, trend and structure matter more than one oscillator reading.",
   },
   {
     question: "How often should I update my swing trading watchlist?",
     answer:
-      "Refresh the weekly list once per weekend with 30–60 minutes of screening and chart review. Update the daily list each pre-market or evening session in 10–15 minutes. Remove names that broke down, triggered and failed, or no longer meet your criteria — stale tickers create stale decisions.",
+      "Refresh the weekly list once per weekend with 30–60 minutes of screening and chart review. Update the daily list each pre-market or evening session in 10–15 minutes. Remove names that broke down, triggered and failed, or no longer meet your criteria, stale tickers create stale decisions.",
   },
   {
     question: "Can I swing trade only from a watchlist of ETFs and indices?",
@@ -44,7 +44,7 @@ const WATCHLIST_FAQS: BlogFaqItem[] = [
   {
     question: "What are the best stocks for swing trading?",
     answer:
-      "The best stocks for you are liquid, trending, and match your setup rules — not whatever is trending on social media. Leaders with institutional sponsorship, clean bases, and volume on up days tend to repeat. Your journal will show which sectors and cap sizes actually pay you.",
+      "The best stocks for you are liquid, trending, and match your setup rules, not whatever is trending on social media. Leaders with institutional sponsorship, clean bases, and volume on up days tend to repeat. Your journal will show which sectors and cap sizes actually pay you.",
   },
   {
     question: "Should I keep separate watchlists for long and short setups?",
@@ -54,17 +54,17 @@ const WATCHLIST_FAQS: BlogFaqItem[] = [
   {
     question: "How do I avoid chasing stocks on my watchlist?",
     answer:
-      "Define the entry trigger before the session: breakout level, pullback zone, or confirmation candle. If price runs 5%+ past your zone without you, skip it — add a secondary setup level or wait for the next base. Chasing is a process failure, not a missed opportunity.",
+      "Define the entry trigger before the session: breakout level, pullback zone, or confirmation candle. If price runs 5%+ past your zone without you, skip it, add a secondary setup level or wait for the next base. Chasing is a process failure, not a missed opportunity.",
   },
   {
     question: "What tools do I need to build a stock watchlist?",
     answer:
-      "At minimum: a screener (free or paid), a charting platform, and a place to store notes and triggers. SwingTradingLog adds trade logging and performance analytics so you can connect watchlist ideas to real outcomes — which setups deserve a permanent slot on your list.",
+      "At minimum: a screener (free or paid), a charting platform, and a place to store notes and triggers. SwingTradingLog adds trade logging and performance analytics so you can connect watchlist ideas to real outcomes, which setups deserve a permanent slot on your list.",
   },
   {
     question: "How does SwingTradingLog help with watchlists?",
     answer:
-      "SwingTradingLog is built for swing traders who need journal discipline, not another screener. Log planned entries from your watchlist with stop and target defined, tag the setup type, and review analytics by strategy and session. Over time you see which watchlist criteria produce profit — and which ones only look good on Sunday scans.",
+      "SwingTradingLog is built for swing traders who need journal discipline, not another screener. Log planned entries from your watchlist with stop and target defined, tag the setup type, and review analytics by strategy and session. Over time you see which watchlist criteria produce profit, and which ones only look good on Sunday scans.",
   },
 ];
 
@@ -72,7 +72,7 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
   slug: "how-to-build-swing-trading-watchlist",
   title: "How to Build the Perfect Swing Trading Watchlist (Step-by-Step)",
   description:
-    "A step-by-step guide to building a swing trading watchlist: daily and weekly routines, technical and fundamental filters, sample workflows, and common mistakes — so you trade fewer, better setups.",
+    "A step-by-step guide to building a swing trading watchlist: daily and weekly routines, technical and fundamental filters, sample workflows, and common mistakes, so you trade fewer, better setups.",
   publishedAt: "2026-08-05",
   readMinutes: 16,
   tags: ["Watchlist", "Screening", "Swing trading", "Beginners"],
@@ -107,16 +107,16 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
       { label: "Trading Guides", path: "/trading-guides" },
     ],
     externalReferences: [
-      { label: "Investopedia — Relative Strength Index (RSI)", url: "https://www.investopedia.com/terms/r/rsi.asp" },
-      { label: "Investopedia — Exponential Moving Average (EMA)", url: "https://www.investopedia.com/terms/e/ema.asp" },
-      { label: "SEC — Investor.gov introduction to investing", url: "https://www.investor.gov/introduction-investing" },
-      { label: "NSE India — Market data", url: "https://www.nseindia.com/market-data" },
+      { label: "Investopedia: Relative Strength Index (RSI)", url: "https://www.investopedia.com/terms/r/rsi.asp" },
+      { label: "Investopedia: Exponential Moving Average (EMA)", url: "https://www.investopedia.com/terms/e/ema.asp" },
+      { label: "SEC: Investor.gov introduction to investing", url: "https://www.investor.gov/introduction-investing" },
+      { label: "NSE India: Market data", url: "https://www.nseindia.com/market-data" },
     ],
   },
   blocks: [
     {
       type: "p",
-      text: "Every winning swing trader you admire has one thing in common that rarely makes it onto Twitter: a disciplined swing trading watchlist. Not a random bag of tickers from last night's scan, not fifty symbols you'll forget by Tuesday — a curated, ranked list of stocks that match your setup, your timeframe, and your risk rules. This guide walks you through building that watchlist from scratch, step by step, whether you trade Indian equities, US stocks, or both.",
+      text: "Every winning swing trader you admire has one thing in common that rarely makes it onto Twitter: a disciplined swing trading watchlist. Not a random bag of tickers from last night's scan, not fifty symbols you'll forget by Tuesday, a curated, ranked list of stocks that match your setup, your timeframe, and your risk rules. This guide walks you through building that watchlist from scratch, step by step, whether you trade Indian equities, US stocks, or both.",
     },
     {
       type: "p",
@@ -124,25 +124,25 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     },
     {
       type: "p",
-      text: "We will cover why watchlists matter, what makes a stock worth watching, daily and weekly routines, technical and fundamental filters, a full sample workflow, mistakes to avoid, and how to connect your watchlist to real performance tracking in SwingTradingLog. Bring a notebook — or open a free journal — and build alongside the examples.",
+      text: "We will cover why watchlists matter, what makes a stock worth watching, daily and weekly routines, technical and fundamental filters, a full sample workflow, mistakes to avoid, and how to connect your watchlist to real performance tracking in SwingTradingLog. Bring a notebook, or open a free journal, and build alongside the examples.",
     },
 
     { type: "h2", text: "Why Every Swing Trader Needs a Watchlist" },
     {
       type: "p",
-      text: "Swing trading sits between day trading and investing. You hold positions for days to weeks, which means you cannot react to every tick — but you also cannot afford to discover a stock only after it has already moved 12%. A watchlist for swing trading solves three problems at once: attention, preparation, and accountability.",
+      text: "Swing trading sits between day trading and investing. You hold positions for days to weeks, which means you cannot react to every tick, but you also cannot afford to discover a stock only after it has already moved 12%. A watchlist for swing trading solves three problems at once: attention, preparation, and accountability.",
     },
     {
       type: "ul",
       items: [
-        "Attention — You decide in advance which symbols deserve mental bandwidth.",
-        "Preparation — You define entry zones, stops, and catalysts before the market opens.",
-        "Accountability — You can review whether your list produced trades or just anxiety.",
+        "Attention: You decide in advance which symbols deserve mental bandwidth.",
+        "Preparation: You define entry zones, stops, and catalysts before the market opens.",
+        "Accountability: You can review whether your list produced trades or just anxiety.",
       ],
     },
     {
       type: "p",
-      text: "Without a stock watchlist, screening becomes browsing. You flip through charts until something “looks ready,” enter late, and size emotionally. With a list, you trade your plan. The plan can still be wrong — but wrong plans are fixable. Random entries are not.",
+      text: "Without a stock watchlist, screening becomes browsing. You flip through charts until something “looks ready,” enter late, and size emotionally. With a list, you trade your plan. The plan can still be wrong, but wrong plans are fixable. Random entries are not.",
     },
     {
       type: "p",
@@ -152,7 +152,7 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     { type: "h2", text: "Characteristics of Good Swing Trading Stocks" },
     {
       type: "p",
-      text: "Not every trending stock belongs on your list. The best stocks for swing trading — for your account size and style — share traits that make risk definable and exits manageable. Use the table below as a starting checklist before you add a ticker.",
+      text: "Not every trending stock belongs on your list. The best stocks for swing trading, for your account size and style, share traits that make risk definable and exits manageable. Use the table below as a starting checklist before you add a ticker.",
     },
     {
       type: "table",
@@ -177,7 +177,7 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
         [
           "Catalyst awareness",
           "Earnings, policy, or sector news you can calendar",
-          "Swing holds cross overnight — surprises hurt",
+          "Swing holds cross overnight, surprises hurt",
         ],
         [
           "Correlation",
@@ -192,7 +192,7 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     },
     {
       type: "p",
-      text: "Leaders — stocks outperforming their sector and the index — often produce the cleanest swing setups. Laggards can work for mean-reversion strategies, but only if that is your explicit edge. Do not mix leader breakouts and deep value catches on one list without tagging them differently.",
+      text: "Leaders, stocks outperforming their sector and the index, often produce the cleanest swing setups. Laggards can work for mean-reversion strategies, but only if that is your explicit edge. Do not mix leader breakouts and deep value catches on one list without tagging them differently.",
     },
 
     { type: "h2", text: "Daily Watchlist Routine" },
@@ -204,28 +204,28 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
       type: "checklist",
       title: "Daily watchlist routine (pre-market or prior evening)",
       items: [
-        "Open the weekly list — remove names that broke down or triggered already",
+        "Open the weekly list, remove names that broke down or triggered already",
         "Mark today's focus tier: A (ready), B (watch), C (background)",
         "Note exact entry trigger, stop, and target for each A-tier name",
-        "Check index and sector trend — adjust size or skip if headwinds",
+        "Check index and sector trend, adjust size or skip if headwinds",
         "Scan headlines only for A-tier symbols (earnings, upgrades, gaps)",
-        "Set price alerts at entry and stop levels — do not stare at charts all day",
+        "Set price alerts at entry and stop levels, do not stare at charts all day",
         "Log any trade taken with setup tag and planned risk in your journal",
       ],
     },
     {
       type: "p",
-      text: "Actionable example: Monday evening you see Stock X closing near a 8-week base pivot at ₹420 with volume 1.6× average. You add it to Tuesday's A-tier daily watchlist with entry ₹421–423, stop ₹408, target ₹445. Tuesday opens flat; you wait. At 10:15 volume expands and price clears ₹421 — you enter per plan. If it never triggers, you do nothing. The discipline is in the non-trade.",
+      text: "Actionable example: Monday evening you see Stock X closing near a 8-week base pivot at ₹420 with volume 1.6× average. You add it to Tuesday's A-tier daily watchlist with entry ₹421–423, stop ₹408, target ₹445. Tuesday opens flat; you wait. At 10:15 volume expands and price clears ₹421, you enter per plan. If it never triggers, you do nothing. The discipline is in the non-trade.",
     },
     {
       type: "p",
-      text: "Keep the daily list small. Three to eight names is enough for most part-time swing traders. If everything on your screen looks “almost ready,” your weekly research was too loose — tighten filters upstream.",
+      text: "Keep the daily list small. Three to eight names is enough for most part-time swing traders. If everything on your screen looks “almost ready,” your weekly research was too loose, tighten filters upstream.",
     },
 
     { type: "h2", text: "Weekly Watchlist Routine" },
     {
       type: "p",
-      text: "The weekly watchlist is where you answer how to find swing trading stocks systematically. Block 45–90 minutes once per weekend — Sunday evening works well for Indian markets opening Monday; US traders often scan Sunday for the week ahead.",
+      text: "The weekly watchlist is where you answer how to find swing trading stocks systematically. Block 45–90 minutes once per weekend, Sunday evening works well for Indian markets opening Monday; US traders often scan Sunday for the week ahead.",
     },
     {
       type: "checklist",
@@ -233,11 +233,11 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
       items: [
         "Review last week's trades: which watchlist setups worked or failed?",
         "Run screeners for trend, volume, and relative strength (see filters below)",
-        "Open charts only for screener output — reject messy patterns fast",
+        "Open charts only for screener output, reject messy patterns fast",
         "Add 10–25 candidates with one-line thesis and setup type tag",
         "Rank by proximity to trigger and quality of base or pullback",
         "Cross-check earnings and event dates for the next two weeks",
-        "Archive last week's list with brief notes — build a personal pattern library",
+        "Archive last week's list with brief notes, build a personal pattern library",
       ],
     },
     {
@@ -246,7 +246,7 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     },
     {
       type: "table",
-      caption: "Daily vs weekly watchlist — roles and time budget.",
+      caption: "Daily vs weekly watchlist: roles and time budget.",
       headers: ["Layer", "Purpose", "Typical size", "Time"],
       rows: [
         ["Weekly", "Research universe, setups forming", "15–40 symbols", "45–90 min/week"],
@@ -258,7 +258,7 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     { type: "h2", text: "Technical Filters" },
     {
       type: "p",
-      text: "Technical filters turn a market of thousands into a stock watchlist worth charting. You do not need twelve indicators — you need a consistent stack that matches your setup. Below are the filters swing traders use most, with practical thresholds and examples.",
+      text: "Technical filters turn a market of thousands into a stock watchlist worth charting. You do not need twelve indicators, you need a consistent stack that matches your setup. Below are the filters swing traders use most, with practical thresholds and examples.",
     },
 
     { type: "h3", text: "Volume" },
@@ -274,43 +274,43 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     { type: "h3", text: "RSI (Relative Strength Index)" },
     {
       type: "p",
-      text: "RSI measures momentum on a 0–100 scale. In uptrends, pullbacks that reset RSI toward 40–50 often offer lower-risk entries than buying at 80. For momentum breakouts, RSI between 60 and 72 can confirm strength — but require price structure (higher highs, tight base) not just a hot oscillator. Avoid catching falling knives solely because RSI is below 30.",
+      text: "RSI measures momentum on a 0–100 scale. In uptrends, pullbacks that reset RSI toward 40–50 often offer lower-risk entries than buying at 80. For momentum breakouts, RSI between 60 and 72 can confirm strength, but require price structure (higher highs, tight base) not just a hot oscillator. Avoid catching falling knives solely because RSI is below 30.",
     },
 
     { type: "h3", text: "EMA (Exponential Moving Average)" },
     {
       type: "p",
-      text: "EMAs weight recent prices more than a simple moving average. A common swing stack: 9 EMA for short-term pullbacks, 21 EMA for swing trend, 50 EMA for intermediate bias. Many traders demand price above the 50-day EMA for long setups, or a reclaim of the 21 EMA after a constructive pullback. Align EMA rules with your hold period — a 3-day scalp and a 3-week swing use different averages.",
+      text: "EMAs weight recent prices more than a simple moving average. A common swing stack: 9 EMA for short-term pullbacks, 21 EMA for swing trend, 50 EMA for intermediate bias. Many traders demand price above the 50-day EMA for long setups, or a reclaim of the 21 EMA after a constructive pullback. Align EMA rules with your hold period, a 3-day scalp and a 3-week swing use different averages.",
     },
 
     { type: "h3", text: "Relative Strength" },
     {
       type: "p",
-      text: "Relative strength compares a stock's performance to a benchmark (Nifty 50, S&P 500, sector index). Leaders show RS line rising — making higher highs even when the index chops. Screen for stocks outperforming their sector over 1–3 months, then wait for a base near the highs. Buying laggards hoping they catch up is a different strategy; label it if you trade it.",
+      text: "Relative strength compares a stock's performance to a benchmark (Nifty 50, S&P 500, sector index). Leaders show RS line rising, making higher highs even when the index chops. Screen for stocks outperforming their sector over 1–3 months, then wait for a base near the highs. Buying laggards hoping they catch up is a different strategy; label it if you trade it.",
     },
 
     { type: "h3", text: "Breakouts" },
     {
       type: "p",
-      text: "A breakout clears a defined resistance level — prior high, base pivot, or trendline — on expanded volume. Define the level before the session. Enter on confirmation (close above level, or opening range high in intraday confirmation styles), not on the first wick. Failed breakouts are common; your stop goes below the base or breakout candle low.",
+      text: "A breakout clears a defined resistance level, prior high, base pivot, or trendline, on expanded volume. Define the level before the session. Enter on confirmation (close above level, or opening range high in intraday confirmation styles), not on the first wick. Failed breakouts are common; your stop goes below the base or breakout candle low.",
     },
 
     { type: "h3", text: "VCP (Volatility Contraction Pattern)" },
     {
       type: "p",
-      text: "VCP describes a series of tightening pullbacks with diminishing depth and often lower volume — sellers drying up before expansion. Each pullback might be 12%, then 8%, then 4%. The final contraction near the pivot is the watchlist sweet spot. Not every tight base is a textbook VCP; look for the spirit — decreasing volatility before a potential move.",
+      text: "VCP describes a series of tightening pullbacks with diminishing depth and often lower volume, sellers drying up before expansion. Each pullback might be 12%, then 8%, then 4%. The final contraction near the pivot is the watchlist sweet spot. Not every tight base is a textbook VCP; look for the spirit, decreasing volatility before a potential move.",
     },
 
     { type: "h3", text: "Cup & Handle" },
     {
       type: "p",
-      text: "A cup and handle is a rounded base (cup) followed by a shallow pullback (handle) under prior highs. The handle should be orderly, not a violent dump. Entry is often above the handle high with stop below the handle low. These patterns take weeks to form — ideal for weekly watchlists, not panic Monday adds.",
+      text: "A cup and handle is a rounded base (cup) followed by a shallow pullback (handle) under prior highs. The handle should be orderly, not a violent dump. Entry is often above the handle high with stop below the handle low. These patterns take weeks to form, ideal for weekly watchlists, not panic Monday adds.",
     },
 
     { type: "h3", text: "Inside Bar" },
     {
       type: "p",
-      text: "An inside bar forms when today's high-low range sits entirely within the prior day's range — compression. Swing traders use inside bars at support, at base pivots, or after pullbacks in trend. Trigger is a break above the mother bar high (long) or below the low (short). Combine with volume on the break to avoid false signals in range-bound names.",
+      text: "An inside bar forms when today's high-low range sits entirely within the prior day's range, compression. Swing traders use inside bars at support, at base pivots, or after pullbacks in trend. Trigger is a break above the mother bar high (long) or below the low (short). Combine with volume on the break to avoid false signals in range-bound names.",
     },
     {
       type: "table",
@@ -327,19 +327,19 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     { type: "h2", text: "Fundamental Filters" },
     {
       type: "p",
-      text: "Technicals tell you when; fundamentals tell you whether the business can support a multi-day hold. You do not need an MBA — a handful of ratios filters out landmines that technical breakouts cannot fix.",
+      text: "Technicals tell you when; fundamentals tell you whether the business can support a multi-day hold. You do not need an MBA, a handful of ratios filters out landmines that technical breakouts cannot fix.",
     },
 
     { type: "h3", text: "Sales Growth" },
     {
       type: "p",
-      text: "Revenue growth shows demand. For swing candidates, look for positive year-over-year sales growth for at least the last few quarters — or acceleration in a turnaround you understand. Flat or shrinking sales with a hype chart is a trap many beginners buy. Growth alone is not enough, but stagnation is a yellow flag.",
+      text: "Revenue growth shows demand. For swing candidates, look for positive year-over-year sales growth for at least the last few quarters, or acceleration in a turnaround you understand. Flat or shrinking sales with a hype chart is a trap many beginners buy. Growth alone is not enough, but stagnation is a yellow flag.",
     },
 
     { type: "h3", text: "ROCE (Return on Capital Employed)" },
     {
       type: "p",
-      text: "ROCE measures how efficiently a company uses capital to generate profits. Consistently strong ROCE (industry-dependent, often 15%+ for quality Indian mid-caps as a rough benchmark) suggests a durable business. Compare peers in the same sector — a textile name and a software name will not share the same number.",
+      text: "ROCE measures how efficiently a company uses capital to generate profits. Consistently strong ROCE (industry-dependent, often 15%+ for quality Indian mid-caps as a rough benchmark) suggests a durable business. Compare peers in the same sector, a textile name and a software name will not share the same number.",
     },
 
     { type: "h3", text: "OPM (Operating Profit Margin)" },
@@ -380,18 +380,18 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     {
       type: "ul",
       items: [
-        "Step 1 — Screener: Price above 50-day SMA, 3-month RS in top 30% of universe, avg volume above your liquidity floor.",
-        "Step 2 — Chart pass: Keep only names with bases, pullbacks to rising 21 EMA, or fresh breakouts in last 5 sessions.",
-        "Step 3 — Fundamental pass: Remove negative sales growth and D/E above your cap unless sector-normal (e.g. banks).",
-        "Step 4 — Weekly list: 18 names with tags (breakout / pullback / VCP) and pivot prices written down.",
-        "Step 5 — Daily cut: Monday A-tier = 5 names within 2% of pivot; set alerts.",
-        "Step 6 — Execution: One entry at trigger; stop and target logged before submit.",
-        "Step 7 — Review: Sunday — which tags had positive expectancy? Prune filters.",
+        "Step 1, Screener: Price above 50-day SMA, 3-month RS in top 30% of universe, avg volume above your liquidity floor.",
+        "Step 2, Chart pass: Keep only names with bases, pullbacks to rising 21 EMA, or fresh breakouts in last 5 sessions.",
+        "Step 3, Fundamental pass: Remove negative sales growth and D/E above your cap unless sector-normal (e.g. banks).",
+        "Step 4, Weekly list: 18 names with tags (breakout / pullback / VCP) and pivot prices written down.",
+        "Step 5, Daily cut: Monday A-tier = 5 names within 2% of pivot; set alerts.",
+        "Step 6, Execution: One entry at trigger; stop and target logged before submit.",
+        "Step 7, Review: Sunday, which tags had positive expectancy? Prune filters.",
       ],
     },
     {
       type: "p",
-      text: "Concrete mini-example: After screening, you keep INFY (pullback to 21 EMA), RELIANCE (base breakout watch), and three mid-caps in renewable energy showing RS leadership. Earnings for RELIANCE are in nine days — you size smaller or move it to B-tier until clarity. INFY triggers Tuesday; you risk 1% of equity with stop below the EMA zone. You log the trade in SwingTradingLog with tag “pullback + RS leader” so analytics later show whether that combo works for you.",
+      text: "Concrete mini-example: After screening, you keep INFY (pullback to 21 EMA), RELIANCE (base breakout watch), and three mid-caps in renewable energy showing RS leadership. Earnings for RELIANCE are in nine days, you size smaller or move it to B-tier until clarity. INFY triggers Tuesday; you risk 1% of equity with stop below the EMA zone. You log the trade in SwingTradingLog with tag “pullback + RS leader” so analytics later show whether that combo works for you.",
     },
 
     { type: "h2", text: "Common Mistakes" },
@@ -402,34 +402,34 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     {
       type: "ul",
       items: [
-        "List bloat — 80 symbols means you recognize nothing deeply when it moves.",
-        "No written trigger — “I'll know it when I see it” is how chasing starts.",
-        "Ignoring correlation — five banking longs is one bet on rate sentiment.",
-        "Stale names — tickers stay on the list weeks after the setup failed.",
-        "Screener worship — passing a screen is not a trade; chart context is.",
-        "Skipping earnings — gap risk destroys stops; calendar every A-tier name.",
-        "Mixing timeframes — day-trade entries on a swing list without smaller stops.",
-        "No feedback loop — never checking which watchlist tags actually make money.",
+        "List bloat, 80 symbols means you recognize nothing deeply when it moves.",
+        "No written trigger, “I'll know it when I see it” is how chasing starts.",
+        "Ignoring correlation, five banking longs is one bet on rate sentiment.",
+        "Stale names, tickers stay on the list weeks after the setup failed.",
+        "Screener worship, passing a screen is not a trade; chart context is.",
+        "Skipping earnings, gap risk destroys stops; calendar every A-tier name.",
+        "Mixing timeframes, day-trade entries on a swing list without smaller stops.",
+        "No feedback loop, never checking which watchlist tags actually make money.",
       ],
     },
     {
       type: "p",
-      text: "Fix list bloat with a hard cap and a Sunday purge rule: if it has not triggered in three weeks and the structure broke, remove it. Fix the feedback loop with a journal — even a simple spreadsheet beats memory. SwingTradingLog automates the feedback by tying tags and outcomes to analytics so your next weekly scan is evidence-based.",
+      text: "Fix list bloat with a hard cap and a Sunday purge rule: if it has not triggered in three weeks and the structure broke, remove it. Fix the feedback loop with a journal, even a simple spreadsheet beats memory. SwingTradingLog automates the feedback by tying tags and outcomes to analytics so your next weekly scan is evidence-based.",
     },
     {
       type: "p",
-      text: "Another subtle mistake: rebuilding the entire list every day because of FOMO. The daily watchlist should be a subset, not a panic reaction to pre-market movers you never researched. If a stock gaps 8% on news you did not anticipate, it was not on your process — let it go unless you have a defined secondary setup.",
+      text: "Another subtle mistake: rebuilding the entire list every day because of FOMO. The daily watchlist should be a subset, not a panic reaction to pre-market movers you never researched. If a stock gaps 8% on news you did not anticipate, it was not on your process, let it go unless you have a defined secondary setup.",
     },
 
     { type: "h2", text: "Using SwingTradingLog to Track Watchlists and Trade Performance" },
     {
       type: "p",
-      text: "A swing trading watchlist is only as good as the trades it produces. Tracking bridges the gap between “interesting chart” and “repeatable edge.” SwingTradingLog is a swing-focused journal — not a screener — built to log how watchlist ideas perform once you pull the trigger.",
+      text: "A swing trading watchlist is only as good as the trades it produces. Tracking bridges the gap between “interesting chart” and “repeatable edge.” SwingTradingLog is a swing-focused journal, not a screener, built to log how watchlist ideas perform once you pull the trigger.",
     },
     {
       type: "ul",
       items: [
-        "Log planned trades with entry, stop, and target before or at execution — planned risk stays visible.",
+        "Log planned trades with entry, stop, and target before or at execution, planned risk stays visible.",
         "Tag each trade with setup type (breakout, pullback, VCP, earnings) matching your watchlist labels.",
         "Keep Active positions separate so overnight exposure and live P&L stay on the dashboard.",
         "Use Analytics to see win rate, profit factor, and session performance by your tags over time.",
@@ -438,25 +438,25 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
     },
     {
       type: "p",
-      text: "Workflow tip: when you add a name to A-tier on Sunday, open a draft journal entry with ticker, thesis, stop, and target — even before you trade. If it triggers, you confirm and size. If it fails, you archive the note. That habit turns the watchlist into documented hypotheses instead of mental clutter.",
+      text: "Workflow tip: when you add a name to A-tier on Sunday, open a draft journal entry with ticker, thesis, stop, and target, even before you trade. If it triggers, you confirm and size. If it fails, you archive the note. That habit turns the watchlist into documented hypotheses instead of mental clutter.",
     },
     {
       type: "p",
-      text: "Connect watchlist discipline to risk tools elsewhere on the site: use the risk calculator to translate stop distance into share count, read position sizing for swing traders before increasing size on your best setup tag, and review overnight gap risk before holding multiple names into a long weekend. Internal guides reinforce the same message — process over prediction.",
+      text: "Connect watchlist discipline to risk tools elsewhere on the site: use the risk calculator to translate stop distance into share count, read position sizing for swing traders before increasing size on your best setup tag, and review overnight gap risk before holding multiple names into a long weekend. Internal guides reinforce the same message, process over prediction.",
     },
 
     { type: "h2", text: "Conclusion" },
     {
       type: "p",
-      text: "The perfect swing trading watchlist is not a static spreadsheet of hot tickers. It is a living system: weekly research to find swing trading stocks that match your rules, daily focus to execute without noise, technical and fundamental filters that fit your market, and honest review of what actually paid you. Start simple — one screener, three filters, a capped list — and add complexity only when data from your journal supports it.",
+      text: "The perfect swing trading watchlist is not a static spreadsheet of hot tickers. It is a living system: weekly research to find swing trading stocks that match your rules, daily focus to execute without noise, technical and fundamental filters that fit your market, and honest review of what actually paid you. Start simple, one screener, three filters, a capped list, and add complexity only when data from your journal supports it.",
     },
     {
       type: "p",
-      text: "This week, block time for your first weekly rebuild. Write triggers for five names. Trade only those triggers. Log every entry and skip with equal discipline. In a month, your stock watchlist will look nothing like a generic social media scan — it will look like your edge, documented and improving.",
+      text: "This week, block time for your first weekly rebuild. Write triggers for five names. Trade only those triggers. Log every entry and skip with equal discipline. In a month, your stock watchlist will look nothing like a generic social media scan, it will look like your edge, documented and improving.",
     },
     {
       type: "checklist",
-      title: "Quick start — build your first watchlist this weekend",
+      title: "Quick start, build your first watchlist this weekend",
       items: [
         "Choose one market (NSE large cap, US mid cap, etc.) and one primary setup",
         "Set liquidity and trend filters in your screener",
@@ -478,7 +478,7 @@ export const SWING_TRADING_WATCHLIST_POST: BlogPost = {
       type: "image",
       src: "/blog/how-to-build-swing-trading-watchlist.jpg",
       alt: "Swing trader reviewing a structured stock watchlist beside candlestick charts",
-      caption: "A focused watchlist plus a journal — fewer trades, clearer decisions.",
+      caption: "A focused watchlist plus a journal, fewer trades, clearer decisions.",
     },
   ],
 };

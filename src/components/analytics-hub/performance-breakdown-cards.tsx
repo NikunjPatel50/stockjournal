@@ -16,8 +16,6 @@ import {
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -116,6 +114,9 @@ function renderPieShareLabel({
   );
 }
 
+const PIE_LEGEND_GRID =
+  "grid w-max min-w-full grid-cols-[0.5rem_auto_auto_auto_auto_auto] items-center gap-x-3 sm:gap-x-4";
+
 function BreakdownPnlPieChart({
   rows,
   currency,
@@ -153,70 +154,138 @@ function BreakdownPnlPieChart({
   }, [chartData]);
 
   return (
-    <ChartContainer
-      config={chartConfig}
-      initialDimension={{ width: 220, height: 220 }}
-      className="mx-auto h-[220px] w-full"
-    >
-      <PieChart>
-        <ChartTooltip
-          content={
-            <ChartTooltipContent
-              nameKey="name"
-              hideLabel
-              formatter={(_value, _name, item) => {
-                const row = item?.payload as
-                  | {
-                      name?: string;
-                      pnl?: number;
-                      trades?: number;
-                      winRate?: number;
-                      avgR?: number | null;
-                      share?: number;
-                    }
-                  | undefined;
-                if (!row) return null;
-                return (
-                  <div className="space-y-0.5 text-xs">
-                    <div className="font-medium">{row.name}</div>
-                    <div>
-                      Net P&L: {formatMoney(row.pnl ?? 0, true, currency)}
-                    </div>
-                    <div>Share: {formatPercent(row.share ?? 0)}</div>
-                    <div>Trades: {row.trades ?? 0}</div>
-                    <div>Win rate: {formatPercent(row.winRate ?? 0)}</div>
-                    <div>
-                      Avg R:{" "}
-                      {row.avgR != null ? `${row.avgR.toFixed(2)}R` : "—"}
-                    </div>
-                  </div>
-                );
-              }}
-            />
-          }
-        />
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          innerRadius={52}
-          outerRadius={82}
-          strokeWidth={2}
-          paddingAngle={chartData.length > 1 ? 2 : 0}
-          isAnimationActive={false}
-          label={renderPieShareLabel}
-          labelLine={false}
+    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:gap-4">
+      <div className="mx-auto flex w-full max-w-[14rem] shrink-0 items-center justify-center sm:mx-0 sm:w-[44%]">
+        <ChartContainer
+          config={chartConfig}
+          initialDimension={{ width: 240, height: 240 }}
+          className="aspect-square h-full w-full max-h-[14rem]"
         >
-          {chartData.map((entry) => (
-            <Cell key={entry.name} fill={entry.fill} />
-          ))}
-        </Pie>
-        <ChartLegend
-          content={<ChartLegendContent nameKey="name" />}
-          className="-translate-y-1 flex-wrap gap-2"
-        />
-      </PieChart>
-    </ChartContainer>
+          <PieChart>
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  nameKey="name"
+                  hideLabel
+                  formatter={(_value, _name, item) => {
+                    const row = item?.payload as
+                      | {
+                          name?: string;
+                          pnl?: number;
+                          trades?: number;
+                          winRate?: number;
+                          avgR?: number | null;
+                          share?: number;
+                        }
+                      | undefined;
+                    if (!row) return null;
+                    return (
+                      <div className="space-y-0.5 text-xs">
+                        <div className="font-medium">{row.name}</div>
+                        <div>
+                          Net P&L: {formatMoney(row.pnl ?? 0, true, currency)}
+                        </div>
+                        <div>Share: {formatPercent(row.share ?? 0)}</div>
+                        <div>Trades: {row.trades ?? 0}</div>
+                        <div>Win rate: {formatPercent(row.winRate ?? 0)}</div>
+                        <div>
+                          Avg R:{" "}
+                          {row.avgR != null ? `${row.avgR.toFixed(2)}R` : "—"}
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+              }
+            />
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              innerRadius="52%"
+              outerRadius="86%"
+              strokeWidth={2}
+              paddingAngle={chartData.length > 1 ? 2 : 0}
+              isAnimationActive={false}
+              label={renderPieShareLabel}
+              labelLine={false}
+            >
+              {chartData.map((entry) => (
+                <Cell key={entry.name} fill={entry.fill} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ChartContainer>
+      </div>
+
+      <ul className="flex min-w-0 w-full flex-1 flex-col justify-center overflow-x-auto rounded-lg border-2 border-border/70 bg-muted/15 px-2 py-1 sm:px-3">
+        <li
+          className={cn(
+            PIE_LEGEND_GRID,
+            "border-b border-border/40 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
+          )}
+        >
+          <span className="size-2 shrink-0" aria-hidden />
+          <span className="whitespace-nowrap">Group</span>
+          <span className="whitespace-nowrap text-right">Trades</span>
+          <span className="whitespace-nowrap text-right">Win</span>
+          <span className="whitespace-nowrap text-right">Net P&L</span>
+          <span className="whitespace-nowrap text-right">Share</span>
+        </li>
+        {chartData.map((row) => (
+          <li
+            key={row.name}
+            className={cn(
+              PIE_LEGEND_GRID,
+              "border-b border-border/40 py-2 text-[11px] last:border-b-0 sm:text-xs"
+            )}
+          >
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: row.fill }}
+              aria-hidden
+            />
+            <span className="whitespace-nowrap font-semibold text-foreground">
+              {row.name}
+            </span>
+            <span
+              className={cn(
+                "whitespace-nowrap text-right text-muted-foreground",
+                NUMERIC_CLASS
+              )}
+            >
+              {row.trades}
+            </span>
+            <span
+              className={cn(
+                "whitespace-nowrap text-right text-muted-foreground",
+                NUMERIC_CLASS
+              )}
+            >
+              {formatPercent(row.winRate)}
+            </span>
+            <span
+              className={cn(
+                "whitespace-nowrap text-right font-semibold",
+                NUMERIC_CLASS,
+                row.pnl > 0 && "text-emerald-600 dark:text-emerald-400",
+                row.pnl < 0 && "text-rose-600 dark:text-rose-400"
+              )}
+            >
+              {formatMoney(row.pnl, true, currency)}
+            </span>
+            <span
+              className={cn(
+                "whitespace-nowrap text-right text-muted-foreground",
+                NUMERIC_CLASS
+              )}
+            >
+              {formatPercent(row.share)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -339,8 +408,12 @@ function BreakdownPnlBarChart({
 const headClass =
   "h-9 bg-muted/30 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
 const numericHeadClass = cn(headClass, "text-right");
+const headClassFirst = cn(headClass, "pl-4 sm:pl-5");
+const headClassLast = cn(numericHeadClass, "pr-4 sm:pr-5");
 const cellClass = "px-3 py-2.5 text-xs";
 const numericCellClass = cn(cellClass, "text-right", NUMERIC_CLASS);
+const cellClassFirst = cn(cellClass, "pl-4 sm:pl-5");
+const cellClassLast = cn(numericCellClass, "pr-4 sm:pr-5");
 
 function BreakdownTable({
   title,
@@ -402,56 +475,69 @@ function BreakdownTable({
         </div>
       ) : (
         <div>
-          <div className="border-b border-border/60 px-4 py-4 sm:px-5">
+          <div
+            className={cn(
+              "px-4 py-3 sm:px-5",
+              chartVariant === "bar" && "border-b border-border/60"
+            )}
+          >
             {chartVariant === "pie" ? (
               <BreakdownPnlPieChart rows={visibleRows} currency={currency} />
             ) : (
               <BreakdownPnlBarChart rows={visibleRows} currency={currency} />
             )}
           </div>
-          <div className="-mx-4 overflow-x-auto sm:-mx-5">
-          <Table>
-          <TableHeader>
-            <TableRow className="border-border/70 hover:bg-transparent">
-              <TableHead className={headClass}>Group</TableHead>
-              <TableHead className={numericHeadClass}>Trades</TableHead>
-              <TableHead className={numericHeadClass}>Win rate</TableHead>
-              <TableHead className={numericHeadClass}>Avg R</TableHead>
-              <TableHead className={numericHeadClass}>Net P&L</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visibleRows.map((row) => (
-              <TableRow key={row.label} className="border-border/60">
-                <TableCell
-                  className={cn(cellClass, "max-w-[12rem] truncate font-medium")}
-                >
-                  {row.label}
-                </TableCell>
-                <TableCell className={numericCellClass}>{row.trades}</TableCell>
-                <TableCell className={numericCellClass}>
-                  {formatPercent(row.winRate)}
-                </TableCell>
-                <TableCell
-                  className={cn(numericCellClass, "text-muted-foreground")}
-                >
-                  {row.avgR !== null ? `${row.avgR.toFixed(2)}R` : "—"}
-                </TableCell>
-                <TableCell
-                  className={cn(
-                    numericCellClass,
-                    "font-semibold",
-                    row.totalPnl > 0 && "text-emerald-600 dark:text-emerald-400",
-                    row.totalPnl < 0 && "text-rose-600 dark:text-rose-400"
-                  )}
-                >
-                  {formatMoney(row.totalPnl, true, currency)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-          </div>
+          {chartVariant === "bar" ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/70 hover:bg-transparent">
+                    <TableHead className={headClassFirst}>Group</TableHead>
+                    <TableHead className={numericHeadClass}>Trades</TableHead>
+                    <TableHead className={numericHeadClass}>Win rate</TableHead>
+                    <TableHead className={numericHeadClass}>Avg R</TableHead>
+                    <TableHead className={headClassLast}>Net P&L</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleRows.map((row) => (
+                    <TableRow key={row.label} className="border-border/60">
+                      <TableCell
+                        className={cn(cellClassFirst, "min-w-[5.5rem] font-medium")}
+                      >
+                        {row.label}
+                      </TableCell>
+                      <TableCell className={numericCellClass}>
+                        {row.trades}
+                      </TableCell>
+                      <TableCell className={numericCellClass}>
+                        {formatPercent(row.winRate)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          numericCellClass,
+                          "text-muted-foreground"
+                        )}
+                      >
+                        {row.avgR !== null ? `${row.avgR.toFixed(2)}R` : "—"}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          cellClassLast,
+                          "font-semibold",
+                          row.totalPnl > 0 &&
+                            "text-emerald-600 dark:text-emerald-400",
+                          row.totalPnl < 0 && "text-rose-600 dark:text-rose-400"
+                        )}
+                      >
+                        {formatMoney(row.totalPnl, true, currency)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : null}
         </div>
       )}
     </DataPanel>

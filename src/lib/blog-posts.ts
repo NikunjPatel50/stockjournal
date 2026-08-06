@@ -62,7 +62,7 @@ export const BLOG_POSTS: BlogPost[] = [
     blocks: [
       {
         type: "p",
-        text: "Most swing traders know they should journal. Fewer build a system they actually use after a losing week. The difference is not motivation — it is friction. A swing trading journal works when logging a trade takes less than two minutes and reviewing your week takes less than twenty.",
+        text: "Most swing traders know they should journal. Fewer build a system they actually use after a losing week. The difference is not motivation, it is friction. A swing trading journal works when logging a trade takes less than two minutes and reviewing your week takes less than twenty.",
       },
       {
         type: "h2",
@@ -106,7 +106,7 @@ export const BLOG_POSTS: BlogPost[] = [
         items: [
           "Filter the journal to trades closed this week.",
           "Note win rate, average R:R, and largest winner/loser.",
-          "Read notes on losing trades first — patterns show up faster there.",
+          "Read notes on losing trades first, patterns show up faster there.",
           "Pick one rule to enforce next week (max loss per trade, no adding to losers, etc.).",
         ],
       },
@@ -116,7 +116,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Open SwingTradingLog, log your next swing trade with stop and target filled in, and set a recurring Sunday reminder to review the week. Free forever, no credit card — the goal is consistency, not perfection on day one.",
+        text: "Open SwingTradingLog, log your next swing trade with stop and target filled in, and set a recurring Sunday reminder to review the week. Free forever, no credit card, the goal is consistency, not perfection on day one.",
       },
     ],
   },
@@ -159,7 +159,7 @@ export const BLOG_POSTS: BlogPost[] = [
         type: "image",
         src: "/blog/overnight-gap-risk-for-swing-traders.jpg",
         alt: "Financial chart showing price movement between sessions",
-        caption: "Gaps happen when the market reopens — plan for them before you hold overnight.",
+        caption: "Gaps happen when the market reopens, plan for them before you hold overnight.",
       },
       {
         type: "h2",
@@ -183,7 +183,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Keep total active notional under a fixed cap — for example 40% of equity for diversified swings, lower if names are correlated. Review the cap every Friday before the close. Discipline on exposure often matters more than picking one extra winner.",
+        text: "Keep total active notional under a fixed cap, for example 40% of equity for diversified swings, lower if names are correlated. Review the cap every Friday before the close. Discipline on exposure often matters more than picking one extra winner.",
       },
     ],
   },
@@ -203,7 +203,7 @@ export const BLOG_POSTS: BlogPost[] = [
     blocks: [
       {
         type: "p",
-        text: "Weekly reviews fail when they turn into hours of chart archaeology. The point is decision quality, not documentation for its own sake. A tight review answers whether your edge showed up this week and what to adjust next week — nothing more.",
+        text: "Weekly reviews fail when they turn into hours of chart archaeology. The point is decision quality, not documentation for its own sake. A tight review answers whether your edge showed up this week and what to adjust next week, nothing more.",
       },
       {
         type: "h2",
@@ -212,17 +212,17 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         type: "ul",
         items: [
-          "5 min — Dashboard: net P&L, profit factor, win rate for the period",
-          "5 min — Journal: scan closed trades, sort by largest loss",
-          "5 min — Goals: did you hit process targets (max trades, max loss)?",
-          "5 min — One written takeaway and one rule for next week",
+          "5 min: Dashboard: net P&L, profit factor, win rate for the period",
+          "5 min: Journal: scan closed trades, sort by largest loss",
+          "5 min: Goals: did you hit process targets (max trades, max loss)?",
+          "5 min: One written takeaway and one rule for next week",
         ],
       },
       {
         type: "image",
         src: "/blog/weekly-swing-trade-review-without-overthinking.jpg",
         alt: "Laptop screen showing trading performance analytics",
-        caption: "Focus on profit factor and R:R — not just win rate.",
+        caption: "Focus on profit factor and R:R, not just win rate.",
       },
       {
         type: "h2",
@@ -247,7 +247,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Tag trades with psychology labels (FOMO, followed plan, revenge trade) so tag-level analytics reveal habits over time.",
+        text: "Tag trades with psychology labels (FOMO: followed plan: revenge trade) so tag-level analytics reveal habits over time.",
       },
       {
         type: "h2",
@@ -255,7 +255,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Do not rewrite your strategy after one bad week. Look for the same mistake three times in a month before changing rules. If the mistake is execution (late entries, moving stops), fix process. If setups genuinely stopped working in current volatility, adjust setup criteria — not everything at once.",
+        text: "Do not rewrite your strategy after one bad week. Look for the same mistake three times in a month before changing rules. If the mistake is execution (late entries, moving stops), fix process. If setups genuinely stopped working in current volatility, adjust setup criteria, not everything at once.",
       },
       {
         type: "h3",
@@ -263,7 +263,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Block the same time each week. Export CSV backups monthly so your history survives platform changes. SwingTradingLog keeps journal, dashboard analytics, and goals in one place so the review stays short — sign in, filter the week, write one paragraph, done.",
+        text: "Block the same time each week. Export CSV backups monthly so your history survives platform changes. SwingTradingLog keeps journal, dashboard analytics, and goals in one place so the review stays short, sign in, filter the week, write one paragraph, done.",
       },
     ],
   },
@@ -283,7 +283,7 @@ export const BLOG_POSTS: BlogPost[] = [
     blocks: [
       {
         type: "p",
-        text: "Most blown accounts are not bad stock picks — they are oversized positions. Swing traders hold through overnight gaps, so a single trade can move more than your planned stop on paper. Position sizing is how you stay in the game when the market opens against you.",
+        text: "Most blown accounts are not bad stock picks, they are oversized positions. Swing traders hold through overnight gaps, so a single trade can move more than your planned stop on paper. Position sizing is how you stay in the game when the market opens against you.",
       },
       {
         type: "h2",
@@ -291,7 +291,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Decide how much of your account you are willing to lose if the stop is hit — typically 0.5% to 2% per trade for most swing accounts. Then work backward from entry to stop distance. Quantity = risk amount ÷ (entry − stop) per share. Log that math before you enter so you are not guessing lot size at the open.",
+        text: "Decide how much of your account you are willing to lose if the stop is hit, typically 0.5% to 2% per trade for most swing accounts. Then work backward from entry to stop distance. Quantity = risk amount ÷ (entry − stop) per share. Log that math before you enter so you are not guessing lot size at the open.",
       },
       {
         type: "ul",
@@ -299,14 +299,14 @@ export const BLOG_POSTS: BlogPost[] = [
           "Set a fixed rupee or dollar risk per trade (e.g. ₹2,000 on a ₹5 lakh account = 0.4%)",
           "Never increase size after a win to “make more back”",
           "Reduce size when volatility expands (ATR widens, earnings week)",
-          "Cap total open risk across all Active positions — not just one trade",
+          "Cap total open risk across all Active positions, not just one trade",
         ],
       },
       {
         type: "image",
         src: "/blog/position-sizing-for-swing-traders.jpg",
         alt: "Desk setup for planning swing trade position sizes",
-        caption: "Size from stop distance and account risk — not from how confident you feel.",
+        caption: "Size from stop distance and account risk, not from how confident you feel.",
       },
       {
         type: "h2",
@@ -325,7 +325,7 @@ export const BLOG_POSTS: BlogPost[] = [
         items: [
           "Daily loss limit: stop trading after −2R or −3% for the day",
           "Max concurrent positions: e.g. three swings unless setups are uncorrelated",
-          "No adding to losers — size is fixed at entry",
+          "No adding to losers, size is fixed at entry",
           "Scale out partial profits; do not double size on the next trade",
         ],
       },
@@ -335,7 +335,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Record quantity, stop, and target when you open the trade. SwingTradingLog shows overnight exposure and return on your starting balance so you see whether sizing drifted over the month — not just whether individual picks worked.",
+        text: "Record quantity, stop, and target when you open the trade. SwingTradingLog shows overnight exposure and return on your starting balance so you see whether sizing drifted over the month, not just whether individual picks worked.",
       },
     ],
   },
@@ -355,7 +355,7 @@ export const BLOG_POSTS: BlogPost[] = [
     blocks: [
       {
         type: "p",
-        text: "A stop too tight gets hit on normal noise. A stop too wide turns a small mistake into a large loss. Swing traders need stops that respect the chart structure of the setup — and position size that matches the distance to that level.",
+        text: "A stop too tight gets hit on normal noise. A stop too wide turns a small mistake into a large loss. Swing traders need stops that respect the chart structure of the setup, and position size that matches the distance to that level.",
       },
       {
         type: "h2",
@@ -363,7 +363,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "If you bought a pullback to support, the stop belongs below that support — not at an arbitrary 2% from entry. If you bought a breakout, the stop belongs below the breakout level or the last swing low that invalidates the pattern. The stop is a line in the sand: “If price is here, I was wrong.”",
+        text: "If you bought a pullback to support, the stop belongs below that support, not at an arbitrary 2% from entry. If you bought a breakout, the stop belongs below the breakout level or the last swing low that invalidates the pattern. The stop is a line in the sand: “If price is here, I was wrong.”",
       },
       {
         type: "ul",
@@ -378,7 +378,7 @@ export const BLOG_POSTS: BlogPost[] = [
         type: "image",
         src: "/blog/stop-loss-placement-for-swing-trades.jpg",
         alt: "Chart showing stop placement below a support level",
-        caption: "Structure first — then size the trade to the distance to your stop.",
+        caption: "Structure first, then size the trade to the distance to your stop.",
       },
       {
         type: "h2",
@@ -386,15 +386,15 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "On volatile names, a few ticks below support is not enough. Many traders use 0.5× to 1× ATR beyond the level as a buffer so a normal wick does not stop them out before the move. If that makes the stop too wide for your risk budget, size down — do not move the stop closer without a structural reason.",
+        text: "On volatile names, a few ticks below support is not enough. Many traders use 0.5× to 1× ATR beyond the level as a buffer so a normal wick does not stop them out before the move. If that makes the stop too wide for your risk budget, size down, do not move the stop closer without a structural reason.",
       },
       {
         type: "h2",
-        text: "Set the stop before entry — and do not move it",
+        text: "Set the stop before entry and do not move it",
       },
       {
         type: "p",
-        text: "Log stop and target when the trade is Active. Moving a stop farther away after entry is hope, not risk management. Trailing stops are fine when price moves in your favor; widening against you is how small losses become account damage.",
+        text: "Log stop and target when the trade is Active. Moving a stop farther away after entry is hope: not risk management. Trailing stops are fine when price moves in your favor; widening against you is how small losses become account damage.",
       },
       {
         type: "h3",
@@ -422,7 +422,7 @@ export const BLOG_POSTS: BlogPost[] = [
     blocks: [
       {
         type: "p",
-        text: "Most swing traders review trades one ticker at a time. That works for execution mistakes — late entries, moved stops, oversizing. It misses a bigger question: are you actually profitable in the parts of the market where you spend most of your time? Sector and market-cap attribution turns a pile of closed trades into a map of where your edge lives.",
+        text: "Most swing traders review trades one ticker at a time. That works for execution mistakes, late entries, moved stops, oversizing. It misses a bigger question: are you actually profitable in the parts of the market where you spend most of your time? Sector and market-cap attribution turns a pile of closed trades into a map of where your edge lives.",
       },
       {
         type: "h2",
@@ -453,12 +453,12 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Market cap changes how a stock trades — liquidity at the open, gap size, and how fast support breaks. Large caps on NSE often gap less but move slower; small caps can offer bigger swings with wider stops and more overnight risk. Breaking performance into large, mid, small, and micro buckets shows whether you are forcing the same hold time on names that need different rules.",
+        text: "Market cap changes how a stock trades, liquidity at the open, gap size, and how fast support breaks. Large caps on NSE often gap less but move slower; small caps can offer bigger swings with wider stops and more overnight risk. Breaking performance into large, mid, small, and micro buckets shows whether you are forcing the same hold time on names that need different rules.",
       },
       {
         type: "ul",
         items: [
-          "Large cap: tighter spreads, cleaner levels — often better for newer swing systems",
+          "Large cap: tighter spreads, cleaner levels, often better for newer swing systems",
           "Mid cap: balance of movement and liquidity; watch earnings and promoter news",
           "Small / micro cap: size down; gaps and slippage punish wide notional",
           "Compare avg R and win rate per bucket, not just total P&L",
@@ -470,7 +470,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Run attribution after at least 15–20 closed equity trades so one lucky winner does not dominate. Sort groups by net P&L, then read the losers within the worst group. Ask: was the setup wrong for that sector, or was execution the problem? If IT shows a high win rate but negative P&L, your winners may be too small — a sizing issue, not a sector ban.",
+        text: "Run attribution after at least 15–20 closed equity trades so one lucky winner does not dominate. Sort groups by net P&L, then read the losers within the worst group. Ask: was the setup wrong for that sector, or was execution the problem? If IT shows a high win rate but negative P&L, your winners may be too small, a sizing issue, not a sector ban.",
       },
       {
         type: "h2",
@@ -482,7 +482,7 @@ export const BLOG_POSTS: BlogPost[] = [
           "Cap concurrent positions in your weakest sector until stats improve",
           "Trade smaller in market-cap buckets with poor avg R",
           "Tag trades with strategy + sector context in your journal notes",
-          "Re-check attribution quarterly — edges drift as volatility regimes change",
+          "Re-check attribution quarterly, edges drift as volatility regimes change",
         ],
       },
       {
@@ -491,7 +491,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "You need closed trades with ticker, P&L, stop, and target logged consistently. SwingTradingLog groups realized results by sector and market cap on the Analytics page so you see which parts of the market fund your account — and which ones only feel active. Start logging the next swing with stop and target filled in; let the breakdown tell you where to focus next month.",
+        text: "You need closed trades with ticker, P&L, stop, and target logged consistently. SwingTradingLog groups realized results by sector and market cap on the Analytics page so you see which parts of the market fund your account, and which ones only feel active. Start logging the next swing with stop and target filled in; let the breakdown tell you where to focus next month.",
       },
     ],
   },

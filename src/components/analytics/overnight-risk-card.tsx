@@ -41,6 +41,16 @@ const SLICE_COLORS = [
   "#0d9488",
 ];
 
+const legendHeadClass =
+  "h-8 bg-muted/40 px-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground sm:px-3";
+const legendHeadFirst = cn(legendHeadClass, "pl-3 sm:pl-4");
+const legendHeadNumeric = cn(legendHeadClass, "text-right");
+const legendHeadLast = cn(legendHeadNumeric, "pr-3 sm:pr-4");
+const legendCellClass = "px-2.5 py-2 text-[11px] sm:px-3 sm:text-xs";
+const legendCellFirst = cn(legendCellClass, "pl-3 sm:pl-4");
+const legendCellNumeric = cn(legendCellClass, "text-right whitespace-nowrap", NUMERIC_CLASS);
+const legendCellLast = cn(legendCellClass, "pr-3 sm:pr-4");
+
 type PieShareLabelProps = {
   cx?: number;
   cy?: number;
@@ -103,7 +113,7 @@ function gapLabel(kind: OvernightRiskSummary["marketGapKind"]) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 text-center">
       <p className="truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </p>
@@ -176,7 +186,7 @@ function ExposureTable({
   currency: CurrencyCode;
 }) {
   return (
-    <div className="-mx-4 overflow-x-auto border-t border-border/60 sm:-mx-5">
+    <div className="overflow-x-auto border-t border-border/60">
       <Table>
         <TableHeader>
           <TableRow className="border-border/60 hover:bg-transparent">
@@ -207,28 +217,82 @@ function ExposureTable({
               <TableCell className={cn(numericCellClass, "font-semibold")}>
                 {formatMoney(row.notionalAtRisk, false, currency)}
               </TableCell>
-              <TableCell className={cn(cellClass, "align-middle")}>
-                <div className="flex items-center justify-end gap-2">
-                  <span
-                    className="hidden h-1 w-12 overflow-hidden rounded-full bg-muted sm:block"
-                    aria-hidden
-                  >
-                    <span
-                      className="block h-full rounded-full bg-foreground/40"
-                      style={{ width: `${row.share}%` }}
-                    />
-                  </span>
-                  <span
-                    className={cn("text-muted-foreground", NUMERIC_CLASS)}
-                  >
-                    {row.share.toFixed(0)}%
-                  </span>
-                </div>
+              <TableCell className={cn(cellClass, "text-right align-middle")}>
+                <span className={cn("text-muted-foreground", NUMERIC_CLASS)}>
+                  {row.share.toFixed(0)}%
+                </span>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function ExposureLegendPanel({
+  rows,
+  currency,
+  className,
+}: {
+  rows: RowWithShare[];
+  currency: CurrencyCode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 flex-1 overflow-hidden rounded-lg border-2 border-border/70 bg-muted/15",
+        className
+      )}
+    >
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-border/50 hover:bg-transparent">
+              <TableHead className={legendHeadFirst}>Symbol</TableHead>
+              <TableHead className={legendHeadNumeric}>Position</TableHead>
+              <TableHead className={legendHeadNumeric}>Notional</TableHead>
+              <TableHead className={legendHeadLast}>Share</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, index) => (
+              <TableRow key={row.tradeId} className="border-border/40">
+                <TableCell className={legendCellFirst}>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor:
+                          SLICE_COLORS[index % SLICE_COLORS.length],
+                      }}
+                      aria-hidden
+                    />
+                    <span className="flex min-w-0 items-center gap-1 font-semibold text-foreground">
+                      {row.ticker}
+                      <GapChip kind={row.gapRisk} />
+                    </span>
+                  </span>
+                </TableCell>
+                <TableCell
+                  className={cn(legendCellNumeric, "text-muted-foreground")}
+                >
+                  {row.quantity} × {row.priceUsed.toFixed(2)}
+                </TableCell>
+                <TableCell className={cn(legendCellNumeric, "font-semibold")}>
+                  {formatMoney(row.notionalAtRisk, false, currency)}
+                </TableCell>
+                <TableCell className={cn(legendCellLast, "text-right")}>
+                  <span className={cn("text-muted-foreground", NUMERIC_CLASS)}>
+                    {row.share.toFixed(0)}%
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -263,12 +327,12 @@ function ExposurePieChart({
   }, [chartData]);
 
   return (
-    <div className="flex min-h-[240px] flex-1 flex-col border-t border-border/60 pt-3 sm:flex-row sm:items-stretch sm:gap-4">
-      <div className="flex min-h-[200px] flex-1 items-center justify-center sm:max-w-[46%]">
+    <div className="flex min-h-[240px] flex-1 flex-col border-t border-border/60 pt-3 sm:flex-row sm:items-start sm:gap-4">
+      <div className="mx-auto flex min-h-[200px] w-full max-w-[240px] shrink-0 items-center justify-center sm:mx-0 sm:w-[40%] sm:max-w-[240px]">
         <ChartContainer
           config={chartConfig}
-          initialDimension={{ width: 280, height: 280 }}
-          className="aspect-square h-full w-full min-h-[200px] max-h-[min(100%,280px)] max-w-[280px]"
+          initialDimension={{ width: 240, height: 240 }}
+          className="aspect-square h-full w-full min-h-[200px] max-h-[240px] max-w-[240px]"
         >
           <PieChart>
             <ChartTooltip
@@ -327,45 +391,7 @@ function ExposurePieChart({
         </ChartContainer>
       </div>
 
-      <ul className="flex min-h-[200px] flex-1 flex-col justify-between rounded-lg border border-border/50 bg-muted/15 px-2 py-1 sm:px-3">
-        {rows.map((row, index) => (
-          <li
-            key={row.tradeId}
-            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/40 py-2 text-[11px] last:border-b-0 sm:flex-nowrap sm:gap-2 sm:text-xs"
-          >
-            <span
-              className="size-2 shrink-0 rounded-full"
-              style={{
-                backgroundColor: SLICE_COLORS[index % SLICE_COLORS.length],
-              }}
-              aria-hidden
-            />
-            <span className="flex w-[4.25rem] shrink-0 items-center gap-1 truncate font-semibold text-foreground">
-              {row.ticker}
-              <GapChip kind={row.gapRisk} />
-            </span>
-            <span
-              className={cn(
-                "min-w-0 flex-1 truncate text-muted-foreground",
-                NUMERIC_CLASS
-              )}
-            >
-              {row.quantity} × {row.priceUsed.toFixed(2)}
-            </span>
-            <span className={cn("shrink-0 font-semibold", NUMERIC_CLASS)}>
-              {formatMoney(row.notionalAtRisk, false, currency)}
-            </span>
-            <span
-              className={cn(
-                "w-8 shrink-0 text-right text-muted-foreground",
-                NUMERIC_CLASS
-              )}
-            >
-              {row.share.toFixed(0)}%
-            </span>
-          </li>
-        ))}
-      </ul>
+      <ExposureLegendPanel rows={rows} currency={currency} className="w-full" />
     </div>
   );
 }
@@ -383,6 +409,12 @@ export function OvernightRiskCard({
   const hasEquity = summary.accountEquity > 0;
   const gap = gapLabel(summary.marketGapKind);
   const largest = summary.rows[0] ?? null;
+  const smallest = summary.rows[summary.rows.length - 1] ?? null;
+
+  const formatPositionShare = (row: OvernightExposureRow | null) =>
+    row && summary.totalExposed > 0
+      ? `${row.ticker} · ${((row.notionalAtRisk / summary.totalExposed) * 100).toFixed(0)}%`
+      : "—";
 
   const rowsWithShare = useMemo(
     () =>
@@ -421,7 +453,7 @@ export function OvernightRiskCard({
         view === "chart" && "sm:min-h-[360px]"
       )}
     >
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat
           label="Account equity"
           value={
@@ -433,11 +465,11 @@ export function OvernightRiskCard({
         <Stat label="Open positions" value={String(summary.rows.length)} />
         <Stat
           label="Largest position"
-          value={
-            largest
-              ? `${largest.ticker} · ${((largest.notionalAtRisk / summary.totalExposed) * 100).toFixed(0)}%`
-              : "—"
-          }
+          value={formatPositionShare(largest)}
+        />
+        <Stat
+          label="Smallest position"
+          value={formatPositionShare(smallest)}
         />
       </div>
 

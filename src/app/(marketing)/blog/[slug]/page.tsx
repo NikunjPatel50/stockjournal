@@ -82,9 +82,8 @@ export default async function BlogPostPage({ params }: PageProps) {
               {post.coverImage.credit}
             </p>
           ) : null}
-          <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <time dateTime={post.publishedAt}>{published}</time>
-            <span aria-hidden>·</span>
             <span>{post.readMinutes} min read</span>
           </div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
