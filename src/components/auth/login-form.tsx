@@ -58,6 +58,13 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const oauthVerify = searchParams.get("oauth") === "1";
+  const nextPath = searchParams.get("next");
+  const googleAuthHref = nextPath
+    ? `/api/auth/google?next=${encodeURIComponent(nextPath)}`
+    : "/api/auth/google";
+  const googlePickAccountHref = nextPath
+    ? `/api/auth/google?pick_account=1&next=${encodeURIComponent(nextPath)}`
+    : "/api/auth/google?pick_account=1";
 
   useEffect(() => {
     const remembered = loadRememberedLogin();
@@ -322,7 +329,7 @@ export function LoginForm() {
       {(mode === "signin" || mode === "signup") && (
         <>
           <a
-            href="/api/auth/google"
+            href={googleAuthHref}
             className={cn(
               buttonVariants({ variant: "outline", size: "lg" }),
               "h-10 w-full gap-2.5 border-border bg-background text-sm font-medium text-foreground shadow-none hover:bg-muted/60"
@@ -332,7 +339,7 @@ export function LoginForm() {
             Continue with Google
           </a>
           <a
-            href="/api/auth/google?pick_account=1"
+            href={googlePickAccountHref}
             className="mt-2 block w-full text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             Use a different Google account

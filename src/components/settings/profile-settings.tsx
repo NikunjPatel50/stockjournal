@@ -29,16 +29,10 @@ import {
   type CurrencyCode,
 } from "@/lib/settings";
 
-const numberField = z
-  .union([z.number(), z.string()])
-  .transform((v) => (typeof v === "string" ? Number(v) : v))
-  .refine((v) => Number.isFinite(v) && v >= 0, "Must be a valid number");
-
 const profileSchema = z.object({
   fullName: z.string().trim().min(1, "Name is required"),
   handle: z.string().trim(),
   currency: z.enum(["USD", "EUR", "GBP", "INR", "CAD"]),
-  startingBalance: numberField,
 });
 
 type ProfileInput = z.input<typeof profileSchema>;
@@ -73,12 +67,20 @@ export function ProfileSettings() {
 
   const form = useForm<ProfileInput, unknown, ProfileValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: settings.profile,
+    defaultValues: {
+      fullName: settings.profile.fullName,
+      handle: settings.profile.handle,
+      currency: settings.profile.currency,
+    },
   });
 
   useEffect(() => {
-    form.reset(settings.profile);
-  }, [settings.profile, form]);
+    form.reset({
+      fullName: settings.profile.fullName,
+      handle: settings.profile.handle,
+      currency: settings.profile.currency,
+    });
+  }, [settings.profile.fullName, settings.profile.handle, settings.profile.currency, form]);
 
   const watchedName = form.watch("fullName");
   const watchedHandle = form.watch("handle");
@@ -93,6 +95,7 @@ export function ProfileSettings() {
     updateSettings((prev) => ({
       ...prev,
       profile: {
+        ...prev.profile,
         ...values,
         initials: initialsFromName(values.fullName),
       },
@@ -148,7 +151,7 @@ export function ProfileSettings() {
 
         <SettingsSection
           title="Account defaults"
-          description="Currency and total invested capital for P&amp;L and equity calculations."
+          description="Default currency for prices, P&amp;L, and reports."
         >
           <div className="grid max-w-2xl gap-5 sm:grid-cols-2">
             <Field label="Default currency">
@@ -169,21 +172,6 @@ export function ProfileSettings() {
                   ))}
                 </SelectContent>
               </Select>
-            </Field>
-            <Field
-              id="startingBalance"
-              label="Total money invested"
-              hint="Total capital in your account. Used for return %, overnight exposure %, and portfolio weight."
-            >
-              <Input
-                id="startingBalance"
-                type="number"
-                min={0}
-                step="any"
-                placeholder="0"
-                className="h-9 border-border bg-background font-sans tabular-nums [font-feature-settings:'tnum'_1,'lnum'_1]"
-                {...form.register("startingBalance")}
-              />
             </Field>
           </div>
         </SettingsSection>

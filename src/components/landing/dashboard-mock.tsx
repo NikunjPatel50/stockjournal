@@ -413,35 +413,42 @@ function PieChartMock({
   );
 }
 
-function PnlCalendarMock() {
-  const days = Array.from({ length: 28 }, (_, index) => {
-    const day = index + 1;
-    if (day === 4) return { day, tone: "loss" as const };
-    if (day === 11 || day === 18) return { day, tone: "win" as const };
-    if (day === 25) return { day, tone: "win" as const };
-    return { day, tone: "flat" as const };
-  });
+function PnlLineChartMock() {
+  const points = [0, -4, 2, 8, 5, 12, 9, 16, 14, 20];
+  const width = 100;
+  const height = 40;
+  const max = Math.max(...points);
+  const min = Math.min(...points, 0);
+  const span = Math.max(max - min, 1);
+  const coords = points
+    .map((value, index) => {
+      const x = (index / (points.length - 1)) * width;
+      const y = height - ((value - min) / span) * height;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
     <div className={cn(mockCard, "h-full")}>
-      <p className="text-[11px] font-semibold text-foreground">P&L calendar</p>
+      <p className="text-[11px] font-semibold text-foreground">P&L line chart</p>
       <p className="mt-0.5 text-[10px] text-muted-foreground">
-        Daily realized results · August
+        Cumulative realized P&L from closed trades
       </p>
-      <div className="mt-3 grid grid-cols-7 gap-1">
-        {days.map((cell) => (
-          <div
-            key={cell.day}
-            className={cn(
-              "flex aspect-square items-center justify-center rounded-md text-[9px] font-medium",
-              cell.tone === "win" && "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
-              cell.tone === "loss" && "bg-rose-500/20 text-rose-700 dark:text-rose-300",
-              cell.tone === "flat" && "bg-muted/30 text-muted-foreground"
-            )}
-          >
-            {cell.day}
-          </div>
-        ))}
+      <div className="mt-3 rounded-lg border border-border/70 bg-muted/15 p-3">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-20 w-full"
+          aria-hidden
+        >
+          <polyline
+            fill="none"
+            stroke="#10b981"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            points={coords}
+          />
+        </svg>
       </div>
     </div>
   );
@@ -1564,10 +1571,10 @@ function AnalyticsPreview() {
       <ReportSectionMock
         index="02"
         title="Performance"
-        description="Daily P&L rhythm and period performance"
+        description="Realized P&L trend and open-position performance"
       >
         <div className="grid gap-2 lg:grid-cols-2">
-          <PnlCalendarMock />
+          <PnlLineChartMock />
           <div className={mockCard}>
             <p className="text-[11px] font-semibold text-foreground">P&L chart</p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">

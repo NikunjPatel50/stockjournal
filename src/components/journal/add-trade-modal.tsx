@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { Upload, X } from "lucide-react";
@@ -14,7 +14,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -22,12 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TradeField, TRADE_FIELD_LABELS } from "@/components/journal/trade-form-field";
 import { Textarea } from "@/components/ui/textarea";
 import { DateTimeField, formatDateTimeFieldValue } from "@/components/journal/datetime-field";
 import { ChartScreenshotPreview } from "@/components/journal/chart-screenshot-preview";
 import { EarningsCheck } from "@/components/journal/earnings-check";
 import { PlannedRPreview } from "@/components/journal/planned-r-preview";
-import { RepeatSetup } from "@/components/journal/repeat-setup";
 import { SmartAtrLevels } from "@/components/journal/smart-atr-levels";
 import { SmartPositionSizer } from "@/components/journal/smart-position-sizer";
 import {
@@ -49,14 +48,16 @@ import {
   type ListingMarketId,
 } from "@/lib/equity-listing-markets";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
+import { computeCapitalBase } from "@/lib/overnight-risk";
 import { cn } from "@/lib/utils";
 
 const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
 
-const inputClass = "h-9 bg-background";
+const inputClass =
+  "h-8 rounded-md border-border/80 bg-background text-sm shadow-none";
 const numberInputClass = cn(
   inputClass,
-  "font-sans tabular-nums [font-feature-settings:'tnum'_1,'lnum'_1]"
+  "font-mono tabular-nums [font-feature-settings:'tnum'_1,'lnum'_1]"
 );
 
 function currentDateTimeValue() {
@@ -202,59 +203,43 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("space-y-1.5", className)}>
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+    <TradeField label={label} className={className}>
       {children}
-    </div>
+    </TradeField>
   );
 }
 
-type FormSectionTone = "sky" | "emerald" | "violet";
-
-const formSectionHeaderTone: Record<FormSectionTone, string> = {
-  sky: "border-sky-300/50 bg-gradient-to-r from-sky-100 via-sky-100/85 to-cyan-100/70 dark:border-sky-800/55 dark:from-sky-950/65 dark:via-sky-950/45 dark:to-cyan-950/35",
-  emerald:
-    "border-emerald-300/50 bg-gradient-to-r from-emerald-100 via-emerald-100/85 to-teal-100/65 dark:border-emerald-800/55 dark:from-emerald-950/65 dark:via-emerald-950/45 dark:to-teal-950/35",
-  violet:
-    "border-violet-300/50 bg-gradient-to-r from-violet-100 via-violet-100/85 to-indigo-100/65 dark:border-violet-800/55 dark:from-violet-950/65 dark:via-violet-950/45 dark:to-indigo-950/35",
-};
-
 function FormSection({
+  index,
   title,
   description,
-  tone = "sky",
   className,
   children,
 }: {
+  index: string;
   title: string;
   description?: string;
-  tone?: FormSectionTone;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <section
-      className={cn(
-        "overflow-hidden rounded-lg border border-border bg-card shadow-none",
-        className
-      )}
-    >
-      <div
-        className={cn(
-          "border-b px-4 py-3",
-          formSectionHeaderTone[tone]
-        )}
-      >
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">
-          {title}
-        </h3>
-        {description ? (
-          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
+    <section className={cn("space-y-4", className)}>
+      <div className="flex items-center gap-3 border-b border-border/70 pb-2.5">
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-sm bg-muted font-mono text-[10px] font-semibold tabular-nums text-muted-foreground ring-1 ring-border/60">
+          {index}
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-foreground">
+            {title}
+          </h3>
+          {description ? (
+            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+              {description}
+            </p>
+          ) : null}
+        </div>
       </div>
-      <div className="bg-card p-4">{children}</div>
+      {children}
     </section>
   );
 }
@@ -270,6 +255,7 @@ export function AddTradeModal({
   const defaultMarket = defaultListingMarketForCurrency(
     settings.profile.currency
   );
+  const defaultCapital = useMemo(() => computeCapitalBase(trades), [trades]);
   const [tradeMeta, setTradeMeta] = useState<{
     direction: JournalDirection;
     assetClass: AssetClass;
@@ -592,24 +578,45 @@ export function AddTradeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(90dvh,840px)] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:w-[min(92vw,80rem)] sm:max-w-[min(92vw,80rem)]">
-        <DialogHeader className="shrink-0 space-y-1 border-b border-slate-300/50 bg-gradient-to-r from-slate-100 via-slate-100/90 to-zinc-100/75 px-6 py-4 text-left dark:border-slate-700/55 dark:from-slate-900/70 dark:via-slate-900/50 dark:to-zinc-950/40">
-          <DialogTitle className="text-lg font-semibold tracking-tight">
-            {initialTrade ? "Edit trade" : "Log new trade"}
-          </DialogTitle>
+      <DialogContent className="flex max-h-[min(90dvh,840px)] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-lg border border-border/80 p-0 shadow-2xl sm:w-[min(92vw,80rem)] sm:max-w-[min(92vw,80rem)]">
+        <DialogHeader className="shrink-0 space-y-0 border-b border-border/80 bg-background px-6 py-4 text-left">
+          <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Trade entry
+              </p>
+              <DialogTitle className="mt-1 text-base font-semibold tracking-tight text-foreground">
+                {initialTrade ? "Edit trade" : "Log new trade"}
+              </DialogTitle>
+              <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
+                Instrument, execution prices, planned risk, and journal notes in
+                one record.
+              </p>
+            </div>
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center rounded-sm px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider ring-1",
+                tradeStatus === "Active"
+                  ? "bg-amber-500/10 text-amber-800 ring-amber-500/25 dark:text-amber-300"
+                  : "bg-muted text-muted-foreground ring-border/80"
+              )}
+            >
+              {tradeStatus}
+            </span>
+          </div>
         </DialogHeader>
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="flex-1 overflow-y-auto px-6 py-5">
-            <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-              <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto bg-muted/15 px-6 py-5">
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,22rem)] lg:items-start lg:gap-0 lg:divide-x lg:divide-border/70">
+              <div className="space-y-8 lg:pr-8">
                 <FormSection
+                  index="01"
                   title="Setup"
                   description="Instrument and session timing"
-                  tone="sky"
                 >
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -617,7 +624,7 @@ export function AddTradeModal({
                         control={form.control}
                         name="listingMarket"
                         render={({ field }) => (
-                          <Field label="Market / exchange">
+                          <Field label={TRADE_FIELD_LABELS.exchange}>
                             <Select
                               value={field.value}
                               onValueChange={(value) => {
@@ -651,7 +658,7 @@ export function AddTradeModal({
                         control={form.control}
                         name="status"
                         render={({ field }) => (
-                          <Field label="Status">
+                          <Field label={TRADE_FIELD_LABELS.tradeStatus}>
                             <Select
                               value={field.value}
                               onValueChange={(value) => {
@@ -683,7 +690,7 @@ export function AddTradeModal({
                       control={form.control}
                       name="ticker"
                       render={({ field, fieldState }) => (
-                        <Field label="Ticker symbol" className="w-full min-w-0">
+                        <Field label={TRADE_FIELD_LABELS.symbol} className="w-full min-w-0">
                           <TickerSearchInput
                             ref={tickerInputRef}
                             value={field.value}
@@ -708,7 +715,7 @@ export function AddTradeModal({
                         name="entryDate"
                         render={({ field }) => (
                           <DateTimeField
-                            label="Entry date & time"
+                            label={TRADE_FIELD_LABELS.entryDate}
                             value={field.value}
                             onChange={field.onChange}
                           />
@@ -719,7 +726,7 @@ export function AddTradeModal({
                         name="exitDate"
                         render={({ field }) => (
                           <DateTimeField
-                            label="Exit date & time"
+                            label={TRADE_FIELD_LABELS.exitDate}
                             value={field.value}
                             onChange={field.onChange}
                             disabled={exitFieldsDisabled}
@@ -731,15 +738,19 @@ export function AddTradeModal({
                 </FormSection>
 
                 <FormSection
+                  index="02"
                   title="Pricing & risk"
-                  description="Fill prices, size, and planned levels"
-                  tone="emerald"
+                  description="Execution levels, size, and planned R"
                 >
-                  <div className="relative mb-4 flex flex-wrap gap-2">
+                  <div className="rounded-md border border-border/70 bg-background/80 p-2">
+                    <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      Assistants
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
                     <SmartPositionSizer
                       entryPrice={entryPriceWatch}
                       direction={tradeMeta.direction}
-                      defaultCapital={settings.profile.startingBalance}
+                      defaultCapital={defaultCapital}
                       defaultRiskReward={settings.risk.defaultRiskReward}
                       onApply={(result) => {
                         queueMicrotask(() => {
@@ -782,71 +793,28 @@ export function AddTradeModal({
                         });
                       }}
                     />
-                    <RepeatSetup
-                      ticker={tickerWatch}
-                      entryPrice={entryPriceWatch}
-                      trades={trades}
-                      excludeTradeId={initialTrade?.id}
-                      onBeforeOpen={async () => {
-                        await tickerInputRef.current?.commit();
-                        return form.getValues("ticker");
-                      }}
-                      onApply={({ fields, source, pricing, quantity }) => {
-                        setTradeMeta((prev) => ({
-                          ...prev,
-                          strategy: fields.strategy,
-                          tags: fields.tags,
-                          psychology: fields.psychology,
-                          direction: fields.direction,
-                          assetClass: fields.assetClass,
-                        }));
-                        queueMicrotask(() => {
-                          if (pricing) {
-                            form.setValue("entryPrice", pricing.entryPrice, {
-                              shouldValidate: true,
-                            });
-                            form.setValue("stopLoss", pricing.stopLoss, {
-                              shouldValidate: true,
-                            });
-                            form.setValue("profitTarget", pricing.profitTarget, {
-                              shouldValidate: true,
-                            });
-                          } else {
-                            if (source.stopLoss > 0) {
-                              form.setValue("stopLoss", source.stopLoss, {
-                                shouldValidate: true,
-                              });
-                            }
-                            if (source.profitTarget > 0) {
-                              form.setValue("profitTarget", source.profitTarget, {
-                                shouldValidate: true,
-                              });
-                            }
-                          }
-                          if (quantity && quantity > 0) {
-                            form.setValue("quantity", quantity, {
-                              shouldValidate: true,
-                            });
-                          }
-                        });
-                      }}
-                    />
+                    </div>
                   </div>
                   {tradeMeta.strategy || tradeMeta.tags.length > 0 ? (
-                    <p className="mb-3 text-[11px] text-muted-foreground">
-                      {tradeMeta.strategy ? (
-                        <span>Strategy: {tradeMeta.strategy}</span>
-                      ) : null}
-                      {tradeMeta.strategy && tradeMeta.tags.length > 0
-                        ? " · "
-                        : null}
-                      {tradeMeta.tags.length > 0 ? (
-                        <span>Tags: {tradeMeta.tags.join(", ")}</span>
-                      ) : null}
-                    </p>
+                    <div className="rounded-md border border-border/60 bg-muted/25 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                        Applied context
+                      </p>
+                      <p className="mt-1 font-mono text-[11px] text-foreground/90">
+                        {tradeMeta.strategy ? (
+                          <span>Strategy: {tradeMeta.strategy}</span>
+                        ) : null}
+                        {tradeMeta.strategy && tradeMeta.tags.length > 0
+                          ? " · "
+                          : null}
+                        {tradeMeta.tags.length > 0 ? (
+                          <span>Tags: {tradeMeta.tags.join(", ")}</span>
+                        ) : null}
+                      </p>
+                    </div>
                   ) : null}
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-                    <Field label="Entry price">
+                    <Field label={TRADE_FIELD_LABELS.entryPrice}>
                       <Input
                         type="number"
                         step="any"
@@ -854,7 +822,7 @@ export function AddTradeModal({
                         {...form.register("entryPrice")}
                       />
                     </Field>
-                    <Field label="Exit price">
+                    <Field label={TRADE_FIELD_LABELS.exitPrice}>
                       <Input
                         type="number"
                         step="any"
@@ -866,7 +834,7 @@ export function AddTradeModal({
                         {...form.register("exitPrice")}
                       />
                     </Field>
-                    <Field label="Quantity">
+                    <Field label={TRADE_FIELD_LABELS.quantity}>
                       <Input
                         type="number"
                         step="any"
@@ -874,7 +842,7 @@ export function AddTradeModal({
                         {...form.register("quantity")}
                       />
                     </Field>
-                    <Field label="Stop loss">
+                    <Field label={TRADE_FIELD_LABELS.stopLoss}>
                       <Input
                         type="number"
                         step="any"
@@ -882,7 +850,7 @@ export function AddTradeModal({
                         {...form.register("stopLoss")}
                       />
                     </Field>
-                    <Field label="Profit target" className="col-span-2 sm:col-span-1">
+                    <Field label={TRADE_FIELD_LABELS.targetPrice} className="col-span-2 sm:col-span-1">
                       <Input
                         type="number"
                         step="any"
@@ -902,22 +870,22 @@ export function AddTradeModal({
               </div>
 
               <FormSection
+                index="03"
                 title="Journal"
                 description="Notes and chart attachment"
-                tone="violet"
-                className="lg:sticky lg:top-0"
+                className="lg:sticky lg:top-0 lg:pl-8"
               >
                 <div className="space-y-4">
-                  <Field label="Trade notes">
+                  <Field label={TRADE_FIELD_LABELS.notes}>
                     <Textarea
                       rows={5}
                       placeholder="Thesis, execution quality, lessons learned…"
-                      className="min-h-[7.5rem] resize-y bg-background text-sm lg:min-h-[10rem]"
+                      className="min-h-[7.5rem] resize-y rounded-md border-border/80 bg-background text-sm shadow-none lg:min-h-[10rem]"
                       {...form.register("notes")}
                     />
                   </Field>
 
-                  <Field label="Chart screenshot">
+                  <Field label={TRADE_FIELD_LABELS.chartAttachment}>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -939,9 +907,9 @@ export function AddTradeModal({
                       onDragLeave={handleScreenshotDragLeave}
                       onDrop={handleScreenshotDrop}
                       className={cn(
-                        "rounded-lg border border-dashed border-border bg-muted/15 p-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-600/30",
+                        "rounded-md border border-border/80 bg-background/60 p-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40",
                         screenshotDragActive &&
-                          "border-emerald-500/50 bg-emerald-500/5 ring-2 ring-emerald-600/20"
+                          "border-foreground/25 bg-muted/40 ring-2 ring-ring/20"
                       )}
                     >
                       <div className="flex flex-wrap items-center gap-2">
@@ -949,7 +917,7 @@ export function AddTradeModal({
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-8 gap-1.5 bg-background"
+                          className="h-7 gap-1.5 rounded-md border-border/80 bg-background text-xs"
                           onClick={() => fileInputRef.current?.click()}
                         >
                           <Upload className="size-3.5" />
@@ -968,7 +936,7 @@ export function AddTradeModal({
                           </Button>
                         ) : null}
                       </div>
-                      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                      <p className="mt-2 font-mono text-[10px] leading-snug text-muted-foreground">
                         Drag, drop, or paste (⌘V) · PNG · 5 MB max
                       </p>
                       {uploadError ? (
@@ -992,24 +960,32 @@ export function AddTradeModal({
             </div>
 
             {Object.keys(form.formState.errors).length > 0 ? (
-              <p className="mt-4 text-sm text-rose-600 dark:text-rose-400">
+              <p className="mt-5 rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
                 Check required fields and numeric values in each section.
               </p>
             ) : null}
           </div>
 
-          <DialogFooter className="m-0 shrink-0 rounded-none border-t border-border bg-muted/25 px-6 py-4 sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" className="h-9">
-              {initialTrade ? "Save changes" : "Save trade"}
-            </Button>
+          <DialogFooter className="m-0 shrink-0 items-center gap-2 rounded-none border-t border-border/80 bg-background px-6 py-3 sm:justify-between">
+            <p className="hidden text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:block">
+              All prices in {settings.profile.currency}
+            </p>
+            <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 rounded-md px-4 text-xs"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="h-8 rounded-md bg-foreground px-4 text-xs text-background hover:bg-foreground/90"
+              >
+                {initialTrade ? "Save changes" : "Save trade"}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

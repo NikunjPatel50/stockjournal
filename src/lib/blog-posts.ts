@@ -1,14 +1,31 @@
+import { RISK_REWARD_RATIO_POST } from "@/lib/blog-posts/risk-reward-ratio-swing-trading";
+import { SWING_TRADING_WATCHLIST_POST } from "@/lib/blog-posts/swing-trading-watchlist";
+
+export type BlogFaqItem = { question: string; answer: string };
+
 export type BlogBlock =
   | { type: "p"; text: string }
   | { type: "h2"; text: string }
   | { type: "h3"; text: string }
   | { type: "ul"; items: string[] }
+  | { type: "checklist"; title?: string; items: string[] }
+  | { type: "table"; caption?: string; headers: string[]; rows: string[][] }
+  | { type: "faq"; items: BlogFaqItem[] }
   | { type: "image"; src: string; alt: string; caption?: string };
 
 export type BlogCoverImage = {
   src: string;
   alt: string;
   credit?: string;
+};
+
+export type BlogPostSeo = {
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string[];
+  featuredImagePrompt?: string;
+  internalLinks?: { label: string; path: string }[];
+  externalReferences?: { label: string; url: string }[];
 };
 
 export type BlogPost = {
@@ -20,9 +37,13 @@ export type BlogPost = {
   tags: string[];
   coverImage: BlogCoverImage;
   blocks: BlogBlock[];
+  faqs?: BlogFaqItem[];
+  seo?: BlogPostSeo;
 };
 
 export const BLOG_POSTS: BlogPost[] = [
+  RISK_REWARD_RATIO_POST,
+  SWING_TRADING_WATCHLIST_POST,
   {
     slug: "how-to-start-a-swing-trading-journal",
     title: "How to Start a Swing Trading Journal (Step-by-Step)",

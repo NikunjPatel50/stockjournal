@@ -85,6 +85,36 @@ export function addCalendarDaysYmd(ymd: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/** UTC instant for a local calendar date + minutes since midnight in an IANA timezone. */
+export function dateAtMinutesInTimeZone(
+  ymd: string,
+  minutesSinceMidnight: number,
+  timeZone: string
+): Date {
+  const hour = Math.floor(minutesSinceMidnight / 60);
+  const minute = minutesSinceMidnight % 60;
+  const [y, m, d] = ymd.split("-").map(Number);
+  let utcMs = Date.UTC(y, m - 1, d, hour, minute, 0, 0);
+
+  for (let attempt = 0; attempt < 48; attempt++) {
+    const probe = new Date(utcMs);
+    const probeYmd = ymdInTimeZone(probe, timeZone);
+    const probeMins = minutesSinceMidnightInTimeZone(probe, timeZone);
+
+    if (probeYmd === ymd && probeMins === minutesSinceMidnight) {
+      return probe;
+    }
+
+    const probeDay = new Date(`${probeYmd}T00:00:00.000Z`).getTime();
+    const targetDay = new Date(`${ymd}T00:00:00.000Z`).getTime();
+    const dayDiff = Math.round((targetDay - probeDay) / 86_400_000);
+    const minDiff = dayDiff * 24 * 60 + (minutesSinceMidnight - probeMins);
+    utcMs += minDiff * 60_000;
+  }
+
+  return new Date(utcMs);
+}
+
 /** Next US equity session open day after `ymd` (exclusive of holidays/weekends). */
 export function nextUsTradingDayYmd(ymd: string): string {
   let cursor = addCalendarDaysYmd(ymd, 1);

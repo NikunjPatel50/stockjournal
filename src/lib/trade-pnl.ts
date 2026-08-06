@@ -1,4 +1,4 @@
-import type { JournalTrade } from "@/lib/journal-types";
+import type { JournalDirection, JournalTrade } from "@/lib/journal-types";
 import type { CurrencyCode } from "@/lib/settings";
 
 export type QuoteForPnl = {
@@ -6,11 +6,31 @@ export type QuoteForPnl = {
   currency?: CurrencyCode;
 };
 
+function isRiskSideStop(
+  direction: JournalDirection,
+  entryPrice: number,
+  stopLoss: number
+): boolean {
+  return direction === "Short"
+    ? stopLoss > entryPrice
+    : stopLoss < entryPrice;
+}
+
+function isRewardSideTarget(
+  direction: JournalDirection,
+  entryPrice: number,
+  profitTarget: number
+): boolean {
+  return direction === "Short"
+    ? profitTarget < entryPrice
+    : profitTarget > entryPrice;
+}
+
 export function plannedMaxProfitLoss(trade: JournalTrade): {
   maxProfit: number | null;
   maxLoss: number | null;
 } {
-  const { entryPrice, stopLoss, profitTarget, quantity } = trade;
+  const { entryPrice, stopLoss, profitTarget, quantity, direction } = trade;
   if (!quantity || !entryPrice) {
     return { maxProfit: null, maxLoss: null };
   }
@@ -20,12 +40,17 @@ export function plannedMaxProfitLoss(trade: JournalTrade): {
 
   if (
     profitTarget > 0 &&
-    Math.abs(profitTarget - entryPrice) / entryPrice > 0.000_01
+    Math.abs(profitTarget - entryPrice) / entryPrice > 0.000_01 &&
+    isRewardSideTarget(direction, entryPrice, profitTarget)
   ) {
     maxProfit =
       Math.round(Math.abs(profitTarget - entryPrice) * quantity * 100) / 100;
   }
-  if (stopLoss > 0 && Math.abs(entryPrice - stopLoss) / entryPrice > 0.000_01) {
+  if (
+    stopLoss > 0 &&
+    Math.abs(entryPrice - stopLoss) / entryPrice > 0.000_01 &&
+    isRiskSideStop(direction, entryPrice, stopLoss)
+  ) {
     maxLoss =
       Math.round(Math.abs(entryPrice - stopLoss) * quantity * 100) / 100;
   }
@@ -40,9 +65,12 @@ export function formatTradeRiskReward(trade: JournalTrade): string | null {
 
   const hasTarget =
     profitTarget > 0 &&
-    Math.abs(profitTarget - entryPrice) / entryPrice > 0.000_01;
+    Math.abs(profitTarget - entryPrice) / entryPrice > 0.000_01 &&
+    isRewardSideTarget(trade.direction, entryPrice, profitTarget);
   const hasStop =
-    stopLoss > 0 && Math.abs(entryPrice - stopLoss) / entryPrice > 0.000_01;
+    stopLoss > 0 &&
+    Math.abs(entryPrice - stopLoss) / entryPrice > 0.000_01 &&
+    isRiskSideStop(trade.direction, entryPrice, stopLoss);
   if (!hasTarget || !hasStop) return null;
 
   const plannedRisk = Math.abs(entryPrice - stopLoss);
@@ -185,12 +213,59 @@ export function computeFilteredPnl(
   };
 }
 
-/** Entry notional as a share of account equity (total invested + realized P&L). */
+/** Entry notional as a share of total capital deployed in open positions. */
 export function computePositionPortfolioPct(
   trade: JournalTrade,
-  accountEquity: number
+  totalInvested: number
 ): number | null {
-  if (accountEquity <= 0 || !trade.quantity || !trade.entryPrice) return null;
+  if (totalInvested <= 0 || !trade.quantity || !trade.entryPrice) return null;
   const notional = Math.abs(trade.quantity * trade.entryPrice);
-  return Math.round((notional / accountEquity) * 10000) / 100;
+  return Math.round((notional / totalInvested) * 10000) / 100;
+}
+
+/**
+ * Portfolio weights for active trades only. Values are rounded to 1 decimal
+ * and adjusted (largest remainder) so they always sum to exactly 100.0.
+ */
+export function computeActivePortfolioWeights(
+  trades: JournalTrade[]
+): Map<string, number> {
+  const active = trades.filter((t) => (t.status ?? "Closed") === "Active");
+  const rows = active
+    .map((t) => ({
+      id: t.id,
+      notional: Math.abs(t.entryPrice * t.quantity),
+    }))
+    .filter((r) => r.notional > 0);
+
+  const total = rows.reduce((sum, r) => sum + r.notional, 0);
+  if (total <= 0) return new Map();
+
+  const exact = rows.map((r) => ({
+    id: r.id,
+    value: (r.notional / total) * 100,
+  }));
+
+  const floored = exact.map((r) => {
+    const tenths = Math.floor(r.value * 10);
+    return {
+      id: r.id,
+      tenths,
+      remainder: r.value * 10 - tenths,
+    };
+  });
+
+  let allocated = floored.reduce((sum, r) => sum + r.tenths, 0);
+  let remaining = 1000 - allocated; // 100.0% in tenths
+
+  floored
+    .slice()
+    .sort((a, b) => b.remainder - a.remainder || a.id.localeCompare(b.id))
+    .forEach((row) => {
+      if (remaining <= 0) return;
+      row.tenths += 1;
+      remaining -= 1;
+    });
+
+  return new Map(floored.map((r) => [r.id, r.tenths / 10]));
 }

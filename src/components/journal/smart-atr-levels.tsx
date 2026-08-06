@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Activity, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  TRADE_FIELD_LABELS,
+  TradeFieldLabel,
+} from "@/components/journal/trade-form-field";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import type { JournalDirection } from "@/lib/journal-types";
 import { formatCurrency } from "@/lib/journal-types";
@@ -216,13 +219,11 @@ export function SmartAtrLevels({
                   </>
                 ) : null}
                 . Apply fills stop and target; adjust quantity yourself or use
-                Smart Setup.
+                Risk Calculator.
               </p>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Entry price
-                  </Label>
+                  <TradeFieldLabel>{TRADE_FIELD_LABELS.entryPrice}</TradeFieldLabel>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -237,9 +238,7 @@ export function SmartAtrLevels({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Stop (× ATR)
-                  </Label>
+                  <TradeFieldLabel>{TRADE_FIELD_LABELS.stopAtrMultiple}</TradeFieldLabel>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -253,9 +252,7 @@ export function SmartAtrLevels({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Target (× ATR)
-                  </Label>
+                  <TradeFieldLabel>{TRADE_FIELD_LABELS.targetAtrMultiple}</TradeFieldLabel>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -279,25 +276,33 @@ export function SmartAtrLevels({
               {preview ? (
                 <div className="grid grid-cols-2 gap-2 rounded-md border border-border/80 bg-muted/30 p-3 text-xs sm:grid-cols-4">
                   <div className="text-center">
-                    <p className="text-muted-foreground">Stop loss</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      {TRADE_FIELD_LABELS.stopLoss}
+                    </p>
                     <p className="font-semibold tabular-nums">
                       {preview.stopLoss}
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-muted-foreground">Profit target</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      {TRADE_FIELD_LABELS.targetPrice}
+                    </p>
                     <p className="font-semibold tabular-nums">
                       {preview.profitTarget}
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-muted-foreground">Planned R</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Planned R:R
+                    </p>
                     <p className="font-semibold tabular-nums">
                       {preview.riskRewardLabel}
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-muted-foreground">Risk / share</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Risk per share
+                    </p>
                     <p
                       className={cn(
                         "font-semibold tabular-nums text-rose-600 dark:text-rose-400"

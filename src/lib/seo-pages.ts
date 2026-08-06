@@ -353,14 +353,15 @@ export function getSeoMetadata(
 export function getBlogPostMetadata(post: BlogPost): Metadata {
   const keywords = [
     ...SEO_PAGES.blog.keywords,
+    ...(post.seo?.keywords ?? []),
     ...post.tags.map((tag) => tag.toLowerCase()),
     "swing trading",
     "trading journal",
   ];
 
   return buildPageMetadata({
-    title: `${post.title} | SwingTradingLog`,
-    description: post.description,
+    title: post.seo?.metaTitle ?? `${post.title} | SwingTradingLog`,
+    description: post.seo?.metaDescription ?? post.description,
     path: `/blog/${post.slug}`,
     keywords: [...new Set(keywords)],
     absoluteTitle: true,

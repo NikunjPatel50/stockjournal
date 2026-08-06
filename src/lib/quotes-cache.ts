@@ -9,7 +9,7 @@ export type CachedMarketQuote = {
 };
 
 const STORAGE_KEY = "stl-quotes-v1";
-const LIVE_TTL_MS = 30_000;
+const LIVE_TTL_MS = 10_000;
 const STALE_TTL_MS = 10 * 60 * 1000;
 
 type CacheEntry = {

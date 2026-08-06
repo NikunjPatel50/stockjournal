@@ -37,6 +37,7 @@ const CURRENCIES = new Set<CurrencyCode>(["USD", "EUR", "GBP", "INR", "CAD"]);
 const YAHOO_CONCURRENCY = 12;
 
 const SERVER_CACHE_TTL_MS = 15_000;
+const SERVER_LIVE_CACHE_TTL_MS = 2_000;
 const serverQuoteCache = new Map<
   string,
   { quote: MarketQuote; expiresAt: number }
@@ -76,7 +77,11 @@ async function fetchYahooForItem(
   if (quote?.price != null && quote.price > 0) {
     serverQuoteCache.set(cacheKey, {
       quote,
-      expiresAt: Date.now() + SERVER_CACHE_TTL_MS,
+      expiresAt:
+        Date.now() +
+        (isLiveMarketQuote(quote)
+          ? SERVER_LIVE_CACHE_TTL_MS
+          : SERVER_CACHE_TTL_MS),
     });
   }
 

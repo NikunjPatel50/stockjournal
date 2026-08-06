@@ -1,19 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { JournalDirection } from "@/lib/journal-types";
 import { formatCurrency } from "@/lib/journal-types";
 import {
-  computeSmartPosition,
+  TRADE_FIELD_LABELS,
+  TradeFieldLabel,
+} from "@/components/journal/trade-form-field";
+import {
+  computeSmartPositionFromLevels,
+  computeStopLossPriceFromPercent,
+  computeStopPercentFromPrice,
+  computeTargetProfitPrice,
+  parseRiskRewardRatio,
+  SMART_SETUP_DEFAULT_STOP_PERCENT,
   type SmartPositionResult,
 } from "@/lib/smart-position-size";
+import { cn } from "@/lib/utils";
 
 const numberInputClass =
-  "h-9 bg-background font-sans tabular-nums [font-feature-settings:'tnum'_1,'lnum'_1]";
+  "h-8 rounded-md border-border/80 bg-background text-sm font-mono tabular-nums shadow-none [font-feature-settings:'tnum'_1,'lnum'_1]";
+const derivedInputClass = cn(
+  numberInputClass,
+  "pointer-events-none cursor-not-allowed bg-muted/50 text-foreground/80 opacity-100"
+);
 
 function sanitizeDecimalInput(value: string) {
   const cleaned = value.replace(/[^\d.]/g, "");
@@ -34,6 +47,21 @@ type SmartPositionSizerProps = {
   onApply: (result: SmartPositionResult) => void;
 };
 
+function AssistantField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <TradeFieldLabel>{label}</TradeFieldLabel>
+      {children}
+    </div>
+  );
+}
+
 export function SmartPositionSizer({
   entryPrice,
   direction: defaultDirection,
@@ -45,7 +73,9 @@ export function SmartPositionSizer({
   const [stockPrice, setStockPrice] = useState("");
   const [capital, setCapital] = useState("");
   const [riskReward, setRiskReward] = useState("");
-  const [stopPercent, setStopPercent] = useState("");
+  const [stopLossPrice, setStopLossPrice] = useState("");
+  const [targetPrice, setTargetPrice] = useState("");
+  const [pressingApply, setPressingApply] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<SmartPositionResult | null>(null);
   const onApplyRef = useRef(onApply);
@@ -57,27 +87,93 @@ export function SmartPositionSizer({
     defaultCapital > 0 ? String(defaultCapital) : undefined;
   const riskRewardHint = defaultRiskReward.trim() || "1:2";
 
+  const resolvedEntry = Number(stockPrice || entryHint || "");
+  const resolvedCapital = Number(capital || capitalHint || "");
+  const resolvedRiskReward = (riskReward || riskRewardHint).trim();
+  const hasValidRiskReward = parseRiskRewardRatio(resolvedRiskReward) != null;
+
+  const derivedStopPercent = useMemo(() => {
+    if (!Number.isFinite(resolvedEntry) || resolvedEntry <= 0) return "";
+    const stopNum = Number(stopLossPrice);
+    if (!Number.isFinite(stopNum) || stopNum <= 0) return "";
+    const pct = computeStopPercentFromPrice({
+      entryPrice: resolvedEntry,
+      stopLossPrice: stopNum,
+      direction: defaultDirection,
+    });
+    return pct != null ? String(pct) : "";
+  }, [defaultDirection, resolvedEntry, stopLossPrice]);
+
   useEffect(() => {
     if (!open) return;
     setStockPrice("");
     setCapital("");
     setRiskReward("");
-    setStopPercent("");
+    setStopLossPrice("");
+    setTargetPrice("");
     setPreview(null);
     setError(null);
+    setPressingApply(false);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!Number.isFinite(resolvedEntry) || resolvedEntry <= 0) return;
+    if (!hasValidRiskReward) return;
+
+    const stop = computeStopLossPriceFromPercent({
+      entryPrice: resolvedEntry,
+      stopPercent: SMART_SETUP_DEFAULT_STOP_PERCENT,
+      direction: defaultDirection,
+    });
+    if (stop == null) return;
+
+    const target = computeTargetProfitPrice({
+      entryPrice: resolvedEntry,
+      stopLossPrice: stop,
+      riskReward: resolvedRiskReward,
+      direction: defaultDirection,
+    });
+    if (typeof target !== "number") return;
+
+    setStopLossPrice(String(stop));
+    setTargetPrice(String(target));
+  }, [
+    open,
+    resolvedEntry,
+    resolvedRiskReward,
+    defaultDirection,
+    hasValidRiskReward,
+  ]);
 
   useEffect(() => {
     if (!open) return;
 
     const timer = window.setTimeout(() => {
-      const result = computeSmartPosition({
-        entryPrice: Number(stockPrice || entryHint || ""),
-        capital: Number(capital || capitalHint || ""),
-        riskReward: riskReward || riskRewardHint,
+      const stopNum = Number(stopLossPrice);
+      const targetNum = Number(targetPrice);
+
+      if (
+        !Number.isFinite(resolvedEntry) ||
+        resolvedEntry <= 0 ||
+        !Number.isFinite(stopNum) ||
+        stopNum <= 0 ||
+        !Number.isFinite(targetNum) ||
+        targetNum <= 0
+      ) {
+        setPreview(null);
+        setError(null);
+        return;
+      }
+
+      const result = computeSmartPositionFromLevels({
+        entryPrice: resolvedEntry,
+        capital: resolvedCapital,
+        stopLossPrice: stopNum,
+        profitTarget: targetNum,
         direction: defaultDirection,
-        stopPercent: Number(stopPercent || "2"),
       });
+
       if ("error" in result) {
         setPreview(null);
         setError(result.error);
@@ -90,23 +186,25 @@ export function SmartPositionSizer({
     return () => window.clearTimeout(timer);
   }, [
     open,
-    stockPrice,
-    capital,
-    riskReward,
-    stopPercent,
+    resolvedEntry,
+    resolvedCapital,
+    stopLossPrice,
+    targetPrice,
     defaultDirection,
-    entryHint,
-    capitalHint,
-    riskRewardHint,
   ]);
 
   function handleApply() {
-    if (!preview) return;
+    if (!preview || pressingApply) return;
+    setPressingApply(true);
     const result = preview;
-    setOpen(false);
-    queueMicrotask(() => {
-      onApplyRef.current(result);
-    });
+
+    window.setTimeout(() => {
+      setPressingApply(false);
+      setOpen(false);
+      queueMicrotask(() => {
+        onApplyRef.current(result);
+      });
+    }, 160);
   }
 
   return (
@@ -119,22 +217,23 @@ export function SmartPositionSizer({
         onClick={() => setOpen((v) => !v)}
       >
         <Sparkles className="size-3.5" />
-        Smart Setup
+        Risk Calculator
       </Button>
 
       {open ? (
         <div className="w-full basis-full">
           <div className="mt-3 space-y-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
             <p className="text-xs text-muted-foreground">
-              Size from capital, set stop from stop %, and target from your
-              risk:reward ratio. Preview updates as you type; click Apply to
-              fill the form.
+              Enter {TRADE_FIELD_LABELS.entryPrice.toLowerCase()},{" "}
+              {TRADE_FIELD_LABELS.capital.toLowerCase()}, and{" "}
+              {TRADE_FIELD_LABELS.riskReward.toLowerCase()} to auto-fill{" "}
+              {TRADE_FIELD_LABELS.stopLoss.toLowerCase()} and{" "}
+              {TRADE_FIELD_LABELS.targetPrice.toLowerCase()}. Edit stop or
+              target anytime; {TRADE_FIELD_LABELS.stopPercent.toLowerCase()}{" "}
+              updates from your stop. Click Apply to update the form.
             </p>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Stock price
-                </Label>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+              <AssistantField label={TRADE_FIELD_LABELS.entryPrice}>
                 <Input
                   type="text"
                   inputMode="decimal"
@@ -145,13 +244,10 @@ export function SmartPositionSizer({
                     setStockPrice(sanitizeDecimalInput(e.target.value))
                   }
                   onFocus={selectAllOnFocus}
-                  placeholder={entryHint ?? "Entry price"}
+                  placeholder={entryHint ?? "0.00"}
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Capital to invest
-                </Label>
+              </AssistantField>
+              <AssistantField label={TRADE_FIELD_LABELS.capital}>
                 <Input
                   type="text"
                   inputMode="decimal"
@@ -164,11 +260,8 @@ export function SmartPositionSizer({
                   onFocus={selectAllOnFocus}
                   placeholder={capitalHint ?? "10000"}
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Risk : reward
-                </Label>
+              </AssistantField>
+              <AssistantField label={TRADE_FIELD_LABELS.riskReward}>
                 <Input
                   className={numberInputClass}
                   value={riskReward}
@@ -176,24 +269,47 @@ export function SmartPositionSizer({
                   onFocus={selectAllOnFocus}
                   placeholder={riskRewardHint}
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Stop % from entry
-                </Label>
+              </AssistantField>
+              <AssistantField label={TRADE_FIELD_LABELS.stopLoss}>
                 <Input
                   type="text"
                   inputMode="decimal"
                   autoComplete="off"
                   className={numberInputClass}
-                  value={stopPercent}
+                  value={stopLossPrice}
                   onChange={(e) =>
-                    setStopPercent(sanitizeDecimalInput(e.target.value))
+                    setStopLossPrice(sanitizeDecimalInput(e.target.value))
                   }
                   onFocus={selectAllOnFocus}
-                  placeholder="2"
+                  placeholder="0.00"
                 />
-              </div>
+              </AssistantField>
+              <AssistantField label={TRADE_FIELD_LABELS.stopPercent}>
+                <Input
+                  type="text"
+                  disabled
+                  readOnly
+                  tabIndex={-1}
+                  aria-readonly="true"
+                  className={derivedInputClass}
+                  value={derivedStopPercent}
+                  placeholder="Auto"
+                />
+              </AssistantField>
+              <AssistantField label={TRADE_FIELD_LABELS.targetPrice}>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  className={numberInputClass}
+                  value={targetPrice}
+                  onChange={(e) =>
+                    setTargetPrice(sanitizeDecimalInput(e.target.value))
+                  }
+                  onFocus={selectAllOnFocus}
+                  placeholder="0.00"
+                />
+              </AssistantField>
             </div>
 
             {error ? (
@@ -201,36 +317,52 @@ export function SmartPositionSizer({
             ) : null}
 
             {preview ? (
-              <div className="grid grid-cols-2 gap-2 rounded-md border border-border/80 bg-background/80 p-3 text-xs sm:grid-cols-3 lg:grid-cols-6">
-                <div className="text-center">
-                  <p className="text-muted-foreground">Quantity</p>
-                  <p className="font-semibold tabular-nums">{preview.quantity}</p>
+              <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border/70 bg-border/70 text-xs sm:grid-cols-3 lg:grid-cols-6">
+                <div className="bg-background/90 px-2 py-2.5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    {TRADE_FIELD_LABELS.quantity}
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
+                    {preview.quantity}
+                  </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-muted-foreground">Stop loss</p>
-                  <p className="font-semibold tabular-nums">{preview.stopLoss}</p>
+                <div className="bg-background/90 px-2 py-2.5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    {TRADE_FIELD_LABELS.stopLoss}
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
+                    {preview.stopLoss}
+                  </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-muted-foreground">Profit target</p>
-                  <p className="font-semibold tabular-nums">
+                <div className="bg-background/90 px-2 py-2.5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    {TRADE_FIELD_LABELS.targetPrice}
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
                     {preview.profitTarget}
                   </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-muted-foreground">Position</p>
-                  <p className="font-semibold tabular-nums">
+                <div className="bg-background/90 px-2 py-2.5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Position value
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
                     {preview.positionValue}
                   </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-muted-foreground">Max profit</p>
-                  <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                <div className="bg-background/90 px-2 py-2.5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Max profit
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(preview.maxProfit)}
                   </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-muted-foreground">Max loss</p>
-                  <p className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                <div className="bg-background/90 px-2 py-2.5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Max loss
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-rose-600 dark:text-rose-400">
                     {formatCurrency(-preview.maxLoss)}
                   </p>
                 </div>
@@ -241,9 +373,15 @@ export function SmartPositionSizer({
               <Button
                 type="button"
                 size="sm"
-                className="h-8 bg-emerald-600 hover:bg-emerald-600/90"
-                disabled={!preview}
+                disabled={!preview || pressingApply}
                 onClick={handleApply}
+                className={cn(
+                  "h-8 min-w-[5.5rem] rounded-md border-b-4 border-emerald-800 bg-emerald-600 text-white shadow-none",
+                  "transition-all duration-150 ease-out",
+                  "hover:bg-emerald-500 hover:border-emerald-800",
+                  "active:translate-y-0.5 active:border-b-2",
+                  pressingApply && "translate-y-0.5 border-b-2 bg-emerald-700"
+                )}
               >
                 Apply
               </Button>

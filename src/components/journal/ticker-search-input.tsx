@@ -13,7 +13,6 @@ import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
-  getListingMarket,
   type ListingMarketId,
 } from "@/lib/equity-listing-markets";
 import {
@@ -266,6 +265,15 @@ export const TickerSearchInput = forwardRef<
       return;
     }
 
+    if (!trimmed) {
+      searchAbortRef.current?.abort();
+      setSuggestions([]);
+      setLoading(false);
+      setSearchError(false);
+      setOpen(false);
+      return;
+    }
+
     const requestId = ++requestIdRef.current;
     searchAbortRef.current?.abort();
     const controller = new AbortController();
@@ -273,15 +281,10 @@ export const TickerSearchInput = forwardRef<
     let cancelled = false;
     setLoading(true);
     setSearchError(false);
-    setOpen(true);
 
     const timer = window.setTimeout(async () => {
       try {
-        const searchText = trimmed
-          ? isTickerDisplayLabel(trimmed)
-            ? parsed
-            : trimmed
-          : "";
+        const searchText = isTickerDisplayLabel(trimmed) ? parsed : trimmed;
         const results = await searchSymbols(
           searchText,
           listingMarket,
@@ -302,7 +305,7 @@ export const TickerSearchInput = forwardRef<
           setLoading(false);
         }
       }
-    }, trimmed ? 150 : 0);
+    }, 150);
 
     return () => {
       cancelled = true;
@@ -346,6 +349,9 @@ export const TickerSearchInput = forwardRef<
     setError(undefined);
     if (!next.trim()) {
       onChange("");
+      setSuggestions([]);
+      setOpen(false);
+      return;
     }
     setOpen(true);
     updateDropdownPosition();
@@ -440,18 +446,10 @@ export const TickerSearchInput = forwardRef<
               </p>
             ) : suggestions.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">
-                {query.trim()
-                  ? "No symbols found for this market."
-                  : `Type to search ${getListingMarket(listingMarket).label} symbols.`}
+                No symbols found for this market.
               </p>
             ) : (
-              <>
-                {!query.trim() ? (
-                  <p className="border-b border-border px-4 py-2 text-[11px] text-muted-foreground">
-                    Type to filter symbols
-                  </p>
-                ) : null}
-                <ul role="listbox" className="max-h-64 overflow-auto py-1">
+              <ul role="listbox" className="max-h-64 overflow-auto py-1">
                 {suggestions.map((result, index) => (
                   <li key={`${result.exchange}-${result.code}`} role="option">
                     <button
@@ -475,7 +473,6 @@ export const TickerSearchInput = forwardRef<
                   </li>
                 ))}
               </ul>
-              </>
             )}
           </div>,
           document.body
@@ -490,8 +487,10 @@ export const TickerSearchInput = forwardRef<
           value={query}
           onChange={(event) => handleInputChange(event.target.value)}
           onFocus={() => {
-            setOpen(true);
-            updateDropdownPosition();
+            if (query.trim()) {
+              setOpen(true);
+              updateDropdownPosition();
+            }
           }}
           onBlur={() => {
             void handleBlur();

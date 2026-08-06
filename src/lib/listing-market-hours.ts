@@ -2,6 +2,8 @@ import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import { normalizeQuoteAssetClass } from "@/lib/eodhd";
 import type { AssetClass } from "@/lib/journal-types";
 import {
+  addCalendarDaysYmd,
+  dateAtMinutesInTimeZone,
   isUsMarketHoliday,
   minutesSinceMidnightInTimeZone,
   weekdayInTimeZone,
@@ -249,5 +251,148 @@ export function quotePollIntervalMs(
   const anyOpen = symbols.some((symbol) =>
     isSymbolQuoteSessionOpen(symbol.assetClass, symbol.listingMarket, now)
   );
-  return anyOpen ? 3_000 : 60_000;
+  if (anyOpen) return 2_000;
+
+  const boundaryMs = msUntilNextSessionBoundaryForSymbols(symbols, now);
+  if (boundaryMs != null && boundaryMs <= 15 * 60_000) {
+    return Math.min(5_000, Math.max(1_000, boundaryMs));
+  }
+
+  return 60_000;
+}
+
+/** Milliseconds until the nearest session open or close across symbols. */
+export function msUntilNextSessionBoundaryForSymbols(
+  symbols: { assetClass: AssetClass; listingMarket: ListingMarketId }[],
+  now = new Date()
+): number | null {
+  let soonest: number | null = null;
+
+  for (const symbol of symbols) {
+    const assetClass = normalizeQuoteAssetClass(symbol.assetClass);
+    if (assetClass === "Crypto" || assetClass === "Forex") continue;
+
+    const { listingMarket } = symbol;
+    const open = isListingMarketOpen(listingMarket, now);
+
+    if (open) {
+      const closeAt = listingMarketCloseAt(listingMarket, now);
+      if (closeAt) {
+        const ms = closeAt.getTime() - now.getTime();
+        if (ms > 0) {
+          soonest = soonest == null ? ms : Math.min(soonest, ms);
+        }
+      }
+    } else {
+      const openAt = nextListingMarketOpenAt(listingMarket, now);
+      if (openAt) {
+        const ms = openAt.getTime() - now.getTime();
+        if (ms > 0) {
+          soonest = soonest == null ? ms : Math.min(soonest, ms);
+        }
+      }
+    }
+  }
+
+  return soonest;
+}
+
+function isListingMarketTradingDay(
+  cfg: SessionConfig,
+  ymd: string
+): boolean {
+  const midday = dateAtMinutesInTimeZone(ymd, 12 * 60, cfg.timeZone);
+  const dow = weekdayInTimeZone(midday, cfg.timeZone);
+  if (dow === 0 || dow === 6) return false;
+  if (cfg.usHolidays && isUsMarketHoliday(ymd)) return false;
+  return true;
+}
+
+export function nextListingMarketOpenAt(
+  listingMarket: ListingMarketId,
+  now = new Date()
+): Date | null {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return null;
+
+  const todayYmd = ymdInTimeZone(now, cfg.timeZone);
+  const mins = minutesSinceMidnightInTimeZone(now, cfg.timeZone);
+
+  if (isListingMarketTradingDay(cfg, todayYmd) && mins < cfg.openMinutes) {
+    return dateAtMinutesInTimeZone(
+      todayYmd,
+      cfg.openMinutes,
+      cfg.timeZone
+    );
+  }
+
+  let cursor = addCalendarDaysYmd(todayYmd, 1);
+  for (let i = 0; i < 366; i++) {
+    if (isListingMarketTradingDay(cfg, cursor)) {
+      return dateAtMinutesInTimeZone(
+        cursor,
+        cfg.openMinutes,
+        cfg.timeZone
+      );
+    }
+    cursor = addCalendarDaysYmd(cursor, 1);
+  }
+
+  return null;
+}
+
+export function listingMarketCloseAt(
+  listingMarket: ListingMarketId,
+  now = new Date()
+): Date | null {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return null;
+  if (!isListingMarketOpen(listingMarket, now)) return null;
+
+  const todayYmd = ymdInTimeZone(now, cfg.timeZone);
+  return dateAtMinutesInTimeZone(todayYmd, cfg.closeMinutes, cfg.timeZone);
+}
+
+export type MarketSessionCountdown =
+  | { status: "open"; hours: number; minutes: number; seconds: number }
+  | {
+      status: "closed";
+      hours: number;
+      minutes: number;
+      seconds: number;
+    }
+  | { status: "unknown" };
+
+export function getMarketSessionCountdown(
+  listingMarket: ListingMarketId,
+  now = new Date()
+): MarketSessionCountdown {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return { status: "unknown" };
+
+  if (isListingMarketOpen(listingMarket, now)) {
+    const closeAt = listingMarketCloseAt(listingMarket, now);
+    if (!closeAt) return { status: "unknown" };
+    const totalSeconds = Math.max(
+      0,
+      Math.floor((closeAt.getTime() - now.getTime()) / 1000)
+    );
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return { status: "open", hours, minutes, seconds };
+  }
+
+  const openAt = nextListingMarketOpenAt(listingMarket, now);
+  if (!openAt) return { status: "unknown" };
+
+  const totalSeconds = Math.max(
+    0,
+    Math.floor((openAt.getTime() - now.getTime()) / 1000)
+  );
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return { status: "closed", hours, minutes, seconds };
 }

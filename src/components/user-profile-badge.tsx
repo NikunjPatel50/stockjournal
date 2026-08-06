@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronDown, KeyRound, LogOut, Settings, UserRound } from "lucide-react";
+import { ChevronDown, KeyRound, LogOut, Settings, Shield, UserRound } from "lucide-react";
 import { signOutAction } from "@/app/actions/auth";
+import { useIsAdmin } from "@/components/admin/admin-access-provider";
 import { ChangePasswordDialog } from "@/components/settings/change-password-dialog";
 import { useSettings } from "@/components/settings/settings-provider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,6 +27,7 @@ export function UserProfileBadge({
   fullWidth?: boolean;
 }) {
   const { settings } = useSettings();
+  const isAdmin = useIsAdmin();
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -82,6 +84,16 @@ export function UserProfileBadge({
           </div>
 
           <DropdownMenuSeparator />
+
+          {isAdmin ? (
+            <DropdownMenuItem
+              className="cursor-pointer gap-2 px-2 py-2"
+              render={<Link href="/admin" />}
+            >
+              <Shield className="size-4" />
+              Admin panel
+            </DropdownMenuItem>
+          ) : null}
 
           <DropdownMenuItem
             className="cursor-pointer gap-2 px-2 py-2"

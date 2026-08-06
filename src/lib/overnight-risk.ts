@@ -25,15 +25,39 @@ export type OvernightRiskSummary = {
   marketGapKind: GapRiskKind;
 };
 
-export function computeAccountEquity(
-  trades: JournalTrade[],
-  startingBalance: number
-): number {
+export function computeTotalInvested(trades: JournalTrade[]): number {
+  return (
+    Math.round(
+      trades
+        .filter((t) => (t.status ?? "Closed") === "Active")
+        .reduce((sum, t) => sum + Math.abs(t.entryPrice * t.quantity), 0) * 100
+    ) / 100
+  );
+}
+
+/** Capital base for return % when no open positions (sum of trade entry notionals). */
+export function computeDeployedCapital(trades: JournalTrade[]): number {
+  return (
+    Math.round(
+      trades.reduce(
+        (sum, t) => sum + Math.abs(t.entryPrice * t.quantity),
+        0
+      ) * 100
+    ) / 100
+  );
+}
+
+export function computeCapitalBase(trades: JournalTrade[]): number {
+  const activeInvested = computeTotalInvested(trades);
+  return activeInvested > 0 ? activeInvested : computeDeployedCapital(trades);
+}
+
+export function computeAccountEquity(trades: JournalTrade[]): number {
+  const activeInvested = computeTotalInvested(trades);
   const realized = trades
     .filter((t) => isClosedTrade(t))
     .reduce((sum, t) => sum + t.pnl, 0);
-  // `startingBalance` stores total money invested (Settings → Profile).
-  return startingBalance + realized;
+  return Math.round((activeInvested + realized) * 100) / 100;
 }
 
 function positionNotional(trade: JournalTrade): {
@@ -49,11 +73,10 @@ function positionNotional(trade: JournalTrade): {
 
 export function computeOvernightRisk(
   trades: JournalTrade[],
-  startingBalance: number,
   now = new Date()
 ): OvernightRiskSummary {
   const active = trades.filter((t) => t.status === "Active");
-  const accountEquity = computeAccountEquity(trades, startingBalance);
+  const accountEquity = computeAccountEquity(trades);
 
   const rows: OvernightExposureRow[] = active.map((trade) => {
     const { priceUsed, usesEntryPrice, notional } = positionNotional(trade);

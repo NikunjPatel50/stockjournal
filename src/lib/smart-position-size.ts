@@ -7,6 +7,8 @@ export type SmartPositionInput = {
   direction: JournalDirection;
   /** Stop distance as % of entry (e.g. 2 = 2% below entry for longs). */
   stopPercent?: number;
+  /** Absolute stop loss price; takes precedence over stopPercent when set. */
+  stopLossPrice?: number;
 };
 
 export type AccountRiskPositionInput = {
@@ -142,12 +144,128 @@ function buildLevelsFromStopDistance(
   };
 }
 
+function resolveStopDistance(
+  entryPrice: number,
+  direction: JournalDirection,
+  input: { stopPercent?: number; stopLossPrice?: number }
+): number | { error: string } {
+  const hasStopPrice =
+    input.stopLossPrice != null &&
+    Number.isFinite(input.stopLossPrice) &&
+    input.stopLossPrice > 0;
+
+  if (hasStopPrice) {
+    const stopLoss = input.stopLossPrice!;
+    if (direction === "Short") {
+      if (stopLoss <= entryPrice) {
+        return { error: "Stop loss must be above entry for short trades." };
+      }
+      return stopLoss - entryPrice;
+    }
+    if (stopLoss >= entryPrice) {
+      return { error: "Stop loss must be below entry for long trades." };
+    }
+    return entryPrice - stopLoss;
+  }
+
+  const stopPercent = input.stopPercent ?? 2;
+  if (stopPercent <= 0 || stopPercent >= 100) {
+    return { error: "Stop % must be between 0 and 100." };
+  }
+  return entryPrice * (stopPercent / 100);
+}
+
+/** Default stop distance when deriving levels in Smart Setup (% of entry). */
+export const SMART_SETUP_DEFAULT_STOP_PERCENT = 2;
+
+export function computeStopLossPriceFromPercent(input: {
+  entryPrice: number;
+  stopPercent: number;
+  direction: JournalDirection;
+}): number | null {
+  const { entryPrice, stopPercent, direction } = input;
+  if (
+    !Number.isFinite(entryPrice) ||
+    entryPrice <= 0 ||
+    !Number.isFinite(stopPercent) ||
+    stopPercent <= 0 ||
+    stopPercent >= 100
+  ) {
+    return null;
+  }
+
+  const distance = entryPrice * (stopPercent / 100);
+  const stopLoss =
+    direction === "Short" ? entryPrice + distance : entryPrice - distance;
+
+  if (stopLoss <= 0) return null;
+  return roundMoney(stopLoss);
+}
+
+function roundDisplay(n: number, decimals = 2) {
+  const f = 10 ** decimals;
+  return Math.round(n * f) / f;
+}
+
+/** Stop distance as % of entry, derived from absolute stop price. */
+export function computeStopPercentFromPrice(input: {
+  entryPrice: number;
+  stopLossPrice: number;
+  direction: JournalDirection;
+}): number | null {
+  const { entryPrice, stopLossPrice, direction } = input;
+  if (
+    !Number.isFinite(entryPrice) ||
+    entryPrice <= 0 ||
+    !Number.isFinite(stopLossPrice) ||
+    stopLossPrice <= 0
+  ) {
+    return null;
+  }
+
+  if (direction === "Short") {
+    if (stopLossPrice <= entryPrice) return null;
+    return roundDisplay(((stopLossPrice - entryPrice) / entryPrice) * 100);
+  }
+
+  if (stopLossPrice >= entryPrice) return null;
+  return roundDisplay(((entryPrice - stopLossPrice) / entryPrice) * 100);
+}
+
+/** Target price from entry, stop, and risk:reward (no sizing). */
+export function computeTargetProfitPrice(input: {
+  entryPrice: number;
+  stopLossPrice: number;
+  riskReward: string;
+  direction: JournalDirection;
+}): number | { error: string } {
+  const { entryPrice, stopLossPrice, riskReward, direction } = input;
+  const stopDistance = resolveStopDistance(entryPrice, direction, {
+    stopLossPrice,
+  });
+  if (typeof stopDistance !== "number") return stopDistance;
+
+  const rr = parseRiskRewardRatio(riskReward);
+  if (!rr) return { error: "Use risk:reward format like 1:2." };
+
+  const rewardDistance = stopDistance * (rr.reward / rr.risk);
+  const profitTarget =
+    direction === "Short"
+      ? entryPrice - rewardDistance
+      : entryPrice + rewardDistance;
+
+  if (profitTarget <= 0) {
+    return { error: "Target must stay positive." };
+  }
+
+  return roundMoney(profitTarget);
+}
+
 export function computeSmartPosition(
   input: SmartPositionInput
 ): SmartPositionResult | { error: string } {
   const entryPrice = input.entryPrice;
   const capital = input.capital;
-  const stopPercent = input.stopPercent ?? 2;
 
   if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
     return { error: "Enter a valid stock price." };
@@ -155,8 +273,13 @@ export function computeSmartPosition(
   if (!Number.isFinite(capital) || capital <= 0) {
     return { error: "Enter capital to invest." };
   }
-  if (stopPercent <= 0 || stopPercent >= 100) {
-    return { error: "Stop % must be between 0 and 100." };
+
+  const stopDistance = resolveStopDistance(entryPrice, input.direction, {
+    stopPercent: input.stopPercent,
+    stopLossPrice: input.stopLossPrice,
+  });
+  if (typeof stopDistance !== "number") {
+    return stopDistance;
   }
 
   const rawQty = Math.floor(capital / entryPrice);
@@ -166,7 +289,6 @@ export function computeSmartPosition(
     };
   }
 
-  const stopDistance = entryPrice * (stopPercent / 100);
   return buildLevelsFromStopDistance(
     entryPrice,
     stopDistance,
@@ -174,6 +296,83 @@ export function computeSmartPosition(
     input.direction,
     rawQty
   );
+}
+
+/** Size from capital using explicit stop and target prices (Risk Calculator). */
+export function computeSmartPositionFromLevels(input: {
+  entryPrice: number;
+  capital: number;
+  stopLossPrice: number;
+  profitTarget: number;
+  direction: JournalDirection;
+}): SmartPositionResult | { error: string } {
+  const { entryPrice, capital, stopLossPrice, profitTarget, direction } = input;
+
+  if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+    return { error: "Enter a valid stock price." };
+  }
+  if (!Number.isFinite(capital) || capital <= 0) {
+    return { error: "Enter capital to invest." };
+  }
+  if (!Number.isFinite(stopLossPrice) || stopLossPrice <= 0) {
+    return { error: "Enter a valid stop loss price." };
+  }
+  if (!Number.isFinite(profitTarget) || profitTarget <= 0) {
+    return { error: "Enter a valid target price." };
+  }
+
+  const stopDistance = resolveStopDistance(entryPrice, direction, {
+    stopLossPrice,
+  });
+  if (typeof stopDistance !== "number") {
+    return stopDistance;
+  }
+
+  const isValidLong =
+    direction === "Long" &&
+    stopLossPrice < entryPrice &&
+    profitTarget > entryPrice;
+  const isValidShort =
+    direction === "Short" &&
+    stopLossPrice > entryPrice &&
+    profitTarget < entryPrice;
+
+  if (!isValidLong && !isValidShort) {
+    return {
+      error:
+        direction === "Long"
+          ? "For longs, stop must be below entry and target above entry."
+          : "For shorts, stop must be above entry and target below entry.",
+    };
+  }
+
+  const rawQty = Math.floor(capital / entryPrice);
+  if (rawQty < 1) {
+    return {
+      error: `Capital must cover at least one share at ${entryPrice.toFixed(2)}.`,
+    };
+  }
+
+  const riskPerShare = roundMoney(Math.abs(entryPrice - stopLossPrice));
+  const rewardPerShare = roundMoney(Math.abs(profitTarget - entryPrice));
+  const positionValue = roundMoney(entryPrice * rawQty);
+  const maxLoss = roundMoney(riskPerShare * rawQty);
+  const maxProfit = roundMoney(rewardPerShare * rawQty);
+  const rMultiple =
+    riskPerShare > 0 ? rewardPerShare / riskPerShare : 0;
+
+  return {
+    entryPrice: roundMoney(entryPrice),
+    quantity: rawQty,
+    stopLoss: roundMoney(stopLossPrice),
+    profitTarget: roundMoney(profitTarget),
+    riskPerShare,
+    rewardPerShare,
+    positionValue,
+    maxLoss,
+    maxProfit,
+    riskRewardLabel: `1:${rMultiple.toFixed(1)}`,
+  };
 }
 
 export function computeAccountRiskPosition(

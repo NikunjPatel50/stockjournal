@@ -18,7 +18,7 @@ import {
   type AnalyticsFilters,
 } from "@/lib/analytics";
 import { useJournalTrades } from "@/lib/trades-storage";
-import { computeOvernightRisk } from "@/lib/overnight-risk";
+import { computeCapitalBase, computeOvernightRisk } from "@/lib/overnight-risk";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 
 const TradePulseSection = dynamic(
@@ -40,7 +40,7 @@ const MainCharts = dynamic(
 export default function DashboardPage() {
   const { settings } = useSettings();
   const { trades } = useJournalTrades();
-  const startingEquity = settings.profile.startingBalance;
+  const capitalBase = useMemo(() => computeCapitalBase(trades), [trades]);
   const [filters, setFilters] = useState<AnalyticsFilters>(
     emptyAnalyticsFilters()
   );
@@ -51,17 +51,17 @@ export default function DashboardPage() {
   );
 
   const kpis = useMemo(
-    () => computeKpis(filtered, startingEquity),
-    [filtered, startingEquity]
+    () => computeKpis(filtered, capitalBase),
+    [filtered, capitalBase]
   );
   const equity = useMemo(
-    () => computeEquitySeries(filtered, startingEquity),
-    [filtered, startingEquity]
+    () => computeEquitySeries(filtered, capitalBase),
+    [filtered, capitalBase]
   );
   const weeklyPnl = useMemo(() => computeWeeklyPnl(filtered), [filtered]);
   const overnightRisk = useMemo(
-    () => computeOvernightRisk(trades, startingEquity),
-    [trades, startingEquity]
+    () => computeOvernightRisk(trades),
+    [trades]
   );
 
   return (
@@ -71,20 +71,19 @@ export default function DashboardPage() {
         onFiltersChange={setFilters}
         title="Dashboard"
       />
-      <KpiRibbon kpis={kpis} startingEquity={startingEquity} />
+      <KpiRibbon kpis={kpis} capitalBase={capitalBase} />
 
       <TradePulseSection />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
         <OvernightRiskCard
           summary={overnightRisk}
-          startingBalance={startingEquity}
           currency={settings.profile.currency}
           className="h-full"
         />
         <MonthlyPerformanceCard
           trades={filtered}
-          startingEquity={startingEquity}
+          startingEquity={capitalBase}
         />
       </div>
 

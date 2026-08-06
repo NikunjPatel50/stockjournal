@@ -140,18 +140,15 @@ function GapChip({ kind }: { kind: OvernightExposureRow["gapRisk"] }) {
 
 export function OvernightRiskCard({
   summary,
-  startingBalance = 0,
   currency = DEFAULT_CURRENCY,
   className,
 }: {
   summary: OvernightRiskSummary;
-  /** When 0, equity-based % metrics are hidden until the user sets a baseline. */
-  startingBalance?: number;
   currency?: CurrencyCode;
   className?: string;
 }) {
-  const hasStartingBalance = startingBalance > 0;
-  const tone = hasStartingBalance
+  const hasEquity = summary.accountEquity > 0;
+  const tone = hasEquity
     ? overnightRiskTone(summary.exposedPct)
     : ("neutral" as Tone);
   const gap = gapLabel(summary.marketGapKind);
@@ -179,9 +176,9 @@ export function OvernightRiskCard({
       meta={`${summary.rows.length} open`}
       className={className}
       footer={
-        hasStartingBalance
+        hasEquity
           ? `Notional uses entry price. Caution above ${DEFAULT_OVERNIGHT_RISK_WARN_PCT}% of equity, high above ${DEFAULT_OVERNIGHT_RISK_DANGER_PCT}%.`
-          : "Set your total money invested in Settings to calculate exposure as a % of account equity."
+          : "Add trades to calculate exposure as a % of account equity."
       }
       bodyClassName="flex flex-col gap-4 p-4 sm:p-5"
     >
@@ -191,10 +188,10 @@ export function OvernightRiskCard({
             className={cn(
               "text-2xl font-semibold",
               NUMERIC_DISPLAY_CLASS,
-              hasStartingBalance ? toneText(tone) : "text-muted-foreground"
+              hasEquity ? toneText(tone) : "text-muted-foreground"
             )}
           >
-            {hasStartingBalance ? (
+            {hasEquity ? (
               <>
                 {summary.exposedPct.toFixed(1)}%
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
@@ -210,13 +207,13 @@ export function OvernightRiskCard({
           </p>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {hasStartingBalance
+          {hasEquity
             ? toneSummary(tone)
             : "Entry notional at risk until total money invested is configured."}
         </p>
       </div>
 
-      {hasStartingBalance ? (
+      {hasEquity ? (
         <ExposureBar pct={summary.exposedPct} tone={tone} />
       ) : null}
 
@@ -224,7 +221,7 @@ export function OvernightRiskCard({
         <Stat
           label="Account equity"
           value={
-            hasStartingBalance
+            hasEquity
               ? formatMoney(summary.accountEquity, false, currency)
               : "Not set"
           }

@@ -23,6 +23,7 @@ import {
 import type { JournalTrade } from "@/lib/journal-types";
 import {
   isSymbolQuoteSessionOpen,
+  msUntilNextSessionBoundaryForSymbols,
   quotePollIntervalMs,
 } from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
@@ -123,6 +124,9 @@ export function useMarketQuotesPoller(
 
   const pollGenerationRef = useRef(0);
   const pollTimerRef = useRef<number | null>(null);
+  const boundaryTimerRef = useRef<number | null>(null);
+  const sessionOpenRef = useRef(false);
+  const schedulePollRef = useRef<(() => void) | null>(null);
 
   useLayoutEffect(() => {
     if (symbols.length === 0) return;
@@ -209,6 +213,12 @@ export function useMarketQuotesPoller(
         delayed: data.delayed !== false,
         sessionOpen: anySymbolSessionOpen(symbols, new Date(fetchedAt)),
       }));
+
+      const nowOpen = anySymbolSessionOpen(symbols, new Date(fetchedAt));
+      if (nowOpen !== sessionOpenRef.current) {
+        sessionOpenRef.current = nowOpen;
+        schedulePollRef.current?.();
+      }
     } catch (err) {
       if (generation !== pollGenerationRef.current) return;
       setState((prev) => ({
@@ -223,16 +233,35 @@ export function useMarketQuotesPoller(
   const schedulePoll = useCallback(() => {
     if (pollTimerRef.current != null) {
       window.clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (boundaryTimerRef.current != null) {
+      window.clearTimeout(boundaryTimerRef.current);
+      boundaryTimerRef.current = null;
     }
 
-    const delay = quotePollIntervalMs(symbols);
+    const now = new Date();
+    const delay = quotePollIntervalMs(symbols, now);
     pollTimerRef.current = window.setTimeout(() => {
       if (document.visibilityState === "visible") {
         void fetchQuotes();
       }
-      schedulePoll();
+      schedulePollRef.current?.();
     }, delay);
+
+    const boundaryMs = msUntilNextSessionBoundaryForSymbols(symbols, now);
+    if (boundaryMs != null && boundaryMs > 0) {
+      boundaryTimerRef.current = window.setTimeout(() => {
+        if (document.visibilityState === "visible") {
+          setState((prev) => ({ ...prev, loading: true }));
+          void fetchQuotes();
+        }
+        schedulePollRef.current?.();
+      }, boundaryMs + 100);
+    }
   }, [fetchQuotes, symbols]);
+
+  schedulePollRef.current = schedulePoll;
 
   useEffect(() => {
     pollGenerationRef.current += 1;
@@ -251,6 +280,10 @@ export function useMarketQuotesPoller(
       if (pollTimerRef.current != null) {
         window.clearTimeout(pollTimerRef.current);
         pollTimerRef.current = null;
+      }
+      if (boundaryTimerRef.current != null) {
+        window.clearTimeout(boundaryTimerRef.current);
+        boundaryTimerRef.current = null;
       }
     };
   }, [fetchQuotes, schedulePoll, symbolsKey]);

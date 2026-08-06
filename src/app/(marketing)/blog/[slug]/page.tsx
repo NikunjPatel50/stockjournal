@@ -9,6 +9,10 @@ import { LandingNavbar } from "@/components/landing/navbar";
 import { BlogArticleBody } from "@/components/marketing/blog-article-body";
 import { MarketingBreadcrumbs } from "@/components/marketing/marketing-breadcrumbs";
 import { Button } from "@/components/ui/button";
+import {
+  BlogFaqJsonLd,
+  BlogPostingJsonLd,
+} from "@/components/seo/blog-posting-json-ld";
 import { getAllBlogSlugs, getBlogPost } from "@/lib/blog-posts";
 import { getBlogPostMetadata } from "@/lib/seo-pages";
 
@@ -35,8 +39,16 @@ export default async function BlogPostPage({ params }: PageProps) {
 
   const published = format(parseISO(post.publishedAt), "MMMM d, yyyy");
 
+  const faqs =
+    post.faqs ??
+    post.blocks
+      .filter((block) => block.type === "faq")
+      .flatMap((block) => (block.type === "faq" ? block.items : []));
+
   return (
     <>
+      <BlogPostingJsonLd post={post} />
+      {faqs.length > 0 ? <BlogFaqJsonLd faqs={faqs} /> : null}
       <LandingNavbar />
       <MarketingBreadcrumbs
         items={[

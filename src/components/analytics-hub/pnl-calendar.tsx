@@ -1,153 +1,259 @@
 "use client";
 
 import { useMemo } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import {
-  computePnlCalendar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  computeDailyPnl,
   formatMoney,
-  type PnlCalendarData,
+  type DailyPnlPoint,
 } from "@/lib/analytics";
 import type { CurrencyCode } from "@/lib/settings";
 import type { JournalTrade } from "@/lib/journal-types";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
-type PnlCalendarProps = {
+type PnlLineChartProps = {
   trades: JournalTrade[];
   currency: CurrencyCode;
 };
 
-const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
+type CumulativePoint = DailyPnlPoint & {
+  label: string;
+  cumulative: number;
+};
 
-function cellClass(pnl: number | null, maxAbs: number): string {
-  if (pnl === null) return "bg-muted/35";
-  if (pnl === 0) return "bg-muted/70";
-  const intensity = Math.min(1, Math.abs(pnl) / maxAbs);
-  const tier = intensity > 0.66 ? 3 : intensity > 0.33 ? 2 : 1;
-  if (pnl > 0) {
-    return tier === 3
-      ? "bg-emerald-500"
-      : tier === 2
-        ? "bg-emerald-500/65"
-        : "bg-emerald-500/35";
-  }
-  return tier === 3
-    ? "bg-rose-500"
-    : tier === 2
-      ? "bg-rose-500/65"
-      : "bg-rose-500/35";
+const chartConfig = {
+  cumulative: { label: "Cumulative P&L", color: "var(--chart-2)" },
+} satisfies ChartConfig;
+
+function paddedDomain(values: number[]): [number, number] {
+  if (values.length === 0) return [-1, 1];
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
+  const span = Math.max(max - min, 1);
+  const pad = Math.max(span * 0.15, 1);
+  return [min - pad, max + pad];
 }
 
-/** One label per week column, shown only when the month changes. */
-function monthLabels(data: PnlCalendarData): (string | null)[] {
-  let previous = "";
-  return data.weeks.map((week) => {
-    const first = week[0];
-    if (!first) return null;
-    const month = format(parseISO(first.date), "MMM");
-    if (month === previous) return null;
-    previous = month;
-    return month;
+function buildCumulativeLine(daily: DailyPnlPoint[]): CumulativePoint[] {
+  if (daily.length === 0) return [];
+
+  let running = 0;
+  const points = daily.map((day) => {
+    running += day.pnl;
+    return {
+      ...day,
+      label: format(parseISO(day.date), "MMM d"),
+      cumulative: Math.round(running * 100) / 100,
+    };
   });
+
+  if (points.length === 1) {
+    const firstDate = parseISO(points[0].date);
+    return [
+      {
+        date: format(subDays(firstDate, 1), "yyyy-MM-dd"),
+        pnl: 0,
+        trades: 0,
+        label: format(subDays(firstDate, 1), "MMM d"),
+        cumulative: 0,
+      },
+      ...points,
+    ];
+  }
+
+  return points;
 }
 
-export function PnlCalendar({ trades, currency }: PnlCalendarProps) {
-  const data = useMemo(() => computePnlCalendar(trades), [trades]);
-  const months = useMemo(() => monthLabels(data), [data]);
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "profit" | "loss" | "neutral";
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-0.5 truncate text-base font-semibold",
+          NUMERIC_CLASS,
+          tone === "profit" && "text-emerald-600 dark:text-emerald-400",
+          tone === "loss" && "text-rose-600 dark:text-rose-400",
+          tone === "neutral" && "text-foreground"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+export function PnlLineChart({ trades, currency }: PnlLineChartProps) {
+  const daily = useMemo(() => computeDailyPnl(trades), [trades]);
+  const lineData = useMemo(() => buildCumulativeLine(daily), [daily]);
 
   const summary = useMemo(() => {
-    const days = data.weeks.flat().filter((d) => d.pnl !== null);
-    if (days.length === 0) return null;
-    const best = days.reduce((a, b) => (b.pnl! > a.pnl! ? b : a));
-    const worst = days.reduce((a, b) => (b.pnl! < a.pnl! ? b : a));
-    return { count: days.length, best, worst };
-  }, [data]);
+    if (daily.length === 0) return null;
+    const netPnl = daily.reduce((sum, day) => sum + day.pnl, 0);
+    const best = daily.reduce((a, b) => (b.pnl > a.pnl ? b : a));
+    const worst = daily.reduce((a, b) => (b.pnl < a.pnl ? b : a));
+    return {
+      count: daily.length,
+      netPnl: Math.round(netPnl * 100) / 100,
+      best,
+      worst,
+    };
+  }, [daily]);
+
+  const yDomain = useMemo(
+    () => paddedDomain(lineData.map((point) => point.cumulative)),
+    [lineData]
+  );
+
+  const lineColor =
+    (summary?.netPnl ?? 0) >= 0 ? "#10b981" : "#f43f5e";
 
   return (
     <DataPanel
-      title="Daily P&L rhythm"
-      subtitle="Trailing 26 weeks of realized results, one cell per day"
+      title="P&L line chart"
+      subtitle="Cumulative realized P&L from closed trades"
       meta={summary ? `${summary.count} active days` : "No activity"}
       footer={
         summary
-          ? `Best day ${formatMoney(summary.best.pnl!, true, currency)} on ${format(parseISO(summary.best.date), "MMM d")} · Worst day ${formatMoney(summary.worst.pnl!, true, currency)} on ${format(parseISO(summary.worst.date), "MMM d")}.`
+          ? `Best day ${formatMoney(summary.best.pnl, true, currency)} on ${format(parseISO(summary.best.date), "MMM d")} · Worst day ${formatMoney(summary.worst.pnl, true, currency)} on ${format(parseISO(summary.worst.date), "MMM d")}.`
           : undefined
       }
     >
       {!summary ? (
         <PanelEmpty
-          title="No closed trades to map"
-          hint="Daily cells appear once trades are closed within the trailing 26 weeks."
+          title="No closed trades to chart"
+          hint="The line appears once trades are closed within the selected period."
         />
       ) : (
-        <div className="space-y-3">
-          <div className="overflow-x-auto pb-1">
-            <div className="flex min-w-max gap-2">
-              <div className="flex flex-col gap-[3px] pt-[18px] text-[9px] text-muted-foreground">
-                {DAY_LABELS.map((label, i) => (
-                  <span
-                    key={`${label}-${i}`}
-                    className={cn(
-                      "flex h-[11px] items-center leading-none",
-                      i % 2 === 1 ? "opacity-100" : "opacity-0"
-                    )}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-[3px]">
-                {data.weeks.map((week, wi) => (
-                  <div key={wi} className="flex flex-col gap-[3px]">
-                    <span className="h-[15px] text-[9px] leading-none text-muted-foreground">
-                      {months[wi] ?? ""}
-                    </span>
-                    {week.map((day) => {
-                      const pnlLabel =
-                        day.pnl === null
-                          ? "No trades"
-                          : formatMoney(day.pnl, true, currency);
-                      const title = `${format(parseISO(day.date), "EEE, MMM d")}: ${pnlLabel}${
-                        day.trades > 0
-                          ? ` · ${day.trades} trade${day.trades === 1 ? "" : "s"}`
-                          : ""
-                      }`;
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Stat
+              label="Net P&L"
+              value={formatMoney(summary.netPnl, true, currency)}
+              tone={
+                summary.netPnl > 0
+                  ? "profit"
+                  : summary.netPnl < 0
+                    ? "loss"
+                    : "neutral"
+              }
+            />
+            <Stat
+              label="Active days"
+              value={String(summary.count)}
+              tone="neutral"
+            />
+            <Stat
+              label="Best day"
+              value={formatMoney(summary.best.pnl, true, currency)}
+              tone={summary.best.pnl >= 0 ? "profit" : "loss"}
+            />
+            <Stat
+              label="Worst day"
+              value={formatMoney(summary.worst.pnl, true, currency)}
+              tone={summary.worst.pnl >= 0 ? "profit" : "loss"}
+            />
+          </div>
 
+          <ChartContainer config={chartConfig} className="h-[220px] w-full">
+            <LineChart
+              data={lineData}
+              margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="2 4"
+                className="stroke-border/60"
+              />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={24}
+                className="text-[10px]"
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={4}
+                width={52}
+                domain={yDomain}
+                tickCount={5}
+                tickFormatter={(value) =>
+                  formatMoney(Number(value), false, currency)
+                }
+                className="text-[10px]"
+              />
+              <ReferenceLine y={0} className="stroke-border" strokeWidth={1} />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(_, payload) => {
+                      const row = payload?.[0]?.payload as
+                        | { date?: string }
+                        | undefined;
+                      if (!row?.date) return "";
+                      return format(parseISO(row.date), "MMM d, yyyy");
+                    }}
+                    formatter={(value, _name, item) => {
+                      const row = item?.payload as
+                        | { pnl?: number; trades?: number }
+                        | undefined;
                       return (
-                        <div
-                          key={day.date}
-                          title={title}
-                          aria-label={title}
-                          className={cn(
-                            "size-[11px] cursor-default rounded-[2px] ring-1 ring-inset ring-foreground/[0.06]",
-                            cellClass(day.pnl, data.maxAbsPnl)
-                          )}
-                        />
+                        <div className="space-y-0.5">
+                          <div>
+                            Cumulative:{" "}
+                            {formatMoney(Number(value), true, currency)}
+                          </div>
+                          <div>
+                            Day P&L:{" "}
+                            {formatMoney(row?.pnl ?? 0, true, currency)}
+                          </div>
+                          <div>
+                            Trades: {row?.trades ?? 0}
+                          </div>
+                        </div>
                       );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-            <span className={NUMERIC_CLASS}>
-              Loss {formatMoney(-data.maxAbsPnl, true, currency)}
-            </span>
-            <div className="flex gap-[3px]">
-              <span className="size-[11px] rounded-[2px] bg-rose-500" />
-              <span className="size-[11px] rounded-[2px] bg-rose-500/65" />
-              <span className="size-[11px] rounded-[2px] bg-rose-500/35" />
-              <span className="size-[11px] rounded-[2px] bg-muted/35 ring-1 ring-inset ring-border/60" />
-              <span className="size-[11px] rounded-[2px] bg-emerald-500/35" />
-              <span className="size-[11px] rounded-[2px] bg-emerald-500/65" />
-              <span className="size-[11px] rounded-[2px] bg-emerald-500" />
-            </div>
-            <span className={NUMERIC_CLASS}>
-              Profit {formatMoney(data.maxAbsPnl, true, currency)}
-            </span>
-          </div>
+                    }}
+                  />
+                }
+              />
+              <Line
+                type="monotone"
+                dataKey="cumulative"
+                stroke={lineColor}
+                strokeWidth={2}
+                dot={{ r: 3, fill: lineColor }}
+                activeDot={{ r: 4 }}
+              />
+            </LineChart>
+          </ChartContainer>
         </div>
       )}
     </DataPanel>

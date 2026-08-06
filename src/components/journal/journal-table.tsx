@@ -42,7 +42,7 @@ import {
   type JournalTrade,
 } from "@/lib/journal-types";
 import { useHoldTimeClock } from "@/hooks/use-hold-time-clock";
-import { resolveTradePnlDisplay, resolveMaxProfitLossDisplay, formatTradeRiskReward, computePositionPortfolioPct } from "@/lib/trade-pnl";
+import { resolveTradePnlDisplay, resolveMaxProfitLossDisplay, formatTradeRiskReward, computeActivePortfolioWeights } from "@/lib/trade-pnl";
 import {
   computeTradeDailyPnlFromQuote,
   toActivePositionPnlInput,
@@ -54,6 +54,7 @@ import {
   type JournalColumnPrefs,
 } from "@/lib/journal-column-prefs";
 import { JournalColumnsMenu } from "@/components/journal/journal-columns-menu";
+import { MarketSessionTimer } from "@/components/journal/market-session-timer";
 import { TargetStopProgressBar } from "@/components/journal/target-stop-progress-bar";
 import { useEarningsDates } from "@/hooks/use-earnings-dates";
 import { useMarketQuotes, type ClientMarketQuote } from "@/hooks/use-market-quotes";
@@ -101,40 +102,34 @@ function StaticHeader({ label }: { label: string }) {
 function SortHeader({
   label,
   sorted,
-  onClick,
 }: {
   label: string;
   sorted: false | "asc" | "desc";
-  onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <span
       className={cn(
-        "group relative flex w-full items-center justify-center rounded-md px-2 py-1 text-xs font-medium tracking-tight transition-colors",
-        sorted
-          ? "text-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        "group inline-flex w-full items-center justify-center gap-1 rounded-md px-1 py-1 text-xs font-medium tracking-tight",
+        sorted ? "text-foreground" : "text-muted-foreground"
       )}
     >
       <span className="text-center">{label}</span>
       <span
         className={cn(
-          "absolute right-0.5 top-1/2 -translate-y-1/2",
-          !sorted && "opacity-0 transition-opacity group-hover:opacity-50"
+          "inline-flex shrink-0",
+          !sorted && "opacity-40 transition-opacity group-hover:opacity-80"
         )}
         aria-hidden
       >
         {sorted === "asc" ? (
-          <ArrowUp className="size-3.5 shrink-0 text-foreground" />
+          <ArrowUp className="size-3.5 text-foreground" />
         ) : sorted === "desc" ? (
-          <ArrowDown className="size-3.5 shrink-0 text-foreground" />
+          <ArrowDown className="size-3.5 text-foreground" />
         ) : (
-          <ArrowUpDown className="size-3.5 shrink-0" />
+          <ArrowUpDown className="size-3.5" />
         )}
       </span>
-    </button>
+    </span>
   );
 }
 
@@ -144,18 +139,86 @@ function outcomeBadgeClass(outcome: JournalTrade["outcome"]) {
   return "border-border bg-muted/50 text-foreground";
 }
 
+function hasStopAboveEntry(trade: JournalTrade): boolean {
+  const { entryPrice, stopLoss } = trade;
+  if (!entryPrice || !stopLoss || stopLoss <= 0) return false;
+  return hasDistinctLevel(stopLoss, entryPrice) && stopLoss > entryPrice;
+}
+
 function rowAccentClass(trade: JournalTrade, livePnl?: number) {
+  if (hasStopAboveEntry(trade)) {
+    return "border-l-sky-600 bg-sky-500/[0.18] hover:bg-sky-500/[0.26] dark:border-l-sky-400 dark:bg-sky-500/30 dark:hover:bg-sky-500/40";
+  }
   const pnl = livePnl ?? trade.pnl;
   if (pnl > 0) {
-    return "border-l-emerald-500 bg-emerald-500/[0.07] hover:bg-emerald-500/[0.12] dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15";
+    return "border-l-emerald-500 bg-emerald-500/[0.12] hover:bg-emerald-500/[0.18] dark:bg-emerald-500/20 dark:hover:bg-emerald-500/28";
   }
   if (pnl < 0) {
-    return "border-l-rose-500 bg-rose-500/[0.07] hover:bg-rose-500/[0.12] dark:bg-rose-500/10 dark:hover:bg-rose-500/15";
+    return "border-l-rose-500 bg-rose-500/[0.12] hover:bg-rose-500/[0.18] dark:bg-rose-500/20 dark:hover:bg-rose-500/28";
   }
   if (trade.status === "Active") {
-    return "border-l-emerald-500/80 bg-muted/20 hover:bg-muted/30";
+    return "border-l-emerald-500/80 bg-muted/35 hover:bg-muted/45";
   }
-  return "border-l-border hover:bg-muted/25";
+  return "border-l-border bg-muted/25 hover:bg-muted/40";
+}
+
+function RowColorLegend() {
+  const items = [
+    {
+      label: "In profit",
+      swatch:
+        "border-l-[3px] border-l-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/30",
+    },
+    {
+      label: "In loss",
+      swatch: "border-l-[3px] border-l-rose-500 bg-rose-500/20 dark:bg-rose-500/30",
+    },
+    {
+      label: "Stoploss above entry",
+      swatch: "border-l-[3px] border-l-sky-600 bg-sky-500/25 dark:border-l-sky-400 dark:bg-sky-500/35",
+    },
+  ] as const;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {items.map((item) => (
+        <span
+          key={item.label}
+          className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
+        >
+          <span
+            className={cn("h-3 w-4 shrink-0 rounded-sm", item.swatch)}
+            aria-hidden
+          />
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function JournalRowAccordionPanel({
+  open,
+  children,
+  className,
+}: {
+  open: boolean;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      )}
+      aria-hidden={!open}
+    >
+      <div className="min-h-0 overflow-hidden">
+        {className ? <div className={className}>{children}</div> : children}
+      </div>
+    </div>
+  );
 }
 
 function hasDistinctLevel(price: number, entry: number): boolean {
@@ -354,23 +417,19 @@ function NextEarningsDateValue({
 
 function PortfolioWeightValue({
   trade,
-  accountEquity,
+  portfolioPct,
 }: {
   trade: JournalTrade;
-  accountEquity: number;
+  portfolioPct: number | null;
 }) {
-  const pct = computePositionPortfolioPct(trade, accountEquity);
-
-  if (pct == null) {
-    return (
-      <span className="text-sm text-muted-foreground">
-        {accountEquity <= 0 ? "Set total invested in Settings" : "—"}
-      </span>
-    );
+  if ((trade.status ?? "Closed") !== "Active" || portfolioPct == null) {
+    return <span className="text-sm text-muted-foreground">—</span>;
   }
 
   return (
-    <span className={cn("text-sm font-medium", NUMERIC_CLASS)}>{pct.toFixed(1)}%</span>
+    <span className={cn("text-sm font-medium", NUMERIC_CLASS)}>
+      {portfolioPct.toFixed(1)}%
+    </span>
   );
 }
 
@@ -380,26 +439,20 @@ function RowAccordionDetails({
   displayCurrency,
   earnings,
   earningsLoading,
-  accountEquity,
+  portfolioPct,
 }: {
   trade: JournalTrade;
   quote: ClientMarketQuote | null;
   displayCurrency: CurrencyCode;
   earnings: EarningsDateInfo | null;
   earningsLoading: boolean;
-  accountEquity: number;
+  portfolioPct: number | null;
 }) {
   return (
     <div
       className="overflow-hidden rounded-lg border border-border/80 bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="border-b border-border/60 bg-muted/35 px-4 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Trade details
-        </span>
-      </div>
-
       <div className="grid grid-cols-1 divide-y divide-border/50 sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-6">
         <AccordionDetailCell label="Status">
           <TradeStatusBadge trade={trade} />
@@ -418,7 +471,7 @@ function RowAccordionDetails({
           <MaxProfitLossValue trade={trade} displayCurrency={displayCurrency} />
         </AccordionDetailCell>
         <AccordionDetailCell label="% of portfolio">
-          <PortfolioWeightValue trade={trade} accountEquity={accountEquity} />
+          <PortfolioWeightValue trade={trade} portfolioPct={portfolioPct} />
         </AccordionDetailCell>
         <AccordionDetailCell label="Next earnings date">
           <NextEarningsDateValue
@@ -788,8 +841,6 @@ function TradeActions({
 
 interface JournalTableProps {
   trades: JournalTrade[];
-  /** Account equity for portfolio-weight in row details (total invested + realized P&L). */
-  accountEquity?: number;
   /** Section title in the card header. */
   title?: string;
   /** All trades in this section before header filters (for empty-state copy). */
@@ -805,7 +856,6 @@ interface JournalTableProps {
 
 export function JournalTable({
   trades,
-  accountEquity = 0,
   title = "Trade log",
   totalTradeCount,
   onEdit,
@@ -820,7 +870,7 @@ export function JournalTable({
   ]);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 5,
+    pageSize: 20,
   });
   const [columnPrefs, setColumnPrefs] = useState<JournalColumnPrefs>(() =>
     loadJournalColumnPrefs()
@@ -846,9 +896,8 @@ export function JournalTable({
 
   const holdNow = useHoldTimeClock(60_000);
 
-  const totalInvestedInTable = useMemo(
-    () =>
-      trades.reduce((sum, trade) => sum + trade.entryPrice * trade.quantity, 0),
+  const portfolioWeights = useMemo(
+    () => computeActivePortfolioWeights(trades),
     [trades]
   );
 
@@ -919,7 +968,7 @@ export function JournalTable({
             >
               <ChevronRight
                 className={cn(
-                  "size-3.5 transition-transform",
+                  "size-3.5 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
                   expanded && "rotate-90"
                 )}
               />
@@ -929,12 +978,9 @@ export function JournalTable({
       },
       {
         accessorKey: "entryDate",
+        sortingFn: "datetime",
         header: ({ column }) => (
-          <SortHeader
-            label="Date"
-            sorted={column.getIsSorted()}
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          />
+          <SortHeader label="Date" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => (
           <span className="block w-full text-center text-sm font-medium text-foreground">
@@ -945,11 +991,7 @@ export function JournalTable({
       {
         accessorKey: "ticker",
         header: ({ column }) => (
-          <SortHeader
-            label="Symbol"
-            sorted={column.getIsSorted()}
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          />
+          <SortHeader label="Symbol" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => (
           <span
@@ -1014,7 +1056,10 @@ export function JournalTable({
       },
       {
         accessorKey: "quantity",
-        header: () => <StaticHeader label="Qty" />,
+        sortDescFirst: true,
+        header: ({ column }) => (
+          <SortHeader label="Qty" sorted={column.getIsSorted()} />
+        ),
         cell: ({ row }) => (
           <span className={cn("block w-full text-center text-sm font-medium", NUMERIC_CLASS)}>
             {row.original.quantity}
@@ -1024,19 +1069,13 @@ export function JournalTable({
       {
         id: "invested",
         accessorFn: (row) => row.entryPrice * row.quantity,
+        sortDescFirst: true,
         header: ({ column }) => (
-          <SortHeader
-            label="Invested"
-            sorted={column.getIsSorted()}
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          />
+          <SortHeader label="Invested" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => {
           const invested = row.original.entryPrice * row.original.quantity;
-          const sharePct =
-            totalInvestedInTable > 0
-              ? (invested / totalInvestedInTable) * 100
-              : 0;
+          const sharePct = portfolioWeights.get(row.original.id) ?? null;
 
           return (
             <span
@@ -1046,21 +1085,22 @@ export function JournalTable({
               )}
             >
               {formatMarketPrice(invested, displayCurrency)}
-              <span className="ml-1 text-[11px] font-medium text-muted-foreground">
-                ({sharePct.toFixed(1)}%)
-              </span>
+              {sharePct != null ? (
+                <span className="ml-1 text-[11px] font-medium text-muted-foreground">
+                  ({sharePct.toFixed(1)}%)
+                </span>
+              ) : null}
             </span>
           );
         },
       },
       {
-        accessorKey: "pnl",
+        id: "pnl",
+        accessorFn: (row) =>
+          resolveTradePnlDisplay(row, getQuote(row), displayCurrency).pnl,
+        sortDescFirst: true,
         header: ({ column }) => (
-          <SortHeader
-            label="Net P&L"
-            sorted={column.getIsSorted()}
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          />
+          <SortHeader label="Net P&L" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => (
           <TradePnlCell
@@ -1085,12 +1125,9 @@ export function JournalTable({
           );
           return daily ?? Number.NEGATIVE_INFINITY;
         },
+        sortDescFirst: true,
         header: ({ column }) => (
-          <SortHeader
-            label="Daily P/L"
-            sorted={column.getIsSorted()}
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          />
+          <SortHeader label="Daily P/L" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => {
           const quote = getQuote(row.original);
@@ -1136,12 +1173,9 @@ export function JournalTable({
           const ratio = Number(rr.split(":")[1]);
           return Number.isFinite(ratio) ? ratio : Number.NEGATIVE_INFINITY;
         },
+        sortDescFirst: true,
         header: ({ column }) => (
-          <SortHeader
-            label="R:R"
-            sorted={column.getIsSorted()}
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          />
+          <SortHeader label="R:R" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => {
           const rr = formatTradeRiskReward(row.original);
@@ -1176,13 +1210,11 @@ export function JournalTable({
         },
       },
       {
-        accessorKey: "holdTimeHours",
+        id: "holdTimeHours",
+        accessorFn: (row) => resolveTradeHoldHours(row, holdNow),
+        sortDescFirst: true,
         header: ({ column }) => (
-          <SortHeader
-            label="Hold"
-            sorted={column.getIsSorted()}
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          />
+          <SortHeader label="Hold" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => {
           const hours = resolveTradeHoldHours(row.original, holdNow);
@@ -1224,7 +1256,7 @@ export function JournalTable({
       onDuplicate,
       onEdit,
       quotesLoading,
-      totalInvestedInTable,
+      portfolioWeights,
     ]
   );
 
@@ -1237,7 +1269,13 @@ export function JournalTable({
       columnVisibility,
       pagination,
     },
-    onSortingChange: setSorting,
+    enableSortingRemoval: true,
+    onSortingChange: (updater) => {
+      setSorting((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        return next.length === 0 ? [{ id: "entryDate", desc: true }] : next;
+      });
+    },
     onPaginationChange: setPagination,
     onColumnOrderChange: (updater) => {
       setColumnPrefs((prev) => {
@@ -1288,17 +1326,20 @@ export function JournalTable({
       : "100%";
 
   const paginationBar = totalRows > 0 && (
-    <div className="flex flex-col gap-3 border-t border-border/80 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-xs text-muted-foreground">
-        Showing{" "}
-        <span className="font-medium text-foreground">
+    <div className="flex flex-col gap-2.5 border-t border-border/70 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <p className="text-[11px] tabular-nums text-muted-foreground">
+        <span className="font-semibold text-foreground">
           {rangeStart}–{rangeEnd}
-        </span>{" "}
-        of {totalRows}
+        </span>
+        <span className="mx-1.5 text-border">·</span>
+        {totalRows} {totalRows === 1 ? "trade" : "trades"}
       </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Rows</span>
+
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 p-0.5">
+          <span className="hidden pl-2 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground sm:inline">
+            Rows
+          </span>
           <Select
             value={String(pageSize)}
             onValueChange={(v) => {
@@ -1306,42 +1347,44 @@ export function JournalTable({
               table.setPageSize(Number(v));
             }}
           >
-            <SelectTrigger className="h-8 w-[4.25rem] border-border/80 bg-background text-xs font-normal">
+            <SelectTrigger className="h-7 w-[3.25rem] border-0 bg-transparent text-xs font-medium shadow-none hover:bg-background/80">
               <span>{pageSize}</span>
             </SelectTrigger>
             <SelectContent align="end">
-              <SelectItem value="5">5</SelectItem>
               <SelectItem value="10">10</SelectItem>
               <SelectItem value="20">20</SelectItem>
               <SelectItem value="30">30</SelectItem>
+              <SelectItem value="50">50</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-1">
+
+        <div className="flex items-center rounded-lg border border-border/70 bg-muted/30 p-0.5">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon-sm"
-            className="size-8"
+            className="size-7 rounded-md disabled:opacity-35"
             disabled={!table.getCanPreviousPage()}
             onClick={() => table.previousPage()}
             aria-label="Previous page"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-3.5" />
           </Button>
-          <span className="min-w-[5.5rem] text-center text-xs text-muted-foreground">
-            {pageIndex + 1} / {pageCount || 1}
+          <span className="min-w-[3.75rem] px-1 text-center text-[11px] font-medium tabular-nums text-foreground">
+            {pageIndex + 1}
+            <span className="text-muted-foreground"> / {pageCount || 1}</span>
           </span>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon-sm"
-            className="size-8"
+            className="size-7 rounded-md disabled:opacity-35"
             disabled={!table.getCanNextPage()}
             onClick={() => table.nextPage()}
             aria-label="Next page"
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-3.5" />
           </Button>
         </div>
       </div>
@@ -1367,16 +1410,11 @@ export function JournalTable({
                 EODHD delayed
               </span>
             ) : null}
-            {!quotesSessionOpen && !quotesError && hasActiveTrades ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                <span className="size-1.5 rounded-full bg-slate-400" aria-hidden />
-                Market closed
-              </span>
+            {!quotesError && hasActiveTrades && enableLiveQuotes ? (
+              <MarketSessionTimer trades={trades} currency={displayCurrency} />
             ) : null}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Click a row to expand trade details.
-          </p>
+          {totalRows > 0 ? <RowColorLegend /> : null}
           {quotesError ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
           ) : null}
@@ -1435,7 +1473,7 @@ export function JournalTable({
                     >
                       <ChevronRight
                         className={cn(
-                          "size-3.5 transition-transform",
+                          "size-3.5 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
                           expanded && "rotate-90"
                         )}
                       />
@@ -1555,18 +1593,19 @@ export function JournalTable({
                     </button>
                   </div>
 
-                  {expanded ? (
-                    <div className="border-t border-border/50 bg-muted/15 px-3 py-2.5">
-                      <RowAccordionDetails
-                        trade={trade}
-                        quote={quote}
-                        displayCurrency={displayCurrency}
-                        earnings={getEarningsDate(trade)}
-                        earningsLoading={earningsLoading}
-                        accountEquity={accountEquity}
-                      />
-                    </div>
-                  ) : null}
+                  <JournalRowAccordionPanel
+                    open={expanded}
+                    className="border-t border-border/50 bg-muted/15 px-3 py-2.5"
+                  >
+                    <RowAccordionDetails
+                      trade={trade}
+                      quote={quote}
+                      displayCurrency={displayCurrency}
+                      earnings={getEarningsDate(trade)}
+                      earningsLoading={earningsLoading}
+                      portfolioPct={portfolioWeights.get(trade.id) ?? null}
+                    />
+                  </JournalRowAccordionPanel>
                 </div>
               </li>
             );
@@ -1594,27 +1633,45 @@ export function JournalTable({
                   key={headerGroup.id}
                   className="border-b border-border bg-muted/30 text-center"
                 >
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className={journalHeaderClass(header.column.id)}
-                    >
-                      <div
-                        className={
-                          header.column.id === "expand"
-                            ? "flex justify-center"
-                            : CELL_CENTER
+                  {headerGroup.headers.map((header) => {
+                    const canSort = header.column.getCanSort();
+                    const sorted = header.column.getIsSorted();
+                    return (
+                      <th
+                        key={header.id}
+                        className={cn(
+                          journalHeaderClass(header.column.id),
+                          canSort &&
+                            "cursor-pointer select-none hover:bg-muted/50"
+                        )}
+                        onClick={header.column.getToggleSortingHandler()}
+                        aria-sort={
+                          sorted === "asc"
+                            ? "ascending"
+                            : sorted === "desc"
+                              ? "descending"
+                              : canSort
+                                ? "none"
+                                : undefined
                         }
                       >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </div>
-                    </th>
-                  ))}
+                        <div
+                          className={
+                            header.column.id === "expand"
+                              ? "flex justify-center"
+                              : CELL_CENTER
+                          }
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               ))}
             </thead>
@@ -1661,11 +1718,11 @@ export function JournalTable({
                         </td>
                       ))}
                     </tr>
-                    {expanded ? (
-                      <tr className="border-b border-border/60 last:border-b-0">
-                        <td
-                          colSpan={visibleCellCount}
-                          className="bg-muted/15 px-4 pb-3 pt-1"
+                    <tr className="border-0">
+                      <td colSpan={visibleCellCount} className="p-0 align-top">
+                        <JournalRowAccordionPanel
+                          open={expanded}
+                          className="border-b border-border/60 bg-muted/15 px-4 pb-3 pt-1"
                         >
                           <RowAccordionDetails
                             trade={row.original}
@@ -1673,11 +1730,13 @@ export function JournalTable({
                             displayCurrency={displayCurrency}
                             earnings={getEarningsDate(row.original)}
                             earningsLoading={earningsLoading}
-                            accountEquity={accountEquity}
+                            portfolioPct={
+                              portfolioWeights.get(row.original.id) ?? null
+                            }
                           />
-                        </td>
-                      </tr>
-                    ) : null}
+                        </JournalRowAccordionPanel>
+                      </td>
+                    </tr>
                   </Fragment>
                 );
               })}

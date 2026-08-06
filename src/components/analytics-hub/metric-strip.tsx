@@ -15,7 +15,7 @@ type MetricStripProps = {
   kpis: AnalyticsKpis;
   stats: WinLossStats;
   currency: CurrencyCode;
-  startingEquity: number;
+  capitalBase: number;
   tradeCount: number;
 };
 
@@ -30,7 +30,7 @@ export function MetricStrip({
   kpis,
   stats,
   currency,
-  startingEquity,
+  capitalBase,
   tradeCount,
 }: MetricStripProps) {
   const empty = tradeCount === 0;
@@ -48,14 +48,14 @@ export function MetricStrip({
         {
           label: "Return on capital",
           value:
-            startingEquity > 0
+            capitalBase > 0
               ? formatSignedPercent(kpis.returnPct, 2)
               : "—",
           detail:
-            startingEquity > 0
-              ? `Base ${formatMoney(startingEquity, false, currency)}`
-              : "Set total invested in Settings",
-          tone: startingEquity > 0 ? pnlTone : "neutral",
+            capitalBase > 0
+              ? `Base ${formatMoney(capitalBase, false, currency)}`
+              : "Add trades to calculate",
+          tone: capitalBase > 0 ? pnlTone : "neutral",
         },
         {
           label: "Win rate",

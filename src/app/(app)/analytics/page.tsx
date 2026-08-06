@@ -17,6 +17,7 @@ import {
   type AnalyticsFilters,
 } from "@/lib/analytics";
 import { useJournalTrades } from "@/lib/trades-storage";
+import { computeCapitalBase } from "@/lib/overnight-risk";
 
 const GRID_CLASS = "grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch";
 
@@ -36,10 +37,10 @@ const PnlChartCard = dynamic(
   { loading: () => <div className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
 
-const PnlCalendar = dynamic(
+const PnlLineChart = dynamic(
   () =>
     import("@/components/analytics-hub/pnl-calendar").then((mod) => ({
-      default: mod.PnlCalendar,
+      default: mod.PnlLineChart,
     })),
   { loading: () => <div className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
@@ -68,10 +69,10 @@ const RMultipleSpectrum = dynamic(
   { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
 
-const TagRankings = dynamic(
+const SessionGrid = dynamic(
   () =>
-    import("@/components/analytics-hub/tag-rankings").then((mod) => ({
-      default: mod.TagRankings,
+    import("@/components/analytics-hub/session-grid").then((mod) => ({
+      default: mod.SessionGrid,
     })),
   { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
@@ -79,7 +80,7 @@ const TagRankings = dynamic(
 export default function AnalyticsPage() {
   const { settings } = useSettings();
   const { trades } = useJournalTrades();
-  const startingEquity = settings.profile.startingBalance;
+  const capitalBase = useMemo(() => computeCapitalBase(trades), [trades]);
   const currency = settings.profile.currency;
   const [filters, setFilters] = useState<AnalyticsFilters>(
     emptyAnalyticsFilters()
@@ -92,8 +93,8 @@ export default function AnalyticsPage() {
 
 
   const kpis = useMemo(
-    () => computeKpis(filtered, startingEquity),
-    [filtered, startingEquity]
+    () => computeKpis(filtered, capitalBase),
+    [filtered, capitalBase]
   );
   const winLoss = useMemo(() => computeWinLossStats(filtered), [filtered]);
 
@@ -135,7 +136,7 @@ export default function AnalyticsPage() {
         kpis={kpis}
         stats={winLoss}
         currency={currency}
-        startingEquity={startingEquity}
+        capitalBase={capitalBase}
         tradeCount={filtered.length}
       />
 
@@ -150,7 +151,7 @@ export default function AnalyticsPage() {
             <ReportSection
               index="02"
               title="Performance"
-              description="Daily P&L rhythm and period performance"
+              description="Realized P&L trend and open-position performance"
             >
               <div className={GRID_CLASS}>
                 <PnlChartCard trades={trades} currency={currency} />
@@ -174,10 +175,10 @@ export default function AnalyticsPage() {
           <ReportSection
             index="02"
             title="Performance"
-            description="Daily P&L rhythm and period performance"
+            description="Realized P&L trend and open-position performance"
           >
             <div className={GRID_CLASS}>
-              <PnlCalendar trades={filtered} currency={currency} />
+              <PnlLineChart trades={filtered} currency={currency} />
               <PnlChartCard trades={trades} currency={currency} />
             </div>
           </ReportSection>
@@ -195,11 +196,11 @@ export default function AnalyticsPage() {
 
           <ReportSection
             index="04"
-            title="Labels and duration"
-            description="Which tags and hold times produced the P&L"
+            title="Timing and duration"
+            description="When you trade during the week and how long positions are held"
           >
             <div className={GRID_CLASS}>
-              <TagRankings trades={filtered} currency={currency} />
+              <SessionGrid trades={filtered} currency={currency} />
               <HoldTimeBreakdown trades={filtered} currency={currency} />
             </div>
           </ReportSection>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   BarChart3,
   BookOpen,
@@ -50,6 +51,10 @@ function isActiveRoute(pathname: string, href: string) {
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
+  const navSpring = reduceMotion
+    ? { duration: 0 }
+    : { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.85 };
 
   return (
     <div className="flex h-full flex-col">
@@ -94,15 +99,22 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "group flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
+                      "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-200",
                       active
-                        ? "bg-card text-foreground shadow-sm ring-1 ring-border/80"
+                        ? "text-foreground"
                         : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
                     )}
                   >
+                    {active ? (
+                      <motion.span
+                        layoutId="sidebar-nav-active"
+                        className="absolute inset-0 rounded-lg bg-card shadow-sm ring-1 ring-border/80"
+                        transition={navSpring}
+                      />
+                    ) : null}
                     <span
                       className={cn(
-                        "flex size-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                        "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
                         active
                           ? "bg-primary/10 text-primary"
                           : "text-muted-foreground group-hover:bg-sidebar-accent group-hover:text-sidebar-foreground"
@@ -110,10 +122,12 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                     >
                       <Icon className="size-4" strokeWidth={active ? 2.25 : 2} />
                     </span>
-                    <span className="truncate">{item.label}</span>
+                    <span className="relative z-10 truncate">{item.label}</span>
                     {active ? (
-                      <span
-                        className="ml-auto size-1.5 shrink-0 rounded-full bg-primary"
+                      <motion.span
+                        layoutId="sidebar-nav-dot"
+                        className="relative z-10 ml-auto size-1.5 shrink-0 rounded-full bg-primary"
+                        transition={navSpring}
                         aria-hidden
                       />
                     ) : null}

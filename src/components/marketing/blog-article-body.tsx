@@ -24,6 +24,91 @@ function BlogBlockView({ block }: { block: BlogBlock }) {
           ))}
         </ul>
       );
+    case "checklist":
+      return (
+        <div className="mt-6 rounded-xl border border-border bg-muted/30 p-4 sm:p-5">
+          {block.title ? (
+            <p className="mb-3 text-sm font-semibold text-foreground sm:text-base">
+              {block.title}
+            </p>
+          ) : null}
+          <ul className="space-y-2.5">
+            {block.items.map((item) => (
+              <li
+                key={item}
+                className="flex gap-2.5 text-sm leading-relaxed text-muted-foreground sm:text-base"
+              >
+                <span
+                  className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400"
+                  aria-hidden
+                >
+                  ✓
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    case "table":
+      return (
+        <figure className="mt-6 overflow-x-auto">
+          <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                {block.headers.map((header) => (
+                  <th
+                    key={header}
+                    className="px-3 py-2.5 font-semibold text-foreground sm:px-4"
+                  >
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, rowIndex) => (
+                <tr
+                  key={rowIndex}
+                  className="border-b border-border/70 even:bg-muted/20"
+                >
+                  {row.map((cell, cellIndex) => (
+                    <td
+                      key={cellIndex}
+                      className="px-3 py-2.5 text-muted-foreground sm:px-4"
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {block.caption ? (
+            <figcaption className="mt-2 text-xs text-muted-foreground sm:text-sm">
+              {block.caption}
+            </figcaption>
+          ) : null}
+        </figure>
+      );
+    case "faq":
+      return (
+        <div className="mt-8 space-y-4">
+          {block.items.map((item) => (
+            <details
+              key={item.question}
+              className="group rounded-xl border border-border bg-muted/20 px-4 py-3 open:bg-muted/40"
+            >
+              <summary className="cursor-pointer list-none text-sm font-semibold text-foreground marker:content-none sm:text-base [&::-webkit-details-marker]:hidden">
+                {item.question}
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
+                {item.answer}
+              </p>
+            </details>
+          ))}
+        </div>
+      );
     case "image":
       return (
         <figure className="mt-8 overflow-hidden rounded-2xl border border-border bg-muted/30">

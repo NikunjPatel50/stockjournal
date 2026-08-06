@@ -12,7 +12,7 @@ import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 
 interface KpiRibbonProps {
   kpis: AnalyticsKpis;
-  startingEquity?: number;
+  capitalBase?: number;
 }
 
 type FooterTone = "profit" | "loss" | "neutral";
@@ -115,11 +115,11 @@ function InsightKpiCard({
   );
 }
 
-export function KpiRibbon({ kpis, startingEquity = 0 }: KpiRibbonProps) {
+export function KpiRibbon({ kpis, capitalBase = 0 }: KpiRibbonProps) {
   const pnlUp = kpis.netPnl > 0;
   const pnlDown = kpis.netPnl < 0;
   const closed = kpis.wins + kpis.losses;
-  const hasStartingBalance = startingEquity > 0;
+  const hasCapitalBase = capitalBase > 0;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -137,10 +137,10 @@ export function KpiRibbon({ kpis, startingEquity = 0 }: KpiRibbonProps) {
         footer={[
           {
             label: "Return on balance",
-            value: hasStartingBalance
+            value: hasCapitalBase
               ? formatSignedPercent(kpis.returnPct, 2)
               : "—",
-            tone: hasStartingBalance
+            tone: hasCapitalBase
               ? pnlUp
                 ? "profit"
                 : pnlDown

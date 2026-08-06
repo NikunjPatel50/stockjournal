@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { oauthUserNeedsEmailVerification } from "@/lib/auth-oauth";
 import {
+  AUTH_NEXT_COOKIE,
+  sanitizeAuthNextPath,
+} from "@/lib/auth-next";
+import {
   GOOGLE_OAUTH_HINT_COOKIE,
   GOOGLE_OAUTH_HINT_MAX_AGE,
 } from "@/lib/google-oauth-hint";
@@ -52,8 +56,15 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  const response = NextResponse.redirect(new URL("/dashboard", request.url));
+  const authNext = sanitizeAuthNextPath(
+    request.cookies.get(AUTH_NEXT_COOKIE)?.value
+  );
+
+  const response = NextResponse.redirect(
+    new URL(authNext ?? "/dashboard", request.url)
+  );
   applyCookiesTo(response);
+  response.cookies.delete(AUTH_NEXT_COOKIE);
 
   if (user.email) {
     response.cookies.set(GOOGLE_OAUTH_HINT_COOKIE, user.email, {
