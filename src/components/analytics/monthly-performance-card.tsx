@@ -34,7 +34,7 @@ import { useSettings } from "@/components/settings/settings-provider";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 const chartConfig = {
-  monthPnl: { label: "P&L", color: "#10b981" },
+  monthPnl: { label: "P&L", color: "#64748b" },
 } satisfies ChartConfig;
 
 const GRANULARITY_OPTIONS: { value: PerformanceGranularity; label: string }[] = [
@@ -267,8 +267,12 @@ export function MonthlyPerformanceCard({
             No closed trades in the selected year for this view.
           </div>
         ) : (
-        <ChartContainer config={chartConfig} className="h-[200px] w-full">
+        <ChartContainer
+          config={chartConfig}
+          className="h-[200px] w-full cursor-pointer [&_svg]:outline-none [&_svg_*]:outline-none"
+        >
           <BarChart
+            accessibilityLayer={false}
             data={periods}
             margin={{ left: 4, right: 4, top: 8, bottom: 0 }}
           >
@@ -283,14 +287,14 @@ export function MonthlyPerformanceCard({
             <YAxis
               tickLine={false}
               axisLine={false}
-              width={52}
+              width={76}
               tick={{ fontSize: 10 }}
               domain={domain}
-              tickFormatter={(v) => formatMoney(Number(v), false, currency)}
+              tickFormatter={(v) => formatMoney(Number(v), true, currency)}
             />
             <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="4 4" />
             <ChartTooltip
-              cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }}
+              cursor={false}
               content={
                 <PerformancePeriodTooltip currency={currency} />
               }
@@ -299,30 +303,21 @@ export function MonthlyPerformanceCard({
               dataKey="monthPnl"
               radius={[4, 4, 0, 0]}
               maxBarSize={maxBarSize}
-              cursor="pointer"
+              isAnimationActive={false}
+              stroke="none"
               onClick={(entry) => {
                 const row = entry?.payload as (typeof periods)[number] | undefined;
                 if (row?.monthKey) setSelectedPeriodKey(row.monthKey);
               }}
             >
-              {periods.map((p) => {
-                const isSelected = display?.monthKey === p.monthKey;
-                return (
+              {periods.map((p) => (
                   <Cell
                     key={p.monthKey}
                     fill={p.monthPnl >= 0 ? "#10b981" : "#f43f5e"}
-                    fillOpacity={isSelected ? 1 : 0.4}
-                    stroke={
-                      isSelected
-                        ? p.monthPnl >= 0
-                          ? "#059669"
-                          : "#e11d48"
-                        : "none"
-                    }
-                    strokeWidth={isSelected ? 2 : 0}
+                    stroke="none"
+                    strokeWidth={0}
                   />
-                );
-              })}
+              ))}
             </Bar>
           </BarChart>
         </ChartContainer>

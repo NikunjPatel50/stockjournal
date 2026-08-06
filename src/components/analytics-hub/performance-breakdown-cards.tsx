@@ -114,8 +114,97 @@ function renderPieShareLabel({
   );
 }
 
-const PIE_LEGEND_GRID =
-  "grid w-max min-w-full grid-cols-[0.5rem_auto_auto_auto_auto_auto] items-center gap-x-3 sm:gap-x-4";
+const pieLegendHeadClass =
+  "h-8 bg-muted/40 px-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground sm:px-3";
+const pieLegendHeadFirst = cn(pieLegendHeadClass, "pl-3 sm:pl-4");
+const pieLegendHeadNumeric = cn(pieLegendHeadClass, "text-right");
+const pieLegendHeadLast = cn(pieLegendHeadNumeric, "pr-3 sm:pr-4");
+const pieLegendCellClass = "px-2.5 py-2 text-[11px] sm:px-3 sm:text-xs";
+const pieLegendCellFirst = cn(pieLegendCellClass, "pl-3 sm:pl-4");
+const pieLegendCellNumeric = cn(
+  pieLegendCellClass,
+  "text-right whitespace-nowrap",
+  NUMERIC_CLASS
+);
+const pieLegendCellLast = cn(pieLegendCellClass, "pr-3 sm:pr-4");
+
+type BreakdownPieRow = {
+  name: string;
+  pnl: number;
+  trades: number;
+  winRate: number;
+  share: number;
+  fill: string;
+};
+
+function BreakdownPieLegendPanel({
+  rows,
+  currency,
+}: {
+  rows: BreakdownPieRow[];
+  currency: CurrencyCode;
+}) {
+  return (
+    <div className="min-w-0 w-full flex-1 overflow-hidden rounded-lg border-2 border-border/70 bg-muted/15">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-border/50 hover:bg-transparent">
+              <TableHead className={pieLegendHeadFirst}>Group</TableHead>
+              <TableHead className={pieLegendHeadNumeric}>Trades</TableHead>
+              <TableHead className={pieLegendHeadNumeric}>Win</TableHead>
+              <TableHead className={pieLegendHeadNumeric}>Net P&L</TableHead>
+              <TableHead className={pieLegendHeadLast}>Share</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.name} className="border-border/40">
+                <TableCell className={pieLegendCellFirst}>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: row.fill }}
+                      aria-hidden
+                    />
+                    <span className="whitespace-nowrap font-semibold text-foreground">
+                      {row.name}
+                    </span>
+                  </span>
+                </TableCell>
+                <TableCell
+                  className={cn(pieLegendCellNumeric, "text-muted-foreground")}
+                >
+                  {row.trades}
+                </TableCell>
+                <TableCell
+                  className={cn(pieLegendCellNumeric, "text-muted-foreground")}
+                >
+                  {formatPercent(row.winRate)}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    pieLegendCellNumeric,
+                    "font-semibold",
+                    row.pnl > 0 && "text-emerald-600 dark:text-emerald-400",
+                    row.pnl < 0 && "text-rose-600 dark:text-rose-400"
+                  )}
+                >
+                  {formatMoney(row.pnl, true, currency)}
+                </TableCell>
+                <TableCell className={cn(pieLegendCellLast, "text-right")}>
+                  <span className={cn("text-muted-foreground", NUMERIC_CLASS)}>
+                    {formatPercent(row.share)}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
 
 function BreakdownPnlPieChart({
   rows,
@@ -218,73 +307,7 @@ function BreakdownPnlPieChart({
         </ChartContainer>
       </div>
 
-      <ul className="flex min-w-0 w-full flex-1 flex-col justify-center overflow-x-auto rounded-lg border-2 border-border/70 bg-muted/15 px-2 py-1 sm:px-3">
-        <li
-          className={cn(
-            PIE_LEGEND_GRID,
-            "border-b border-border/40 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
-          )}
-        >
-          <span className="size-2 shrink-0" aria-hidden />
-          <span className="whitespace-nowrap">Group</span>
-          <span className="whitespace-nowrap text-right">Trades</span>
-          <span className="whitespace-nowrap text-right">Win</span>
-          <span className="whitespace-nowrap text-right">Net P&L</span>
-          <span className="whitespace-nowrap text-right">Share</span>
-        </li>
-        {chartData.map((row) => (
-          <li
-            key={row.name}
-            className={cn(
-              PIE_LEGEND_GRID,
-              "border-b border-border/40 py-2 text-[11px] last:border-b-0 sm:text-xs"
-            )}
-          >
-            <span
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: row.fill }}
-              aria-hidden
-            />
-            <span className="whitespace-nowrap font-semibold text-foreground">
-              {row.name}
-            </span>
-            <span
-              className={cn(
-                "whitespace-nowrap text-right text-muted-foreground",
-                NUMERIC_CLASS
-              )}
-            >
-              {row.trades}
-            </span>
-            <span
-              className={cn(
-                "whitespace-nowrap text-right text-muted-foreground",
-                NUMERIC_CLASS
-              )}
-            >
-              {formatPercent(row.winRate)}
-            </span>
-            <span
-              className={cn(
-                "whitespace-nowrap text-right font-semibold",
-                NUMERIC_CLASS,
-                row.pnl > 0 && "text-emerald-600 dark:text-emerald-400",
-                row.pnl < 0 && "text-rose-600 dark:text-rose-400"
-              )}
-            >
-              {formatMoney(row.pnl, true, currency)}
-            </span>
-            <span
-              className={cn(
-                "whitespace-nowrap text-right text-muted-foreground",
-                NUMERIC_CLASS
-              )}
-            >
-              {formatPercent(row.share)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <BreakdownPieLegendPanel rows={chartData} currency={currency} />
     </div>
   );
 }

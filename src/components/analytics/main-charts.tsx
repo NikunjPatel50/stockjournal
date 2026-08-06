@@ -47,7 +47,7 @@ import { cn } from "@/lib/utils";
 const CHART_BODY_CLASS = `aspect-auto ${dashboardChartBodyMinClass}`;
 
 const weeklyConfig = {
-  pnl: { label: "Weekly P&L", color: "#10b981" },
+  pnl: { label: "Weekly P&L", color: "#64748b" },
 } satisfies ChartConfig;
 
 /** Beyond this count, weekly bars scroll horizontally instead of squeezing */
@@ -70,6 +70,50 @@ function formatWeekTick(dateKey: string) {
 
 function formatWeekTooltipLabel(dateKey: string) {
   return `Week of ${format(parseISO(dateKey), "MMM d, yyyy")}`;
+}
+
+function WeeklyPnlTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<{ payload?: DailyPnlPoint; value?: number }>;
+}) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload;
+  if (!row) return null;
+  const pnl = Number(payload[0]?.value ?? row.pnl);
+  const pnlUp = pnl > 0;
+  const pnlDown = pnl < 0;
+
+  return (
+    <div className="z-50 min-w-[12.5rem] rounded-lg border border-border bg-popover px-3 py-2.5 text-xs shadow-md">
+      <p className="mb-2 font-semibold text-foreground">
+        {formatWeekTooltipLabel(row.date)}
+      </p>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">P&L</span>
+          <span
+            className={cn(
+              "font-medium tabular-nums",
+              pnlUp && "text-emerald-600 dark:text-emerald-400",
+              pnlDown && "text-rose-600 dark:text-rose-400",
+              !pnlUp && !pnlDown && "text-foreground"
+            )}
+          >
+            {formatMoney(pnl)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">Trades</span>
+          <span className="font-medium tabular-nums text-foreground">
+            {row.trades}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function WeeklyPnlChart({
@@ -108,14 +152,15 @@ function WeeklyPnlChart({
         <ChartContainer
           config={weeklyConfig}
           className={cn(
-            "aspect-auto h-full min-h-[9.5rem] w-full",
+            "aspect-auto h-full min-h-[9.5rem] w-full [&_svg]:outline-none [&_svg_*]:outline-none",
             needsScroll && "min-w-0"
           )}
           style={needsScroll ? { width: plotWidth, minWidth: "100%" } : undefined}
         >
           <BarChart
+            accessibilityLayer={false}
             data={data}
-            margin={{ left: 4, right: needsScroll ? 12 : 4, top: 4, bottom: 0 }}
+            margin={{ left: 4, right: needsScroll ? 12 : 4, top: 8, bottom: 0 }}
             barCategoryGap={needsScroll ? "20%" : "28%"}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -131,40 +176,27 @@ function WeeklyPnlChart({
             <YAxis
               tickLine={false}
               axisLine={false}
-              width={48}
+              width={76}
               tick={{ fontSize: 10 }}
               domain={domain}
               tickCount={5}
-              tickFormatter={(v) => formatMoney(Number(v), false)}
+              tickFormatter={(v) => formatMoney(Number(v), true)}
             />
             <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="4 4" />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(label) =>
-                    formatWeekTooltipLabel(String(label))
-                  }
-                  formatter={(value, _name, item) => {
-                    const payload = item?.payload as DailyPnlPoint | undefined;
-                    return (
-                      <div className="space-y-0.5">
-                        <div>P&L: {formatMoney(Number(value))}</div>
-                        <div>Trades: {payload?.trades ?? 0}</div>
-                      </div>
-                    );
-                  }}
-                />
-              }
-            />
+            <ChartTooltip cursor={false} content={<WeeklyPnlTooltip />} />
             <Bar
               dataKey="pnl"
-              radius={[3, 3, 0, 0]}
+              radius={[4, 4, 0, 0]}
               maxBarSize={needsScroll ? 32 : 48}
+              isAnimationActive={false}
+              stroke="none"
             >
               {data.map((entry) => (
                 <Cell
                   key={entry.date}
                   fill={entry.pnl >= 0 ? "#10b981" : "#f43f5e"}
+                  stroke="none"
+                  strokeWidth={0}
                 />
               ))}
             </Bar>
@@ -308,6 +340,7 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
                   />
                   <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="4 4" />
                   <ChartTooltip
+                    cursor={false}
                     content={
                       <ChartTooltipContent
                         formatter={(value) => (
@@ -360,6 +393,7 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
                     tickFormatter={(v) => formatMoney(Number(v), false)}
                   />
                   <ChartTooltip
+                    cursor={false}
                     content={
                       <ChartTooltipContent
                         formatter={(value, _name, item) => {

@@ -65,12 +65,33 @@ function ChartContainer({
         data-slot="chart"
         data-chart={chartId}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
+          "flex aspect-video justify-center text-xs [&_.recharts-bar-rectangle_path]:stroke-none [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:hidden [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:hidden [&_.recharts-rectangle_path]:stroke-none [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-none [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-none [&_.recharts-surface:focus]:outline-none [&_.recharts-surface:focus-visible]:outline-none",
           className
         )}
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+[data-chart=${chartId}] .recharts-tooltip-cursor,
+[data-chart=${chartId}] .recharts-tooltip-cursor path,
+[data-chart=${chartId}] .recharts-tooltip-cursor rect {
+  display: none !important;
+  opacity: 0 !important;
+  stroke: transparent !important;
+  fill: transparent !important;
+}
+[data-chart=${chartId}] .recharts-bar-rectangle path {
+  stroke: none !important;
+}
+[data-chart=${chartId}] .recharts-surface:focus,
+[data-chart=${chartId}] .recharts-surface:focus-visible {
+  outline: none !important;
+}
+`,
+          }}
+        />
         <RechartsPrimitive.ResponsiveContainer
           initialDimension={initialDimension}
         >

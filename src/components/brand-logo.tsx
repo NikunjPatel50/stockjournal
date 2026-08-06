@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -81,7 +83,6 @@ function LogoPicture({
   priority?: boolean;
   className?: string;
   imageClassName?: string;
-  /** Size from the `height` value instead of a height utility class. */
   fixedHeight?: boolean;
 }) {
   const asset = ASSETS[kind];
@@ -125,44 +126,51 @@ function ThemedLogo({
   imageClassName?: string;
   fixedHeight?: boolean;
 }) {
-  if (logoTheme !== "auto") {
+  const shared = {
+    kind,
+    height,
+    alt,
+    priority,
+    imageClassName,
+    fixedHeight,
+  };
+
+  if (logoTheme === "light") {
     return (
       <LogoPicture
-        kind={kind}
-        variant={logoTheme}
-        height={height}
-        alt={alt}
-        priority={priority}
+        {...shared}
+        variant="light"
         className={className}
-        imageClassName={imageClassName}
-        fixedHeight={fixedHeight}
+      />
+    );
+  }
+
+  if (logoTheme === "dark") {
+    return (
+      <LogoPicture
+        {...shared}
+        variant="dark"
+        className={className}
       />
     );
   }
 
   return (
-    <>
+    <span
+      className={cn("inline-flex shrink-0 items-center", className)}
+      style={fixedHeight ? { height } : undefined}
+    >
       <LogoPicture
-        kind={kind}
+        {...shared}
         variant="light"
-        height={height}
-        alt={alt}
-        priority={priority}
-        className={cn("dark:hidden", className)}
-        imageClassName={imageClassName}
-        fixedHeight={fixedHeight}
+        className="dark:hidden"
       />
       <LogoPicture
-        kind={kind}
+        {...shared}
         variant="dark"
-        height={height}
-        alt=""
-        priority={priority}
-        className={cn("hidden dark:block", className)}
-        imageClassName={imageClassName}
-        fixedHeight={fixedHeight}
+        className="hidden dark:block"
       />
-    </>
+    </span>
   );
 }
 
