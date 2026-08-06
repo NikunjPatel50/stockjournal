@@ -24,3 +24,8 @@ export function useIsMobile(): boolean {
 export function useIsCompactApp(): boolean {
   return useMediaQuery("(max-width: 1023px)");
 }
+
+/** Journal card layout until viewport fits sidebar + full table (72rem). */
+export function useIsJournalCompact(): boolean {
+  return useMediaQuery("(max-width: 1535px)");
+}

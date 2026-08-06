@@ -27,7 +27,8 @@ const CLIENT_FETCH_TIMEOUT_MS = 25_000;
 
 export function useEarningsDates(
   trades: JournalTrade[],
-  currency: CurrencyCode = DEFAULT_CURRENCY
+  currency: CurrencyCode = DEFAULT_CURRENCY,
+  enabled = true
 ) {
   const symbols = useMemo(
     () => uniqueEarningsRequests(trades, defaultListingMarketForCurrency(currency)),
@@ -115,16 +116,17 @@ export function useEarningsDates(
   }, [currency, symbols]);
 
   useEffect(() => {
+    if (!enabled) return;
     void fetchEarnings();
-  }, [fetchEarnings, symbolsKey]);
+  }, [enabled, fetchEarnings, symbolsKey]);
 
   useEffect(() => {
-    if (symbols.length === 0) return;
+    if (!enabled || symbols.length === 0) return;
     const id = window.setInterval(() => {
       if (document.visibilityState === "visible") void fetchEarnings();
     }, REFRESH_MS);
     return () => window.clearInterval(id);
-  }, [fetchEarnings, symbols.length, symbolsKey]);
+  }, [enabled, fetchEarnings, symbols.length, symbolsKey]);
 
   const getEarningsDate = useCallback(
     (trade: JournalTrade) => {

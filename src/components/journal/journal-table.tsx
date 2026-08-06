@@ -58,7 +58,7 @@ import { MarketSessionTimer } from "@/components/journal/market-session-timer";
 import { TargetStopProgressBar } from "@/components/journal/target-stop-progress-bar";
 import { useEarningsDates } from "@/hooks/use-earnings-dates";
 import { useMarketQuotes, type ClientMarketQuote } from "@/hooks/use-market-quotes";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useIsJournalCompact } from "@/hooks/use-media-query";
 import type { CurrencyCode } from "@/lib/settings";
 import { parseEarningsDisplayDate, type EarningsDateInfo } from "@/lib/yahoo-earnings";
 import {
@@ -852,6 +852,9 @@ interface JournalTableProps {
   showColumnsMenu?: boolean;
   /** Poll live quotes for active rows (default true). */
   enableLiveQuotes?: boolean;
+  /** Pre-fetched earnings lookup (avoids duplicate API calls when multiple tables mount). */
+  getEarningsDate?: (trade: JournalTrade) => EarningsDateInfo | null;
+  earningsLoading?: boolean;
 }
 
 export function JournalTable({
@@ -863,8 +866,10 @@ export function JournalTable({
   onDelete,
   showColumnsMenu = true,
   enableLiveQuotes = true,
+  getEarningsDate: getEarningsDateProp,
+  earningsLoading: earningsLoadingProp,
 }: JournalTableProps) {
-  const isCompact = useMediaQuery("(max-width: 1023px)");
+  const isCompact = useIsJournalCompact();
   const [sorting, setSorting] = useState<SortingState>([
     { id: "entryDate", desc: true },
   ]);
@@ -888,11 +893,15 @@ export function JournalTable({
   const quotesError = enableLiveQuotes ? sharedQuotes.error : null;
   const quotesDelayed = enableLiveQuotes ? sharedQuotes.delayed : true;
   const quotesSessionOpen = enableLiveQuotes ? sharedQuotes.sessionOpen : false;
+  const quoteRevision = enableLiveQuotes ? sharedQuotes.quoteRevision : 0;
 
   const {
-    getEarningsDate,
-    loading: earningsLoading,
-  } = useEarningsDates(trades, displayCurrency);
+    getEarningsDate: getEarningsDateFromHook,
+    loading: earningsLoadingFromHook,
+  } = useEarningsDates(trades, displayCurrency, getEarningsDateProp == null);
+
+  const getEarningsDate = getEarningsDateProp ?? getEarningsDateFromHook;
+  const earningsLoading = earningsLoadingProp ?? earningsLoadingFromHook;
 
   const holdNow = useHoldTimeClock(60_000);
 
@@ -1028,7 +1037,7 @@ export function JournalTable({
       },
       {
         id: "prices",
-        header: () => <StaticHeader label="Entry / exit" />,
+        header: () => <StaticHeader label="Entry / Exit" />,
         cell: ({ row }) => (
           <EntryExitValue
             entry={row.original.entryPrice}
@@ -1255,6 +1264,7 @@ export function JournalTable({
       onDelete,
       onDuplicate,
       onEdit,
+      quoteRevision,
       quotesLoading,
       portfolioWeights,
     ]
@@ -1528,8 +1538,11 @@ export function JournalTable({
                           ) : null}
                         </div>
                       </div>
+                    </button>
+                  </div>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-border/70 bg-muted/25 p-2.5 sm:grid-cols-3">
+                  <div className="space-y-3 px-4 pb-4 pl-14">
+                      <div className="grid grid-cols-2 gap-2 rounded-lg border border-border/70 bg-muted/25 p-2.5 sm:grid-cols-3">
                         <div className="col-span-2 sm:col-span-1">
                           <EntryExitValue
                             entry={trade.entryPrice}
@@ -1577,7 +1590,7 @@ export function JournalTable({
                         </div>
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-xs text-muted-foreground">
                           Hold {formatHoldTime(resolveTradeHoldHours(trade, holdNow))}
                           {(trade.status ?? "Closed") === "Active" ? " · live" : ""}
@@ -1590,7 +1603,6 @@ export function JournalTable({
                           compact
                         />
                       </div>
-                    </button>
                   </div>
 
                   <JournalRowAccordionPanel

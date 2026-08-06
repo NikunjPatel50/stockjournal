@@ -1,6 +1,16 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { Cell, Pie, PieChart } from "recharts";
+import { PieChart as PieChartIcon, Table2 } from "lucide-react";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -11,17 +21,73 @@ import {
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/analytics";
 import {
-  DEFAULT_OVERNIGHT_RISK_DANGER_PCT,
-  DEFAULT_OVERNIGHT_RISK_WARN_PCT,
-  overnightRiskTone,
   type OvernightExposureRow,
   type OvernightRiskSummary,
 } from "@/lib/overnight-risk";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
-import { cn, NUMERIC_CLASS, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
+import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
-type Tone = ReturnType<typeof overnightRiskTone>;
+const SLICE_COLORS = [
+  "#059669",
+  "#2563eb",
+  "#d97706",
+  "#dc2626",
+  "#7c3aed",
+  "#0891b2",
+  "#db2777",
+  "#4f46e5",
+  "#ea580c",
+  "#0d9488",
+];
+
+type PieShareLabelProps = {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  payload?: { share?: number };
+  percent?: number;
+};
+
+function renderPieShareLabel({
+  cx = 0,
+  cy = 0,
+  midAngle = 0,
+  innerRadius = 0,
+  outerRadius = 0,
+  payload,
+  percent = 0,
+}: PieShareLabelProps) {
+  const share = payload?.share ?? percent * 100;
+  if (share < 3) return null;
+
+  const radians = (Math.PI / 180) * -midAngle;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+  const x = cx + radius * Math.cos(radians);
+  const y = cy + radius * Math.sin(radians);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#ffffff"
+      textAnchor="middle"
+      dominantBaseline="central"
+      className="pointer-events-none text-[11px] font-semibold"
+      stroke="rgba(15,23,42,0.45)"
+      strokeWidth={2.5}
+      paintOrder="stroke"
+    >
+      {`${Math.round(share)}%`}
+    </text>
+  );
+}
+
+type ExposureView = "table" | "chart";
+
+type RowWithShare = OvernightExposureRow & { share: number };
 
 const headClass =
   "h-9 bg-muted/30 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
@@ -33,77 +99,6 @@ function gapLabel(kind: OvernightRiskSummary["marketGapKind"]) {
   if (kind === "weekend") return "weekend";
   if (kind === "holiday") return "holiday";
   return "overnight";
-}
-
-/** Exposure stays neutral until it crosses a threshold worth acting on. */
-function toneText(tone: Tone) {
-  if (tone === "danger") return "text-rose-600 dark:text-rose-400";
-  if (tone === "warn") return "text-amber-600 dark:text-amber-400";
-  return "text-foreground";
-}
-
-function toneFill(tone: Tone) {
-  if (tone === "danger") return "bg-rose-500";
-  if (tone === "warn") return "bg-amber-500";
-  return "bg-foreground/45";
-}
-
-function toneSummary(tone: Tone) {
-  if (tone === "danger") {
-    return `Above the ${DEFAULT_OVERNIGHT_RISK_DANGER_PCT}% high-exposure threshold.`;
-  }
-  if (tone === "warn") {
-    return `Past the ${DEFAULT_OVERNIGHT_RISK_WARN_PCT}% caution threshold.`;
-  }
-  return `Below the ${DEFAULT_OVERNIGHT_RISK_WARN_PCT}% caution threshold.`;
-}
-
-function ExposureBar({ pct, tone }: { pct: number; tone: Tone }) {
-  const width = Math.min(100, Math.max(0, pct));
-
-  return (
-    <div>
-      <div
-        className="relative h-2 overflow-hidden rounded-full bg-muted"
-        role="meter"
-        aria-valuenow={Math.round(pct)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Share of account equity exposed overnight"
-      >
-        <div
-          className={cn("h-full rounded-full transition-all", toneFill(tone))}
-          style={{ width: `${width}%` }}
-        />
-        {[DEFAULT_OVERNIGHT_RISK_WARN_PCT, DEFAULT_OVERNIGHT_RISK_DANGER_PCT].map(
-          (threshold) => (
-            <span
-              key={threshold}
-              className="absolute inset-y-0 w-px bg-background/90"
-              style={{ left: `${threshold}%` }}
-              aria-hidden
-            />
-          )
-        )}
-      </div>
-      <div className="relative mt-1 h-3 text-[10px] text-muted-foreground">
-        <span className="absolute left-0">0%</span>
-        <span
-          className="absolute -translate-x-1/2"
-          style={{ left: `${DEFAULT_OVERNIGHT_RISK_WARN_PCT}%` }}
-        >
-          {DEFAULT_OVERNIGHT_RISK_WARN_PCT}%
-        </span>
-        <span
-          className="absolute -translate-x-1/2"
-          style={{ left: `${DEFAULT_OVERNIGHT_RISK_DANGER_PCT}%` }}
-        >
-          {DEFAULT_OVERNIGHT_RISK_DANGER_PCT}%
-        </span>
-        <span className="absolute right-0">100%</span>
-      </div>
-    </div>
-  );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -138,6 +133,243 @@ function GapChip({ kind }: { kind: OvernightExposureRow["gapRisk"] }) {
   );
 }
 
+function ExposureViewToggle({
+  value,
+  onChange,
+}: {
+  value: ExposureView;
+  onChange: (value: ExposureView) => void;
+}) {
+  return (
+    <Tabs
+      value={value}
+      onValueChange={(next) => {
+        if (next === "table" || next === "chart") onChange(next);
+      }}
+      className="w-auto"
+    >
+      <TabsList className="inline-flex h-8 rounded-lg border border-border bg-muted/60 p-0.5 shadow-none">
+        <TabsTrigger
+          value="table"
+          className="h-7 gap-1 rounded-md px-2 text-[11px] font-medium data-active:bg-background data-active:shadow-sm"
+        >
+          <Table2 className="size-3.5" />
+          Table
+        </TabsTrigger>
+        <TabsTrigger
+          value="chart"
+          className="h-7 gap-1 rounded-md px-2 text-[11px] font-medium data-active:bg-background data-active:shadow-sm"
+        >
+          <PieChartIcon className="size-3.5" />
+          Chart
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+}
+
+function ExposureTable({
+  rows,
+  currency,
+}: {
+  rows: RowWithShare[];
+  currency: CurrencyCode;
+}) {
+  return (
+    <div className="-mx-4 overflow-x-auto border-t border-border/60 sm:-mx-5">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-border/60 hover:bg-transparent">
+            <TableHead className={headClass}>Symbol</TableHead>
+            <TableHead className={numericHeadClass}>Position</TableHead>
+            <TableHead className={numericHeadClass}>Notional</TableHead>
+            <TableHead className={cn(numericHeadClass, "w-[7rem]")}>
+              Share
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.tradeId} className="border-border/60">
+              <TableCell className={cellClass}>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-semibold text-foreground">
+                    {row.ticker}
+                  </span>
+                  <GapChip kind={row.gapRisk} />
+                </span>
+              </TableCell>
+              <TableCell
+                className={cn(numericCellClass, "text-muted-foreground")}
+              >
+                {row.quantity} × {row.priceUsed.toFixed(2)}
+              </TableCell>
+              <TableCell className={cn(numericCellClass, "font-semibold")}>
+                {formatMoney(row.notionalAtRisk, false, currency)}
+              </TableCell>
+              <TableCell className={cn(cellClass, "align-middle")}>
+                <div className="flex items-center justify-end gap-2">
+                  <span
+                    className="hidden h-1 w-12 overflow-hidden rounded-full bg-muted sm:block"
+                    aria-hidden
+                  >
+                    <span
+                      className="block h-full rounded-full bg-foreground/40"
+                      style={{ width: `${row.share}%` }}
+                    />
+                  </span>
+                  <span
+                    className={cn("text-muted-foreground", NUMERIC_CLASS)}
+                  >
+                    {row.share.toFixed(0)}%
+                  </span>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function ExposurePieChart({
+  rows,
+  currency,
+}: {
+  rows: RowWithShare[];
+  currency: CurrencyCode;
+}) {
+  const chartData = useMemo(
+    () =>
+      rows.map((row, index) => ({
+        name: row.ticker,
+        value: row.notionalAtRisk,
+        share: row.share,
+        quantity: row.quantity,
+        priceUsed: row.priceUsed,
+        gapRisk: row.gapRisk,
+        fill: SLICE_COLORS[index % SLICE_COLORS.length],
+      })),
+    [rows]
+  );
+
+  const chartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    for (const row of chartData) {
+      config[row.name] = { label: row.name, color: row.fill };
+    }
+    return config;
+  }, [chartData]);
+
+  return (
+    <div className="flex min-h-[240px] flex-1 flex-col border-t border-border/60 pt-3 sm:flex-row sm:items-stretch sm:gap-4">
+      <div className="flex min-h-[200px] flex-1 items-center justify-center sm:max-w-[46%]">
+        <ChartContainer
+          config={chartConfig}
+          initialDimension={{ width: 280, height: 280 }}
+          className="aspect-square h-full w-full min-h-[200px] max-h-[min(100%,280px)] max-w-[280px]"
+        >
+          <PieChart>
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  hideLabel
+                  formatter={(_value, _name, item) => {
+                    const row = item?.payload as
+                      | {
+                          name?: string;
+                          value?: number;
+                          share?: number;
+                          quantity?: number;
+                          priceUsed?: number;
+                          gapRisk?: OvernightExposureRow["gapRisk"];
+                        }
+                      | undefined;
+                    if (!row) return null;
+                    return (
+                      <div className="space-y-1 text-xs">
+                        <div className="font-semibold">{row.name}</div>
+                        <div>
+                          Position: {row.quantity} × {row.priceUsed?.toFixed(2)}
+                        </div>
+                        <div>
+                          Notional:{" "}
+                          {formatMoney(row.value ?? 0, false, currency)}
+                        </div>
+                        <div>Share: {row.share?.toFixed(0)}%</div>
+                        {row.gapRisk && row.gapRisk !== "overnight" ? (
+                          <div className="capitalize">{row.gapRisk} gap</div>
+                        ) : null}
+                      </div>
+                    );
+                  }}
+                />
+              }
+            />
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              innerRadius="52%"
+              outerRadius="86%"
+              strokeWidth={2}
+              paddingAngle={chartData.length > 1 ? 2 : 0}
+              isAnimationActive={false}
+              label={renderPieShareLabel}
+              labelLine={false}
+            >
+              {chartData.map((entry) => (
+                <Cell key={entry.name} fill={entry.fill} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ChartContainer>
+      </div>
+
+      <ul className="flex min-h-[200px] flex-1 flex-col justify-between rounded-lg border border-border/50 bg-muted/15 px-2 py-1 sm:px-3">
+        {rows.map((row, index) => (
+          <li
+            key={row.tradeId}
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/40 py-2 text-[11px] last:border-b-0 sm:flex-nowrap sm:gap-2 sm:text-xs"
+          >
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{
+                backgroundColor: SLICE_COLORS[index % SLICE_COLORS.length],
+              }}
+              aria-hidden
+            />
+            <span className="flex w-[4.25rem] shrink-0 items-center gap-1 truncate font-semibold text-foreground">
+              {row.ticker}
+              <GapChip kind={row.gapRisk} />
+            </span>
+            <span
+              className={cn(
+                "min-w-0 flex-1 truncate text-muted-foreground",
+                NUMERIC_CLASS
+              )}
+            >
+              {row.quantity} × {row.priceUsed.toFixed(2)}
+            </span>
+            <span className={cn("shrink-0 font-semibold", NUMERIC_CLASS)}>
+              {formatMoney(row.notionalAtRisk, false, currency)}
+            </span>
+            <span
+              className={cn(
+                "w-8 shrink-0 text-right text-muted-foreground",
+                NUMERIC_CLASS
+              )}
+            >
+              {row.share.toFixed(0)}%
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function OvernightRiskCard({
   summary,
   currency = DEFAULT_CURRENCY,
@@ -147,12 +379,21 @@ export function OvernightRiskCard({
   currency?: CurrencyCode;
   className?: string;
 }) {
+  const [view, setView] = useState<ExposureView>("chart");
   const hasEquity = summary.accountEquity > 0;
-  const tone = hasEquity
-    ? overnightRiskTone(summary.exposedPct)
-    : ("neutral" as Tone);
   const gap = gapLabel(summary.marketGapKind);
   const largest = summary.rows[0] ?? null;
+
+  const rowsWithShare = useMemo(
+    () =>
+      summary.rows.map((row) => ({
+        ...row,
+        share: summary.totalExposed
+          ? (row.notionalAtRisk / summary.totalExposed) * 100
+          : 0,
+      })),
+    [summary.rows, summary.totalExposed]
+  );
 
   if (summary.rows.length === 0) {
     return (
@@ -173,51 +414,14 @@ export function OvernightRiskCard({
     <DataPanel
       title="Overnight exposure"
       subtitle={`Open positions carried through the next ${gap} gap`}
-      meta={`${summary.rows.length} open`}
+      action={<ExposureViewToggle value={view} onChange={setView} />}
       className={className}
-      footer={
-        hasEquity
-          ? `Notional uses entry price. Caution above ${DEFAULT_OVERNIGHT_RISK_WARN_PCT}% of equity, high above ${DEFAULT_OVERNIGHT_RISK_DANGER_PCT}%.`
-          : "Add trades to calculate exposure as a % of account equity."
-      }
-      bodyClassName="flex flex-col gap-4 p-4 sm:p-5"
+      bodyClassName={cn(
+        "flex flex-col gap-4 p-4 sm:p-5",
+        view === "chart" && "sm:min-h-[360px]"
+      )}
     >
-      <div>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p
-            className={cn(
-              "text-2xl font-semibold",
-              NUMERIC_DISPLAY_CLASS,
-              hasEquity ? toneText(tone) : "text-muted-foreground"
-            )}
-          >
-            {hasEquity ? (
-              <>
-                {summary.exposedPct.toFixed(1)}%
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  of equity
-                </span>
-              </>
-            ) : (
-              "—"
-            )}
-          </p>
-          <p className={cn("text-sm font-semibold", NUMERIC_CLASS)}>
-            {formatMoney(summary.totalExposed, false, currency)}
-          </p>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {hasEquity
-            ? toneSummary(tone)
-            : "Entry notional at risk until total money invested is configured."}
-        </p>
-      </div>
-
-      {hasEquity ? (
-        <ExposureBar pct={summary.exposedPct} tone={tone} />
-      ) : null}
-
-      <div className="grid grid-cols-3 gap-3 border-t border-border/60 pt-3">
+      <div className="grid grid-cols-3 gap-3">
         <Stat
           label="Account equity"
           value={
@@ -237,69 +441,13 @@ export function OvernightRiskCard({
         />
       </div>
 
-      <div className="-mx-4 overflow-hidden border-t border-border/60 sm:-mx-5">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border/60 hover:bg-transparent">
-              <TableHead className={headClass}>Symbol</TableHead>
-              <TableHead className={numericHeadClass}>Position</TableHead>
-              <TableHead className={numericHeadClass}>Notional</TableHead>
-              <TableHead className={cn(numericHeadClass, "w-[7rem]")}>
-                Share
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {summary.rows.map((row) => {
-              const share = summary.totalExposed
-                ? (row.notionalAtRisk / summary.totalExposed) * 100
-                : 0;
-
-              return (
-                <TableRow key={row.tradeId} className="border-border/60">
-                  <TableCell className={cellClass}>
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-semibold text-foreground">
-                        {row.ticker}
-                      </span>
-                      <GapChip kind={row.gapRisk} />
-                    </span>
-                  </TableCell>
-                  <TableCell
-                    className={cn(numericCellClass, "text-muted-foreground")}
-                  >
-                    {row.quantity} × {row.priceUsed.toFixed(2)}
-                  </TableCell>
-                  <TableCell className={cn(numericCellClass, "font-semibold")}>
-                    {formatMoney(row.notionalAtRisk, false, currency)}
-                  </TableCell>
-                  <TableCell className={cn(cellClass, "align-middle")}>
-                    <div className="flex items-center justify-end gap-2">
-                      <span
-                        className="hidden h-1 w-12 overflow-hidden rounded-full bg-muted sm:block"
-                        aria-hidden
-                      >
-                        <span
-                          className="block h-full rounded-full bg-foreground/40"
-                          style={{ width: `${share}%` }}
-                        />
-                      </span>
-                      <span
-                        className={cn(
-                          "text-muted-foreground",
-                          NUMERIC_CLASS
-                        )}
-                      >
-                        {share.toFixed(0)}%
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      {view === "table" ? (
+        <ExposureTable rows={rowsWithShare} currency={currency} />
+      ) : (
+        <div className="flex flex-1 flex-col">
+          <ExposurePieChart rows={rowsWithShare} currency={currency} />
+        </div>
+      )}
     </DataPanel>
   );
 }

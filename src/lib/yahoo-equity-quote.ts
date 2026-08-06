@@ -38,15 +38,99 @@ type YahooChartMeta = {
   currency?: string;
   symbol?: string;
   regularMarketPrice?: number;
+  regularMarketOpen?: number;
+  regularMarketDayHigh?: number;
+  regularMarketDayLow?: number;
   chartPreviousClose?: number;
   previousClose?: number;
   regularMarketTime?: number;
 };
 
+type YahooChartQuote = {
+  open?: Array<number | null>;
+  high?: Array<number | null>;
+  low?: Array<number | null>;
+  close?: Array<number | null>;
+};
+
+function firstValidValue(values?: Array<number | null>): number | null {
+  if (!values) return null;
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function extremaFromSeries(
+  mode: "max" | "min",
+  values?: Array<number | null>
+): number | null {
+  if (!values) return null;
+  let result: number | null = null;
+  for (const value of values) {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      continue;
+    }
+    if (result == null) {
+      result = value;
+      continue;
+    }
+    result = mode === "max" ? Math.max(result, value) : Math.min(result, value);
+  }
+  return result;
+}
+
+function validMetaPrice(value?: number | null): number | null {
+  if (value == null || !Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+function parseOhlc(
+  meta: YahooChartMeta,
+  quote?: YahooChartQuote
+): YahooQuoteWithOhlc["ohlc"] {
+  const close = validMetaPrice(meta.regularMarketPrice);
+  if (close == null) return null;
+
+  const open =
+    validMetaPrice(meta.regularMarketOpen) ??
+    firstValidValue(quote?.open) ??
+    validMetaPrice(meta.chartPreviousClose) ??
+    validMetaPrice(meta.previousClose) ??
+    null;
+
+  const high =
+    validMetaPrice(meta.regularMarketDayHigh) ??
+    extremaFromSeries("max", quote?.high) ??
+    close;
+
+  const low =
+    validMetaPrice(meta.regularMarketDayLow) ??
+    extremaFromSeries("min", quote?.low) ??
+    close;
+
+  if (open == null || !Number.isFinite(open) || open <= 0) {
+    return null;
+  }
+
+  return { open, high, low, close };
+}
+
+export type YahooQuoteWithOhlc = MarketQuote & {
+  ohlc: {
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+  } | null;
+};
+
 async function fetchYahooChartSymbol(
   symbol: string,
   fallbackCurrency?: CurrencyCode
-): Promise<MarketQuote | null> {
+): Promise<YahooQuoteWithOhlc | null> {
   if (!symbol) return null;
 
   const url = new URL(`${YAHOO_CHART}/${encodeURIComponent(symbol)}`);
@@ -64,9 +148,15 @@ async function fetchYahooChartSymbol(
     if (!res.ok) return null;
 
     const payload = (await res.json()) as {
-      chart?: { result?: Array<{ meta?: YahooChartMeta }> };
+      chart?: {
+        result?: Array<{
+          meta?: YahooChartMeta;
+          indicators?: { quote?: YahooChartQuote[] };
+        }>;
+      };
     };
-    const meta = payload.chart?.result?.[0]?.meta;
+    const result = payload.chart?.result?.[0];
+    const meta = result?.meta;
     if (!meta) return null;
 
     const price = meta.regularMarketPrice;
@@ -95,10 +185,30 @@ async function fetchYahooChartSymbol(
       changePercent,
       timestamp: ts,
       currency: mapYahooCurrency(meta.currency) ?? fallbackCurrency,
+      ohlc: parseOhlc(meta, result?.indicators?.quote?.[0]),
     };
   } catch {
     return null;
   }
+}
+
+/** Near–real-time quote for any Yahoo symbol (indices, ETFs, equities). */
+export async function fetchYahooQuoteBySymbol(
+  symbol: string,
+  fallbackCurrency?: CurrencyCode
+): Promise<MarketQuote | null> {
+  const quote = await fetchYahooChartSymbol(symbol, fallbackCurrency);
+  if (!quote) return null;
+  const { ohlc: _ohlc, ...marketQuote } = quote;
+  return marketQuote;
+}
+
+/** Quote with same-day OHLC from Yahoo chart meta. */
+export async function fetchYahooQuoteWithOhlc(
+  symbol: string,
+  fallbackCurrency?: CurrencyCode
+): Promise<YahooQuoteWithOhlc | null> {
+  return fetchYahooChartSymbol(symbol, fallbackCurrency);
 }
 
 /** Near–real-time equity quote via Yahoo chart API (server-side only). */

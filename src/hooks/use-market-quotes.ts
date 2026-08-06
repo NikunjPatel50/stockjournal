@@ -53,6 +53,8 @@ export type MarketQuotesValue = {
   loading: boolean;
   error: string | null;
   fetchedAt: number | null;
+  /** Bumps when any watched quote price or change % updates. */
+  quoteRevision: number;
   delayed: boolean;
   sessionOpen: boolean;
   refresh: () => Promise<void>;
@@ -92,13 +94,48 @@ function anySymbolSessionOpen(symbols: SymbolRequest[], now = new Date()) {
   );
 }
 
+function quotesPayloadChanged(
+  prev: Record<string, ClientMarketQuote | null>,
+  incoming: Record<string, ClientMarketQuote | null>
+): boolean {
+  const keys = new Set([...Object.keys(prev), ...Object.keys(incoming)]);
+  for (const key of keys) {
+    const a = prev[key];
+    const b = incoming[key];
+    if (
+      a?.price !== b?.price ||
+      a?.changePercent !== b?.changePercent ||
+      a?.isLive !== b?.isLive ||
+      a?.timestamp !== b?.timestamp
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function clearPollTimers(
+  pollTimerRef: { current: number | null },
+  boundaryTimerRef: { current: number | null }
+) {
+  if (pollTimerRef.current != null) {
+    window.clearTimeout(pollTimerRef.current);
+    pollTimerRef.current = null;
+  }
+  if (boundaryTimerRef.current != null) {
+    window.clearTimeout(boundaryTimerRef.current);
+    boundaryTimerRef.current = null;
+  }
+}
+
 export const MarketQuotesContext = createContext<MarketQuotesValue | null>(
   null
 );
 
 export function useMarketQuotesPoller(
   trades: JournalTrade[],
-  currency: CurrencyCode = DEFAULT_CURRENCY
+  currency: CurrencyCode = DEFAULT_CURRENCY,
+  enabled = true
 ): MarketQuotesValue {
   const symbols = useMemo(
     () => uniqueSymbolRequests(trades, currency),
@@ -127,6 +164,8 @@ export function useMarketQuotesPoller(
   const boundaryTimerRef = useRef<number | null>(null);
   const sessionOpenRef = useRef(false);
   const schedulePollRef = useRef<(() => void) | null>(null);
+  const quoteRevisionRef = useRef(0);
+  const [quoteRevision, setQuoteRevision] = useState(0);
 
   useLayoutEffect(() => {
     if (symbols.length === 0) return;
@@ -205,14 +244,33 @@ export function useMarketQuotesPoller(
 
       writeQuotesCache(data.quotes ?? {});
 
-      setState((prev) => ({
-        quotes: { ...prev.quotes, ...(data.quotes ?? {}) },
-        loading: false,
-        error: null,
-        fetchedAt,
-        delayed: data.delayed !== false,
-        sessionOpen: anySymbolSessionOpen(symbols, new Date(fetchedAt)),
-      }));
+      let quotesChanged = false;
+      setState((prev) => {
+        const incoming = data.quotes ?? {};
+        quotesChanged = quotesPayloadChanged(prev.quotes, incoming);
+        if (!quotesChanged) {
+          return {
+            ...prev,
+            loading: false,
+            error: null,
+            delayed: data.delayed !== false,
+            sessionOpen: anySymbolSessionOpen(symbols, new Date(fetchedAt)),
+          };
+        }
+        return {
+          quotes: { ...prev.quotes, ...incoming },
+          loading: false,
+          error: null,
+          fetchedAt,
+          delayed: data.delayed !== false,
+          sessionOpen: anySymbolSessionOpen(symbols, new Date(fetchedAt)),
+        };
+      });
+
+      if (quotesChanged) {
+        quoteRevisionRef.current += 1;
+        setQuoteRevision(quoteRevisionRef.current);
+      }
 
       const nowOpen = anySymbolSessionOpen(symbols, new Date(fetchedAt));
       if (nowOpen !== sessionOpenRef.current) {
@@ -231,13 +289,10 @@ export function useMarketQuotesPoller(
   }, [currency, symbols]);
 
   const schedulePoll = useCallback(() => {
-    if (pollTimerRef.current != null) {
-      window.clearTimeout(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    if (boundaryTimerRef.current != null) {
-      window.clearTimeout(boundaryTimerRef.current);
-      boundaryTimerRef.current = null;
+    clearPollTimers(pollTimerRef, boundaryTimerRef);
+
+    if (!enabled || document.visibilityState === "hidden") {
+      return;
     }
 
     const now = new Date();
@@ -245,8 +300,8 @@ export function useMarketQuotesPoller(
     pollTimerRef.current = window.setTimeout(() => {
       if (document.visibilityState === "visible") {
         void fetchQuotes();
+        schedulePollRef.current?.();
       }
-      schedulePollRef.current?.();
     }, delay);
 
     const boundaryMs = msUntilNextSessionBoundaryForSymbols(symbols, now);
@@ -255,15 +310,21 @@ export function useMarketQuotesPoller(
         if (document.visibilityState === "visible") {
           setState((prev) => ({ ...prev, loading: true }));
           void fetchQuotes();
+          schedulePollRef.current?.();
         }
-        schedulePollRef.current?.();
       }, boundaryMs + 100);
     }
-  }, [fetchQuotes, symbols]);
+  }, [enabled, fetchQuotes, symbols]);
 
   schedulePollRef.current = schedulePoll;
 
   useEffect(() => {
+    if (!enabled) {
+      pollGenerationRef.current += 1;
+      clearPollTimers(pollTimerRef, boundaryTimerRef);
+      return;
+    }
+
     pollGenerationRef.current += 1;
     void fetchQuotes();
     schedulePoll();
@@ -271,28 +332,27 @@ export function useMarketQuotesPoller(
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
         void fetchQuotes();
+        schedulePollRef.current?.();
+      } else {
+        clearPollTimers(pollTimerRef, boundaryTimerRef);
       }
     };
 
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
-      if (pollTimerRef.current != null) {
-        window.clearTimeout(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-      if (boundaryTimerRef.current != null) {
-        window.clearTimeout(boundaryTimerRef.current);
-        boundaryTimerRef.current = null;
-      }
+      clearPollTimers(pollTimerRef, boundaryTimerRef);
     };
-  }, [fetchQuotes, schedulePoll, symbolsKey]);
+  }, [enabled, fetchQuotes, schedulePoll, symbolsKey]);
+
+  const quotesRef = useRef(state.quotes);
+  quotesRef.current = state.quotes;
 
   const getQuote = useCallback(
     (trade: JournalTrade) => {
       const assetClass = normalizeQuoteAssetClass(trade.assetClass);
       const key = quoteLookupKey(trade.ticker, assetClass);
-      const quote = state.quotes[key] ?? null;
+      const quote = quotesRef.current[key] ?? null;
       if (!quote) return null;
 
       const listingMarket =
@@ -311,18 +371,32 @@ export function useMarketQuotesPoller(
         isLive: false,
       };
     },
-    [currency, state.quotes]
+    [currency]
   );
 
-  return {
-    getQuote,
-    loading: state.loading,
-    error: state.error,
-    fetchedAt: state.fetchedAt,
-    delayed: state.delayed,
-    sessionOpen: state.sessionOpen,
-    refresh: fetchQuotes,
-  };
+  return useMemo(
+    () => ({
+      getQuote,
+      loading: enabled ? state.loading : false,
+      error: enabled ? state.error : null,
+      fetchedAt: state.fetchedAt,
+      quoteRevision,
+      delayed: state.delayed,
+      sessionOpen: enabled ? state.sessionOpen : false,
+      refresh: fetchQuotes,
+    }),
+    [
+      enabled,
+      fetchQuotes,
+      getQuote,
+      quoteRevision,
+      state.delayed,
+      state.error,
+      state.fetchedAt,
+      state.loading,
+      state.sessionOpen,
+    ]
+  );
 }
 
 /** Read shared quotes from the app-wide MarketQuotesProvider. */

@@ -16,7 +16,7 @@ import {
   filterAnalyticsTrades,
   type AnalyticsFilters,
 } from "@/lib/analytics";
-import { useJournalTrades } from "@/lib/trades-storage";
+import { useJournalTrades } from "@/components/journal-trades-provider";
 import { computeCapitalBase } from "@/lib/overnight-risk";
 
 const GRID_CLASS = "grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch";
@@ -113,7 +113,7 @@ export default function AnalyticsPage() {
         subtitle="Deep-dive into edge, timing, risk, and strategy performance"
       />
 
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+      <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
         <span>
           Period{" "}
           <span className="font-medium text-foreground">{period}</span>
@@ -128,8 +128,10 @@ export default function AnalyticsPage() {
           Open positions{" "}
           <span className="font-medium text-foreground">{activeCount}</span>
         </span>
-        <span aria-hidden>·</span>
-        <span>Realized results only — open positions are excluded</span>
+        <span className="hidden sm:inline" aria-hidden>
+          ·
+        </span>
+        <span className="sm:inline">Realized results only — open positions are excluded</span>
       </div>
 
       <MetricStrip

@@ -6,8 +6,14 @@ const nextConfig: NextConfig = {
       "lucide-react",
       "recharts",
       "date-fns",
+      "framer-motion",
       "@radix-ui/react-icons",
+      "@tanstack/react-table",
+      "react-day-picker",
     ],
+  },
+  images: {
+    formats: ["image/avif", "image/webp"],
   },
 };
 

@@ -48,6 +48,10 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --animate-markets-dialog-dock-in: markets-dialog-dock-in 520ms cubic-bezier(0.22, 1, 0.28, 1) both;
+  --animate-markets-dialog-dock-out: markets-dialog-dock-out 380ms cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+  --animate-markets-dialog-backdrop-in: markets-dialog-backdrop-in 380ms ease-out both;
+  --animate-markets-dialog-backdrop-out: markets-dialog-backdrop-out 320ms ease-in both;
 }
 
 :root {
@@ -180,4 +184,77 @@ input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+@keyframes markets-dialog-dock-in {
+  0% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--dock-offset-x, -38vw)),
+        calc(-50% + var(--dock-offset-y, 40vh))
+      )
+      scale(0.04);
+    border-radius: 1.25rem;
+    box-shadow: 0 0 0 rgb(0 0 0 / 0%);
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 24px 64px -20px rgb(0 0 0 / 28%);
+  }
+}
+
+@keyframes markets-dialog-dock-out {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 24px 64px -20px rgb(0 0 0 / 28%);
+  }
+  35% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--dock-offset-x, -38vw)),
+        calc(-50% + var(--dock-offset-y, 40vh))
+      )
+      scale(0.04);
+    border-radius: 1.25rem;
+    box-shadow: 0 0 0 rgb(0 0 0 / 0%);
+  }
+}
+
+@keyframes markets-dialog-backdrop-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(6px);
+  }
+}
+
+@keyframes markets-dialog-backdrop-out {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(6px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markets-dialog-dock-motion,
+  .markets-dialog-dock-backdrop {
+    animation-duration: 1ms !important;
+  }
 }

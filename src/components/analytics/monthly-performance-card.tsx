@@ -213,12 +213,12 @@ export function MonthlyPerformanceCard({
 
   return (
     <Card className="h-full border-border bg-card shadow-none">
-      <CardHeader className="border-b border-border py-3 pb-3">
+      <CardHeader className="border-b border-border py-3 pb-3 @max-[520px]/card-header:grid-cols-1 @max-[520px]/card-header:gap-3">
         <CardTitle className="text-base font-semibold">
           {GRANULARITY_TITLE[granularity]}
         </CardTitle>
-        <CardAction>
-          <div className="flex items-center gap-2">
+        <CardAction className="@max-[520px]/card-header:col-start-1 @max-[520px]/card-header:row-start-2 @max-[520px]/card-header:justify-self-start">
+          <div className="flex flex-wrap items-center gap-2">
             <Select
               value={granularity}
               onValueChange={(v) =>

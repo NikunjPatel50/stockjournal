@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useMarketQuotes } from "@/hooks/use-market-quotes";
+import { useEarningsDates } from "@/hooks/use-earnings-dates";
 import {
   computeJournalSummary,
   emptyFilters,
@@ -32,7 +33,7 @@ import {
   toActivePositionPnlInput,
 } from "@/lib/active-position-daily-pnl";
 import { computeFilteredPnl } from "@/lib/trade-pnl";
-import { useJournalTrades } from "@/lib/trades-storage";
+import { useJournalTrades } from "@/components/journal-trades-provider";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 
 const AddTradeModal = dynamic(
@@ -122,7 +123,12 @@ export default function JournalPage() {
   );
   const summary = useMemo(() => computeJournalSummary(filtered), [filtered]);
 
-  const { getQuote, loading: quotesLoading, fetchedAt } = useMarketQuotes();
+  const { getEarningsDate, loading: earningsLoading } = useEarningsDates(
+    trades,
+    settings.profile.currency
+  );
+
+  const { getQuote, loading: quotesLoading, quoteRevision } = useMarketQuotes();
   const livePnl = useMemo(() => {
     const inputs = activeTrades
       .map(toActivePositionPnlInput)
@@ -147,11 +153,11 @@ export default function JournalPage() {
       quotesByTradeId,
       settings.profile.currency
     );
-  }, [activeTrades, fetchedAt, getQuote, quotesLoading, settings.profile.currency]);
+  }, [activeTrades, getQuote, quoteRevision, quotesLoading, settings.profile.currency]);
   const filteredPnl = useMemo(
     () =>
       computeFilteredPnl(filtered, getQuote, settings.profile.currency),
-    [filtered, getQuote, settings.profile.currency]
+    [filtered, getQuote, quoteRevision, settings.profile.currency]
   );
 
   function handleSave(trade: JournalTrade) {
@@ -328,6 +334,8 @@ export default function JournalPage() {
           title="Active trade log"
           trades={activeTrades}
           totalTradeCount={activePoolCount}
+          getEarningsDate={getEarningsDate}
+          earningsLoading={earningsLoading}
           onEdit={openEditTrade}
           onDuplicate={handleDuplicate}
           onDelete={handleDelete}
@@ -339,6 +347,8 @@ export default function JournalPage() {
             trades={closedTrades}
             totalTradeCount={closedPoolCount}
             enableLiveQuotes={false}
+            getEarningsDate={getEarningsDate}
+            earningsLoading={earningsLoading}
             onEdit={openEditTrade}
             onDuplicate={handleDuplicate}
             onDelete={handleDelete}

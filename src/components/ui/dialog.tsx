@@ -30,10 +30,7 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
-      className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-        className
-      )}
+      className={cn("fixed inset-0 isolate z-50 bg-black/10", className)}
       {...props}
     />
   )
@@ -43,17 +40,44 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  motion = "default",
+  dockOffset,
+  style,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
+  motion?: "default" | "dock"
+  dockOffset?: { x: number; y: number }
 }) {
+  const motionOverlayClass =
+    motion === "dock"
+      ? "markets-dialog-dock-backdrop bg-black/25 duration-300 data-open:animate-markets-dialog-backdrop-in data-closed:animate-markets-dialog-backdrop-out supports-backdrop-filter:backdrop-blur-sm"
+      : "duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+
+  const motionContentClass =
+    motion === "dock"
+      ? "markets-dialog-dock-motion will-change-transform overflow-hidden shadow-2xl duration-300 data-open:animate-markets-dialog-dock-in data-closed:animate-markets-dialog-dock-out"
+      : "-translate-x-1/2 -translate-y-1/2 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+
+  const dockStyle =
+    motion === "dock" && dockOffset
+      ? ({
+          ...style,
+          ["--dock-offset-x" as string]: `${dockOffset.x}px`,
+          ["--dock-offset-y" as string]: `${dockOffset.y}px`,
+        } as React.CSSProperties)
+      : style
+
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={motionOverlayClass} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
+        style={dockStyle}
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed z-50 grid w-full max-w-[calc(100%-2rem)] gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm",
+          motion === "dock" ? "top-1/2 left-1/2" : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+          motionContentClass,
           className
         )}
         {...props}

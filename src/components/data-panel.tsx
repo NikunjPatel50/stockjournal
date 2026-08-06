@@ -36,7 +36,7 @@ export function DataPanel({
         className
       )}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-border/70 px-4 py-3 sm:px-5">
+      <header className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold tracking-tight text-foreground">
             {title}
@@ -47,7 +47,11 @@ export function DataPanel({
             </p>
           ) : null}
         </div>
-        {action ?? (meta ? <PanelMeta>{meta}</PanelMeta> : null)}
+        {action ?? (meta ? <PanelMeta>{meta}</PanelMeta> : null) ? (
+          <div className="w-full min-w-0 shrink sm:w-auto">
+            {action ?? (meta ? <PanelMeta>{meta}</PanelMeta> : null)}
+          </div>
+        ) : null}
       </header>
 
       <div className={cn("min-w-0 flex-1", !flush && "p-4 sm:p-5", bodyClassName)}>

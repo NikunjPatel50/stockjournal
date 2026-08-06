@@ -228,9 +228,10 @@ function parseRr(rr: string): number | null {
   return b / a;
 }
 
-export function computeKpis(
+export function computeKpisFromEquity(
   trades: JournalTrade[],
-  startingEquity = 10000
+  startingEquity: number,
+  equitySeries: EquityPoint[]
 ): AnalyticsKpis {
   const netPnl = trades.reduce((s, t) => s + t.pnl, 0);
   const wins = trades.filter((t) => t.outcome === "Win");
@@ -250,10 +251,7 @@ export function computeKpis(
       ? 0
       : rrValues.reduce((a, b) => a + b, 0) / rrValues.length;
 
-  const { maxDrawdown, maxDrawdownPct } = computeEquitySeries(
-    trades,
-    startingEquity
-  ).reduce(
+  const { maxDrawdown, maxDrawdownPct } = equitySeries.reduce(
     (acc, p) => ({
       maxDrawdown: Math.min(acc.maxDrawdown, p.drawdown),
       maxDrawdownPct: Math.min(acc.maxDrawdownPct, p.drawdownPct),
@@ -276,6 +274,17 @@ export function computeKpis(
     maxDrawdown,
     maxDrawdownPct,
   };
+}
+
+export function computeKpis(
+  trades: JournalTrade[],
+  startingEquity = 10000
+): AnalyticsKpis {
+  return computeKpisFromEquity(
+    trades,
+    startingEquity,
+    computeEquitySeries(trades, startingEquity)
+  );
 }
 
 export function computeEquitySeries(

@@ -129,7 +129,7 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
     [trades]
   );
 
-  const { getQuote, loading: quotesLoading, fetchedAt } = useMarketQuotes();
+  const { getQuote, loading: quotesLoading, quoteRevision } = useMarketQuotes();
 
   const activeTrades = useMemo(
     () =>
@@ -214,17 +214,12 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
   }, [fetchDailyPnl, activeTradesKey]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!todayPending || activeTrades.length === 0) return;
-
     const timer = window.setInterval(() => {
-      void fetchDailyPnl();
+      setNow(new Date());
+      if (todayPending && activeTrades.length > 0) {
+        void fetchDailyPnl();
+      }
     }, 60_000);
-
     return () => window.clearInterval(timer);
   }, [todayPending, activeTrades.length, fetchDailyPnl]);
 
@@ -260,7 +255,7 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
     activePool,
     currency,
     daily,
-    fetchedAt,
+    quoteRevision,
     getQuote,
     now,
     priorSessionBarByTradeId,
@@ -374,7 +369,7 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
         )
       }
       action={
-        <div className="max-w-[min(100vw-3rem,28rem)] overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="w-full min-w-0 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TimeframeSegmentedControl
             value={filters.timeframe}
             onChange={(timeframe) =>

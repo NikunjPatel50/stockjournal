@@ -3,9 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
   Cell,
   Pie,
   PieChart,
+  ReferenceLine,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import {
@@ -50,21 +56,67 @@ type PerformanceBreakdownCardsProps = {
 
 const MAX_ROWS = 8;
 
-const PIE_COLORS_POSITIVE = ["#10b981", "#34d399", "#059669", "#6ee7b7"];
-const PIE_COLORS_NEGATIVE = ["#f43f5e", "#fb7185", "#e11d48", "#fda4af"];
+const BAR_COLOR_POSITIVE = "#10b981";
+const BAR_COLOR_NEGATIVE = "#f43f5e";
 
-const headClass =
-  "h-9 bg-muted/30 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
-const numericHeadClass = cn(headClass, "text-right");
-const cellClass = "px-3 py-2.5 text-xs";
-const numericCellClass = cn(cellClass, "text-right", NUMERIC_CLASS);
+const PIE_SLICE_COLORS = [
+  "#059669",
+  "#2563eb",
+  "#d97706",
+  "#dc2626",
+  "#7c3aed",
+  "#0891b2",
+  "#db2777",
+  "#4f46e5",
+  "#ea580c",
+  "#0d9488",
+];
 
-function sliceColor(pnl: number, index: number): string {
-  const palette = pnl >= 0 ? PIE_COLORS_POSITIVE : PIE_COLORS_NEGATIVE;
-  return palette[index % palette.length];
+type PieShareLabelProps = {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  payload?: { share?: number };
+  percent?: number;
+};
+
+function renderPieShareLabel({
+  cx = 0,
+  cy = 0,
+  midAngle = 0,
+  innerRadius = 0,
+  outerRadius = 0,
+  payload,
+  percent = 0,
+}: PieShareLabelProps) {
+  const share = payload?.share ?? percent * 100;
+  if (share < 3) return null;
+
+  const radians = (Math.PI / 180) * -midAngle;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+  const x = cx + radius * Math.cos(radians);
+  const y = cy + radius * Math.sin(radians);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#ffffff"
+      textAnchor="middle"
+      dominantBaseline="central"
+      className="pointer-events-none text-[11px] font-semibold"
+      stroke="rgba(15,23,42,0.45)"
+      strokeWidth={2.5}
+      paintOrder="stroke"
+    >
+      {`${Math.round(share)}%`}
+    </text>
+  );
 }
 
-function BreakdownPnlChart({
+function BreakdownPnlPieChart({
   rows,
   currency,
 }: {
@@ -83,50 +135,60 @@ function BreakdownPnlChart({
       pnl: row.totalPnl,
       trades: row.trades,
       winRate: row.winRate,
+      avgR: row.avgR,
       share:
-        totalAbs > 0 ? (Math.abs(row.totalPnl) / totalAbs) * 100 : 100 / rows.length,
-      fill: sliceColor(row.totalPnl, index),
+        totalAbs > 0
+          ? (Math.abs(row.totalPnl) / totalAbs) * 100
+          : 100 / rows.length,
+      fill: PIE_SLICE_COLORS[index % PIE_SLICE_COLORS.length],
     }));
   }, [rows]);
 
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {};
     for (const row of chartData) {
-      config[row.name] = {
-        label: row.name,
-        color: row.fill,
-      };
+      config[row.name] = { label: row.name, color: row.fill };
     }
     return config;
   }, [chartData]);
 
   return (
-    <ChartContainer config={chartConfig} className="mx-auto h-[220px] w-full">
+    <ChartContainer
+      config={chartConfig}
+      initialDimension={{ width: 220, height: 220 }}
+      className="mx-auto h-[220px] w-full"
+    >
       <PieChart>
         <ChartTooltip
           content={
             <ChartTooltipContent
               nameKey="name"
               hideLabel
-              formatter={(value, _name, item) => {
+              formatter={(_value, _name, item) => {
                 const row = item?.payload as
                   | {
                       name?: string;
                       pnl?: number;
                       trades?: number;
                       winRate?: number;
+                      avgR?: number | null;
                       share?: number;
                     }
                   | undefined;
+                if (!row) return null;
                 return (
-                  <div className="space-y-0.5">
-                    <div className="font-medium">{row?.name}</div>
+                  <div className="space-y-0.5 text-xs">
+                    <div className="font-medium">{row.name}</div>
                     <div>
-                      Net P&L: {formatMoney(row?.pnl ?? 0, true, currency)}
+                      Net P&L: {formatMoney(row.pnl ?? 0, true, currency)}
                     </div>
-                    <div>Share: {formatPercent(row?.share ?? 0)}</div>
-                    <div>Trades: {row?.trades ?? 0}</div>
-                    <div>Win rate: {formatPercent(row?.winRate ?? 0)}</div>
+                    <div>Share: {formatPercent(row.share ?? 0)}</div>
+                    <div>Trades: {row.trades ?? 0}</div>
+                    <div>Win rate: {formatPercent(row.winRate ?? 0)}</div>
+                    <div>
+                      Avg R:{" "}
+                      {row.avgR != null ? `${row.avgR.toFixed(2)}R` : "—"}
+                    </div>
                   </div>
                 );
               }}
@@ -141,6 +203,9 @@ function BreakdownPnlChart({
           outerRadius={82}
           strokeWidth={2}
           paddingAngle={chartData.length > 1 ? 2 : 0}
+          isAnimationActive={false}
+          label={renderPieShareLabel}
+          labelLine={false}
         >
           {chartData.map((entry) => (
             <Cell key={entry.name} fill={entry.fill} />
@@ -155,6 +220,128 @@ function BreakdownPnlChart({
   );
 }
 
+function BreakdownPnlBarChart({
+  rows,
+  currency,
+}: {
+  rows: PerformanceBreakdownRow[];
+  currency: CurrencyCode;
+}) {
+  const chartData = useMemo(
+    () =>
+      [...rows]
+        .sort((a, b) => a.totalPnl - b.totalPnl)
+        .map((row) => ({
+          name: row.label,
+          pnl: row.totalPnl,
+          trades: row.trades,
+          winRate: row.winRate,
+          avgR: row.avgR,
+          fill: row.totalPnl >= 0 ? BAR_COLOR_POSITIVE : BAR_COLOR_NEGATIVE,
+        })),
+    [rows]
+  );
+
+  const chartConfig = useMemo(
+    () =>
+      ({
+        pnl: { label: "Net P&L", color: "var(--chart-2)" },
+      }) satisfies ChartConfig,
+    []
+  );
+
+  const chartHeight = Math.min(200, Math.max(96, chartData.length * 34 + 16));
+  const labelWidth = Math.min(
+    132,
+    Math.max(72, ...chartData.map((row) => row.name.length * 6.5))
+  );
+
+  return (
+    <ChartContainer
+      config={chartConfig}
+      className="w-full"
+      style={{ height: chartHeight }}
+    >
+      <BarChart
+        data={chartData}
+        layout="vertical"
+        margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
+        barCategoryGap="20%"
+      >
+        <CartesianGrid
+          horizontal={false}
+          strokeDasharray="3 3"
+          className="stroke-border/50"
+        />
+        <XAxis
+          type="number"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={6}
+          tick={{ fontSize: 10 }}
+          tickFormatter={(value) =>
+            formatMoney(Number(value), false, currency)
+          }
+        />
+        <YAxis
+          type="category"
+          dataKey="name"
+          tickLine={false}
+          axisLine={false}
+          width={labelWidth}
+          tick={{ fontSize: 10 }}
+        />
+        <ReferenceLine x={0} stroke="hsl(var(--border))" strokeWidth={1.5} />
+        <ChartTooltip
+          cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }}
+          content={
+            <ChartTooltipContent
+              hideLabel
+              formatter={(_value, _name, item) => {
+                const row = item?.payload as
+                  | {
+                      name?: string;
+                      pnl?: number;
+                      trades?: number;
+                      winRate?: number;
+                      avgR?: number | null;
+                    }
+                  | undefined;
+                if (!row) return null;
+                return (
+                  <div className="space-y-0.5 text-xs">
+                    <div className="font-medium">{row.name}</div>
+                    <div>
+                      Net P&L: {formatMoney(row.pnl ?? 0, true, currency)}
+                    </div>
+                    <div>Trades: {row.trades ?? 0}</div>
+                    <div>Win rate: {formatPercent(row.winRate ?? 0)}</div>
+                    <div>
+                      Avg R:{" "}
+                      {row.avgR != null ? `${row.avgR.toFixed(2)}R` : "—"}
+                    </div>
+                  </div>
+                );
+              }}
+            />
+          }
+        />
+        <Bar dataKey="pnl" radius={[0, 4, 4, 0]} maxBarSize={22}>
+          {chartData.map((entry) => (
+            <Cell key={entry.name} fill={entry.fill} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ChartContainer>
+  );
+}
+
+const headClass =
+  "h-9 bg-muted/30 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
+const numericHeadClass = cn(headClass, "text-right");
+const cellClass = "px-3 py-2.5 text-xs";
+const numericCellClass = cn(cellClass, "text-right", NUMERIC_CLASS);
+
 function BreakdownTable({
   title,
   subtitle,
@@ -164,6 +351,7 @@ function BreakdownTable({
   refreshing,
   emptyTitle,
   emptyHint,
+  chartVariant = "bar",
 }: {
   title: string;
   subtitle: string;
@@ -173,6 +361,7 @@ function BreakdownTable({
   refreshing?: boolean;
   emptyTitle: string;
   emptyHint: string;
+  chartVariant?: "bar" | "pie";
 }) {
   const visibleRows = rows.slice(0, MAX_ROWS);
 
@@ -214,8 +403,13 @@ function BreakdownTable({
       ) : (
         <div>
           <div className="border-b border-border/60 px-4 py-4 sm:px-5">
-            <BreakdownPnlChart rows={visibleRows} currency={currency} />
+            {chartVariant === "pie" ? (
+              <BreakdownPnlPieChart rows={visibleRows} currency={currency} />
+            ) : (
+              <BreakdownPnlBarChart rows={visibleRows} currency={currency} />
+            )}
           </div>
+          <div className="-mx-4 overflow-x-auto sm:-mx-5">
           <Table>
           <TableHeader>
             <TableRow className="border-border/70 hover:bg-transparent">
@@ -257,6 +451,7 @@ function BreakdownTable({
             ))}
           </TableBody>
         </Table>
+          </div>
         </div>
       )}
     </DataPanel>
@@ -438,6 +633,7 @@ export function PerformanceBreakdownCards({
           refreshing={refreshing}
           emptyTitle="No sector data yet"
           emptyHint="Trade listed equities to populate sector breakdown."
+          chartVariant="pie"
         />
         <BreakdownTable
           title="Performance by market cap"
@@ -448,6 +644,7 @@ export function PerformanceBreakdownCards({
           refreshing={refreshing}
           emptyTitle="No market-cap data yet"
           emptyHint="Trade listed equities to populate market-cap breakdown."
+          chartVariant="bar"
         />
       </div>
     </div>

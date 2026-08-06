@@ -14,6 +14,7 @@ import {
   Target,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { MarketIndicesPanel } from "@/components/sidebar/market-indices-panel";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -57,7 +58,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
     : { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.85 };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-sidebar-border px-4 py-4">
         <Link
           href="/dashboard"
@@ -82,61 +83,67 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
         </Link>
       </div>
 
-      <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-5">
-        {navGroups.map((group) => (
-          <div key={group.label}>
-            <p className="mb-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-              {group.label}
-            </p>
-            <nav className="space-y-0.5">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const active = isActiveRoute(pathname, item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onNavigate}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-200",
-                      active
-                        ? "text-foreground"
-                        : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-                    )}
-                  >
-                    {active ? (
-                      <motion.span
-                        layoutId="sidebar-nav-active"
-                        className="absolute inset-0 rounded-lg bg-card shadow-sm ring-1 ring-border/80"
-                        transition={navSpring}
-                      />
-                    ) : null}
-                    <span
-                      className={cn(
-                        "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground group-hover:bg-sidebar-accent group-hover:text-sidebar-foreground"
-                      )}
-                    >
-                      <Icon className="size-4" strokeWidth={active ? 2.25 : 2} />
-                    </span>
-                    <span className="relative z-10 truncate">{item.label}</span>
-                    {active ? (
-                      <motion.span
-                        layoutId="sidebar-nav-dot"
-                        className="relative z-10 ml-auto size-1.5 shrink-0 rounded-full bg-primary"
-                        transition={navSpring}
-                        aria-hidden
-                      />
-                    ) : null}
-                  </Link>
-                );
-              })}
-            </nav>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+        <div className="rounded-xl border border-border/80 bg-card p-3 shadow-sm ring-1 ring-border/40">
+          <div className="flex flex-col gap-5">
+            {navGroups.map((group) => (
+              <div key={group.label}>
+                <p className="mb-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
+                  {group.label}
+                </p>
+                <nav className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActiveRoute(pathname, item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onNavigate}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-200",
+                          active
+                            ? "text-foreground"
+                            : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                        )}
+                      >
+                        {active ? (
+                          <motion.span
+                            layoutId="sidebar-nav-active"
+                            className="absolute inset-0 rounded-lg bg-background shadow-sm ring-1 ring-border/80"
+                            transition={navSpring}
+                          />
+                        ) : null}
+                        <span
+                          className={cn(
+                            "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground group-hover:bg-sidebar-accent group-hover:text-sidebar-foreground"
+                          )}
+                        >
+                          <Icon className="size-4" strokeWidth={active ? 2.25 : 2} />
+                        </span>
+                        <span className="relative z-10 truncate">{item.label}</span>
+                        {active ? (
+                          <motion.span
+                            layoutId="sidebar-nav-dot"
+                            className="relative z-10 ml-auto size-1.5 shrink-0 rounded-full bg-primary"
+                            transition={navSpring}
+                            aria-hidden
+                          />
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        <MarketIndicesPanel />
       </div>
     </div>
   );
@@ -147,7 +154,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="sticky top-0 hidden h-full w-60 min-w-60 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
+      <aside className="sticky top-0 hidden h-full w-72 min-w-72 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
         <NavContent />
       </aside>
 
@@ -166,7 +173,7 @@ export function Sidebar() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
-          className="w-[min(100vw-2rem,17rem)] border-sidebar-border bg-sidebar p-0"
+          className="flex h-full w-[min(100vw-1.5rem,21rem)] flex-col border-sidebar-border bg-sidebar p-0"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation</SheetTitle>

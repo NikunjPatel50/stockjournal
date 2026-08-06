@@ -15,7 +15,7 @@ const ACCORDION_COLUMN_SET = new Set<string>(JOURNAL_ACCORDION_COLUMN_IDS);
 export const JOURNAL_REORDERABLE_COLUMNS = [
   { id: "entryDate", label: "Date" },
   { id: "ticker", label: "Ticker" },
-  { id: "prices", label: "Entry/exit" },
+  { id: "prices", label: "Entry / Exit" },
   { id: "currentPrice", label: "Market price" },
   { id: "quantity", label: "Qty" },
   { id: "invested", label: "Invested" },

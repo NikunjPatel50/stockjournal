@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
 import type { JournalTrade } from "@/lib/journal-types";
 import { normalizeJournalTrade } from "@/lib/journal-types";
 import {
@@ -110,7 +115,7 @@ export function saveJournalTrades(trades: JournalTrade[]) {
   });
 }
 
-export function useJournalTrades() {
+export function useJournalTradesState() {
   const [userId, setUserId] = useState<string | null>(null);
   const [trades, setTradesState] = useState<JournalTrade[]>([]);
   const [hydrated, setHydrated] = useState(false);

@@ -2,9 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
-import { OvernightRiskCard } from "@/components/analytics/overnight-risk-card";
 import { AnalyticsHeader } from "@/components/analytics/analytics-header";
-import { MonthlyPerformanceCard } from "@/components/analytics/monthly-performance-card";
 import { PnlBreakdownCard } from "@/components/analytics/pnl-breakdown-card";
 import { RecentTradesCard } from "@/components/analytics/recent-trades-card";
 import { KpiRibbon } from "@/components/analytics/kpi-ribbon";
@@ -12,12 +10,12 @@ import { useSettings } from "@/components/settings/settings-provider";
 import {
   computeWeeklyPnl,
   computeEquitySeries,
-  computeKpis,
+  computeKpisFromEquity,
   emptyAnalyticsFilters,
   filterAnalyticsTrades,
   type AnalyticsFilters,
 } from "@/lib/analytics";
-import { useJournalTrades } from "@/lib/trades-storage";
+import { useJournalTrades } from "@/components/journal-trades-provider";
 import { computeCapitalBase, computeOvernightRisk } from "@/lib/overnight-risk";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 
@@ -37,6 +35,22 @@ const MainCharts = dynamic(
   { loading: () => <div className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
 
+const OvernightRiskCard = dynamic(
+  () =>
+    import("@/components/analytics/overnight-risk-card").then((mod) => ({
+      default: mod.OvernightRiskCard,
+    })),
+  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const MonthlyPerformanceCard = dynamic(
+  () =>
+    import("@/components/analytics/monthly-performance-card").then((mod) => ({
+      default: mod.MonthlyPerformanceCard,
+    })),
+  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
 export default function DashboardPage() {
   const { settings } = useSettings();
   const { trades } = useJournalTrades();
@@ -50,13 +64,13 @@ export default function DashboardPage() {
     [trades, filters]
   );
 
-  const kpis = useMemo(
-    () => computeKpis(filtered, capitalBase),
-    [filtered, capitalBase]
-  );
   const equity = useMemo(
     () => computeEquitySeries(filtered, capitalBase),
     [filtered, capitalBase]
+  );
+  const kpis = useMemo(
+    () => computeKpisFromEquity(filtered, capitalBase, equity),
+    [filtered, capitalBase, equity]
   );
   const weeklyPnl = useMemo(() => computeWeeklyPnl(filtered), [filtered]);
   const overnightRisk = useMemo(
