@@ -9,7 +9,7 @@ metaDescription: "Master risk reward ratio in swing trading: formula, 1:2 and 1:
 
 # Risk Reward Ratio in Swing Trading: The Complete Guide (With Examples)
 
-You found a clean breakout. Entry looks perfect. Then the trade stalls, you move your stop, exit at breakeven, and watch price rip to your old target without you. Most swing traders do not fail because they cannot read charts — they fail because **risk reward ratio** was never defined before the buy button was pressed.
+You found a clean breakout. Entry looks perfect. Then the trade stalls, you move your stop, exit at breakeven, and watch price rip to your old target without you. Most swing traders do not fail because they cannot read charts, they fail because **risk reward ratio** was never defined before the buy button was pressed.
 
 This guide covers what R:R means, how to calculate it, ₹10k and ₹25k examples, win rate vs risk reward, and how to build the habit on every swing trade.
 
@@ -39,7 +39,7 @@ Retail optimizes for being right. Professionals optimize for being **paid** when
 
 ---
 
-## The Formula — With Examples
+## The Formula: With Examples
 
 | Field | Value |
 | --- | --- |
@@ -155,16 +155,16 @@ Explore [features](/features) and [pricing](/pricing).
 
 ## FAQ
 
-1. **What is a good risk reward ratio for swing trading?** — Often 1:2 minimum; 1:3 if your edge supports lower hit rates.
-2. **How do you calculate risk reward?** — Reward ÷ risk from entry to target and stop.
-3. **Is 1:2 enough?** — Yes, above ~33% win rate before costs.
-4. **Why win only 40%?** — Higher R on winners compensates.
-5. **Same R:R every trade?** — Use a floor; allow flexibility when structure supports it.
-6. **Include brokerage?** — Yes, especially on small accounts.
-7. **R:R vs position sizing?** — Geometry vs quantity; need both.
-8. **Trade at 1:1?** — Needs >50% wins after costs.
-9. **SwingTradingLog tracking?** — Planned R from logged entry/stop/target.
-10. **Best for beginners?** — Start at 1:2; use the risk calculator every time.
+1. **What is a good risk reward ratio for swing trading?** Often 1:2 minimum; 1:3 if your edge supports lower hit rates.
+2. **How do you calculate risk reward?** Reward ÷ risk from entry to target and stop.
+3. **Is 1:2 enough?** Yes, above ~33% win rate before costs.
+4. **Why win only 40%?** Higher R on winners compensates.
+5. **Same R:R every trade?** Use a floor; allow flexibility when structure supports it.
+6. **Include brokerage?** Yes, especially on small accounts.
+7. **R:R vs position sizing?** Geometry vs quantity; need both.
+8. **Trade at 1:1?** Needs >50% wins after costs.
+9. **SwingTradingLog tracking?** Planned R from logged entry/stop/target.
+10. **Best for beginners?** Start at 1:2; use the risk calculator every time.
 
 ---
 
@@ -178,4 +178,4 @@ Explore [features](/features) and [pricing](/pricing).
 
 ---
 
-**[Try SwingTradingLog's Risk Calculator →](/risk-calculator)** — free, no signup required. Log your next swing with planned R and see if your edge is real.
+**[Try SwingTradingLog's Risk Calculator →](/risk-calculator)** free, no signup required. Log your next swing with planned R and see if your edge is real.

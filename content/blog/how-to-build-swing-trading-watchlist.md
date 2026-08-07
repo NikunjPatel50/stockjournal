@@ -19,7 +19,7 @@ featuredImagePrompt: "Professional editorial photo of a swing trader's dual-moni
 
 # How to Build the Perfect Swing Trading Watchlist (Step-by-Step)
 
-Every winning swing trader you admire has one thing in common that rarely makes it onto Twitter: a disciplined **swing trading watchlist**. Not a random bag of tickers from last night's scan, not fifty symbols you'll forget by Tuesday — a curated, ranked list of stocks that match your setup, your timeframe, and your risk rules.
+Every winning swing trader you admire has one thing in common that rarely makes it onto Twitter: a disciplined **swing trading watchlist**. Not a random bag of tickers from last night's scan, not fifty symbols you'll forget by Tuesday, a curated, ranked list of stocks that match your setup, your timeframe, and your risk rules.
 
 If you are new to swing trading, think of a watchlist as your shortlist before the shortlist. The market offers thousands of symbols. You will trade maybe five to fifteen setups in a good month. The watchlist is the bridge between market noise and actual orders.
 
@@ -27,11 +27,11 @@ If you are new to swing trading, think of a watchlist as your shortlist before t
 
 ## Why Every Swing Trader Needs a Watchlist
 
-Swing trading sits between day trading and investing. You hold positions for days to weeks, which means you cannot react to every tick — but you also cannot afford to discover a stock only after it has already moved 12%. A **watchlist for swing trading** solves three problems at once:
+Swing trading sits between day trading and investing. You hold positions for days to weeks, which means you cannot react to every tick, but you also cannot afford to discover a stock only after it has already moved 12%. A **watchlist for swing trading** solves three problems at once:
 
-- **Attention** — You decide in advance which symbols deserve mental bandwidth.
-- **Preparation** — You define entry zones, stops, and catalysts before the market opens.
-- **Accountability** — You can review whether your list produced trades or just anxiety.
+- **Attention:** You decide in advance which symbols deserve mental bandwidth.
+- **Preparation:** You define entry zones, stops, and catalysts before the market opens.
+- **Accountability:** You can review whether your list produced trades or just anxiety.
 
 Without a **stock watchlist**, screening becomes browsing. With a list, you trade your plan.
 
@@ -57,7 +57,7 @@ Your **daily watchlist** is the execution layer (10–20 minutes).
 
 ### Daily checklist
 
-- [ ] Open the weekly list — remove names that broke down or triggered
+- [ ] Open the weekly list and remove names that broke down or triggered
 - [ ] Mark focus tier: A (ready), B (watch), C (background)
 - [ ] Note entry trigger, stop, and target for each A-tier name
 - [ ] Check index and sector trend
@@ -77,7 +77,7 @@ Your **weekly watchlist** answers **how to find swing trading stocks** systemati
 
 - [ ] Review last week's trades: which setups worked or failed?
 - [ ] Run screeners for trend, volume, and relative strength
-- [ ] Chart only screener output — reject messy patterns fast
+- [ ] Chart only screener output and reject messy patterns fast
 - [ ] Add 10–25 candidates with thesis and setup tag
 - [ ] Rank by proximity to trigger
 - [ ] Cross-check earnings for the next two weeks
@@ -109,7 +109,7 @@ Leaders show RS line rising vs. the index or sector over 1–3 months.
 Define the pivot before the session. Stop below the base or breakout candle low.
 
 ### VCP
-Series of tightening pullbacks with diminishing depth — volatility contracts before expansion.
+Series of tightening pullbacks with diminishing depth: volatility contracts before expansion.
 
 ### Cup & Handle
 Rounded base plus shallow handle under prior highs; entry above handle high.
@@ -177,7 +177,7 @@ Related guides: [Start a swing trading journal](/blog/how-to-start-a-swing-tradi
 
 ## Conclusion
 
-The perfect swing trading watchlist is a living system — weekly research, daily focus, honest review. Start simple; add complexity only when your journal proves an edge.
+The perfect swing trading watchlist is a living system: weekly research, daily focus, honest review. Start simple; add complexity only when your journal proves an edge.
 
 **[Create your free SwingTradingLog account →](https://swingtradinglog.com/login)**
 
@@ -198,7 +198,7 @@ Screen for liquid leaders, apply technical + fundamental filters, journal what w
 Context matters; breakouts often need ≥1.5× 20-day average volume.
 
 ### What are the best stocks for swing trading?
-Liquid, trending names that match *your* setup rules — your journal shows which.
+Liquid, trending names that match *your* setup rules. Your journal shows which.
 
 *(Full FAQ set with 13 questions lives on the published blog post.)*
 

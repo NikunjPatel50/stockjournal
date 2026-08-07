@@ -105,7 +105,7 @@ const EXTRA_ENTRIES: ChatbotEntry[] = [
     id: "blog",
     question: "Where can I read swing trading tips?",
     answer:
-      "Visit the blog for articles on journaling, position sizing, stop placement, overnight gap risk, and weekly trade reviews — all written for multi-day traders.",
+      "Visit the blog for articles on journaling, position sizing, stop placement, overnight gap risk, and weekly trade reviews, all written for multi-day traders.",
     keywords: ["blog", "article", "articles", "tips", "guide", "learn"],
     links: [{ label: "Read the blog", href: "/blog" }],
   },

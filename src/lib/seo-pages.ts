@@ -145,7 +145,7 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
     path: "/blog",
     title: "Swing Trading Blog | Tips & Strategies | SwingTradingLog",
     description:
-      "Swing trading journal tips, performance reviews, and strategy notes. Free insights from SwingTradingLog — start tracking trades today.",
+      "Swing trading journal tips, performance reviews, and strategy notes. Free insights from SwingTradingLog. Start tracking trades today.",
     keywords: [
       "swing trading blog",
       "trading journal tips",
