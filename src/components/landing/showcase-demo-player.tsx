@@ -41,7 +41,7 @@ const DEMO_STEPS = [
     variant: "goals" as const,
     headline: "Goals & discipline",
     detail:
-      "Profit targets, win-rate goals, and process checklists — the same Goals page in the app sidebar.",
+      "Profit targets, win-rate goals, and process checklists, the same Goals page in the app sidebar.",
   },
 ] as const;
 

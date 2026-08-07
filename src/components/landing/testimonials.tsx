@@ -14,7 +14,7 @@ const testimonials = [
   },
   {
     quote:
-      "Reporting filters showed I gave back gains on late-week holds. Cutting those setups saved me hours of review — and real money — without paying for another tool.",
+      "Reporting filters showed I gave back gains on late-week holds. Cutting those setups saved me hours of review and real money, without paying for another tool.",
     name: "Jordan Blake",
     style: "Swing Trader · Equities",
     initials: "JB",
@@ -35,7 +35,7 @@ const testimonials = [
   },
   {
     quote:
-      "Equity curve + benchmark context keeps me honest. If I'm underperforming the market on swings, I know immediately — and why.",
+      "Equity curve + benchmark context keeps me honest. If I'm underperforming the market on swings, I know immediately, and why.",
     name: "Ava Thompson",
     style: "Swing Trader · Crypto",
     initials: "AT",

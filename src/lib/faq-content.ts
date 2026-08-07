@@ -7,7 +7,7 @@ export const LANDING_FAQS: FaqItem[] = [
   {
     question: "What do I get when I sign up?",
     answer:
-      "The same app as swingtradinglog.com: Dashboard (KPIs, charts, overnight exposure), Journal, Goals, Settings, and Feedback. Full access is free during beta — no credit card.",
+      "The same app as swingtradinglog.com: Dashboard (KPIs, charts, overnight exposure), Journal, Goals, Settings, and Feedback. Full access is free during beta, no credit card.",
   },
   {
     question: "Which assets can I journal?",
@@ -32,7 +32,7 @@ export const LANDING_FAQS: FaqItem[] = [
   {
     question: "Is there a separate analytics product?",
     answer:
-      "No. Performance analytics live on the Dashboard — period filters, KPI ribbon, equity curve, weekly P&L, monthly performance, and P&L breakdown.",
+      "No. Performance analytics live on the Dashboard: period filters, KPI ribbon, equity curve, weekly P&L, monthly performance, and P&L breakdown.",
   },
   {
     question: "Is there a mobile app?",

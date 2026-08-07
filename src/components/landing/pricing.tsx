@@ -66,7 +66,7 @@ export function LandingPricing({
             {BRAND_NAME}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Dashboard, Journal, Goals, Settings, and Feedback — all included.
+            Dashboard, Journal, Goals, Settings, and Feedback, all included.
           </p>
           <div className="mt-6 flex items-end gap-2">
             <span className="text-4xl font-semibold tracking-tight text-foreground">

@@ -16,7 +16,7 @@ const features = [
     icon: LayoutDashboard,
     title: "Dashboard analytics",
     description:
-      "Net P&L, profit factor, win rate, average R:R, max drawdown, Trade Pulse, overnight exposure, equity curve, and monthly performance — filterable by period.",
+      "Net P&L, profit factor, win rate, average R:R, max drawdown, Trade Pulse, overnight exposure, equity curve, and monthly performance, filterable by period.",
   },
   {
     icon: Moon,
@@ -34,7 +34,7 @@ const features = [
     icon: Share2,
     title: "Shareable trade cards",
     description:
-      "Turn closed trades into branded PNG cards or public links for social posts. Optional — turn sharing off in Display settings anytime.",
+      "Turn closed trades into branded PNG cards or public links for social posts. Optional: turn sharing off in Display settings anytime.",
   },
   {
     icon: Target,
@@ -60,7 +60,7 @@ export function LandingFeatures() {
             Everything you see after you sign in
           </h2>
           <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            Dashboard, Journal, Goals, Settings, and Feedback — the same screens
+            Dashboard, Journal, Goals, Settings, and Feedback, the same screens
             as{" "}
             <span className="font-medium text-foreground">swingtradinglog.com</span>
             , free during beta. What&apos;s next is on the{" "}

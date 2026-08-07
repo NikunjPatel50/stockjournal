@@ -41,7 +41,7 @@ export function LandingCtaBanner() {
             >
               <span className="sm:hidden">Get started free</span>
               <span className="hidden sm:inline">
-                Get started free — no credit card
+                Get started free, no credit card
               </span>
               <ArrowRight data-icon="inline-end" />
             </Button>

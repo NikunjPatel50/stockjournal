@@ -21,7 +21,7 @@ export default function RiskCalculatorPage() {
           Position size &amp; risk calculator
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          A simple risk and position-size calculator for swing trades — plan
+          A simple risk and position-size calculator for swing trades. Plan
           stop loss, target, and share size before you enter. Meanwhile, track
           overnight gap exposure on the{" "}
           <Link

@@ -17,7 +17,7 @@ export default function PrivacyPolicyPage() {
         <p>
           {BRAND_NAME} (&quot;we,&quot; &quot;us&quot;) operates the SwingTradingLog
           swing trading journal at swingtradinglog.com. This policy explains what
-          we collect when you create an account, use the app, or contact us — and
+          we collect when you create an account, use the app, or contact us, and
           what we do not do with your information.
         </p>
       </LegalSection>

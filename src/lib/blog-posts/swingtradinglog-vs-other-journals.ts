@@ -110,7 +110,7 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
     },
     {
       type: "table",
-      caption: "Feature comparison — what you get without a premium tier",
+      caption: "Feature comparison: what you get without a premium tier",
       headers: ["Capability", "SwingTradingLog", "Typical paid journal", "Spreadsheet"],
       rows: [
         ["Price", "Free forever", "$20–50+/month", "Free but your time"],
@@ -133,7 +133,7 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
     },
     {
       type: "h2",
-      text: "1. Totally free — not a stripped-down trial",
+      text: "1. Totally free, not a stripped-down trial",
     },
     {
       type: "p",
@@ -153,7 +153,7 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
     },
     {
       type: "h2",
-      text: "2. Risk calculator & smart position sizing — before you click buy",
+      text: "2. Risk calculator & smart position sizing: before you click buy",
     },
     {
       type: "p",
@@ -162,7 +162,7 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
     {
       type: "ul",
       items: [
-        "Stop and target drive quantity — not gut feel share count",
+        "Stop and target drive quantity, not gut feel share count",
         "Planned R preview before the trade is saved",
         "Repeat prior setups with sizing rules carried forward",
         "Public risk calculator page for quick what-if math (standalone tool expanding on the roadmap)",
@@ -179,11 +179,11 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
     {
       type: "ul",
       items: [
-        "Sector and market-cap breakdown — see which parts of the market pay you",
-        "R-multiple spectrum — are you taking enough on winners?",
-        "Session and hold-time grids — when do your setups actually work?",
+        "Sector and market-cap breakdown: see which parts of the market pay you",
+        "R-multiple spectrum: are you taking enough on winners?",
+        "Session and hold-time grids: when do your setups actually work?",
         "Performance breakdown cards and edge panels for closed-trade attribution",
-        "Portfolio overview on the dashboard — invested capital, total P&L, timeline, and Nifty 50 benchmark context",
+        "Portfolio overview on the dashboard: invested capital, total P&L, timeline, and Nifty 50 benchmark context",
         "Daily P&L chart on open positions with live quote updates for today’s session",
       ],
     },
@@ -197,7 +197,7 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
     },
     {
       type: "h2",
-      text: "5. In-app feedback — you shape the roadmap",
+      text: "5. In-app feedback: you shape the roadmap",
     },
     {
       type: "p",
@@ -205,7 +205,7 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
     },
     {
       type: "h2",
-      text: "6. Goals, share cards, and exports — the operational layer",
+      text: "6. Goals, share cards, and exports: the operational layer",
     },
     {
       type: "ul",
@@ -234,7 +234,7 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
       items: [
         "Day 1: Log your next swing with stop, target, and Risk Calculator sizing applied",
         "Day 2–5: Mark trades Active or Closed; note one sentence per entry",
-        "Day 6: Open Analytics — check sector and market-cap tables",
+        "Day 6: Open Analytics and check sector and market-cap tables",
         "Day 7: Run a twenty-minute review using dashboard KPIs and journal filters",
         "Optional: Send one piece of feedback on what would make review even faster",
       ],

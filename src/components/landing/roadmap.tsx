@@ -165,7 +165,7 @@ export function LandingRoadmap() {
             <span className="text-muted-foreground">on deck</span>
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Beta priorities in one view — updated as we ship and as you send{" "}
+            Beta priorities in one view, updated as we ship and as you send{" "}
             <a
               href="/feedback"
               className="font-medium text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"

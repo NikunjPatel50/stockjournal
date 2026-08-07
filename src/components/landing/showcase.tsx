@@ -19,7 +19,7 @@ export function LandingShowcase({ defaultTab = "dashboard" }: LandingShowcasePro
             Preview the same screens as the live app
           </h2>
           <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            Switch between Dashboard, Journal, Analytics, and Goals — matching the
+            Switch between Dashboard, Journal, Analytics, and Goals, matching the
             navigation and layout you get after a free sign-up at
             swingtradinglog.com.
           </p>
