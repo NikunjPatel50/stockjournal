@@ -19,6 +19,7 @@ export type SeoPageId =
   | "dashboard"
   | "journal"
   | "analytics"
+  | "calendar"
   | "goals"
   | "settings"
   | "feedback"
@@ -260,12 +261,26 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
     path: "/analytics",
     title: "Analytics",
     description:
-      "Trading analytics — weekly P&L, breakdowns, and trade stats.",
+      "Trading analytics: weekly P&L, breakdowns, and trade stats.",
     keywords: [
       "trade analytics",
       "weekly P&L",
       "performance stats",
       "trading reports",
+      "SwingTradingLog",
+    ],
+    noIndex: true,
+  },
+  calendar: {
+    path: "/calendar",
+    title: "Calendar",
+    description:
+      "Monthly and yearly P&L calendar for closed swing trades with weekly summaries.",
+    keywords: [
+      "trading calendar",
+      "P&L calendar",
+      "daily trading P&L",
+      "swing trading journal",
       "SwingTradingLog",
     ],
     noIndex: true,

@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import {
   BarChart3,
   BookOpen,
+  CalendarDays,
   LayoutDashboard,
   MessageSquare,
   Settings,
@@ -20,6 +21,7 @@ const navGroups = [
     label: "Trading",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/journal", label: "Journal", icon: BookOpen },
       { href: "/goals", label: "Goals", icon: Target },

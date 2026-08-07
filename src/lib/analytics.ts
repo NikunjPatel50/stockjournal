@@ -209,14 +209,17 @@ export function filterAnalyticsTrades(
 ): JournalTrade[] {
   const { from, to } = getAnalyticsTimeframeRange(filters);
 
-  return trades.filter((trade) => {
-    if (trade.status === "Active") return false;
-
+  return filterClosedTrades(trades).filter((trade) => {
     const t = tradeTime(trade);
     if (from && isBefore(t, startOfDay(from))) return false;
     if (to && isAfter(t, to)) return false;
     return true;
   });
+}
+
+/** Closed trades only (excludes Active positions). */
+export function filterClosedTrades(trades: JournalTrade[]): JournalTrade[] {
+  return trades.filter((trade) => trade.status !== "Active");
 }
 
 function parseRr(rr: string): number | null {
@@ -884,6 +887,231 @@ export function computePnlCalendar(
   );
 
   return { weeks, maxAbsPnl };
+}
+
+export interface MonthCalendarDay {
+  date: string;
+  dayOfMonth: number;
+  inMonth: boolean;
+  pnl: number | null;
+  trades: number;
+}
+
+export interface MonthCalendarWeek {
+  days: MonthCalendarDay[];
+  weekPnl: number;
+  activeDays: number;
+}
+
+export interface MonthPnlCalendarData {
+  year: number;
+  month: number;
+  weeks: MonthCalendarWeek[];
+  monthPnl: number;
+  activeDays: number;
+}
+
+export interface YearMonthSummary {
+  month: number;
+  label: string;
+  pnl: number;
+  activeDays: number;
+  trades: number;
+}
+
+export interface YearPnlSummaryData {
+  year: number;
+  months: YearMonthSummary[];
+  yearPnl: number;
+  activeDays: number;
+}
+
+/** Month grid (Mon–Sun weeks) with per-day and per-week realized P&L. */
+export function computeMonthPnlCalendar(
+  trades: JournalTrade[],
+  year: number,
+  month: number
+): MonthPnlCalendarData {
+  const dailyMap = new Map(
+    computeDailyPnl(trades).map((point) => [point.date, point])
+  );
+  const monthStart = startOfMonth(new Date(year, month, 1));
+  const monthEnd = endOfMonth(monthStart);
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+  const weeks: MonthCalendarWeek[] = [];
+  let cursor = gridStart;
+  let monthPnl = 0;
+  let activeDays = 0;
+
+  while (!isAfter(cursor, gridEnd)) {
+    const days: MonthCalendarDay[] = [];
+    let weekPnl = 0;
+    let weekActiveDays = 0;
+
+    for (let i = 0; i < 7; i++) {
+      const key = format(cursor, "yyyy-MM-dd");
+      const inMonth =
+        cursor.getMonth() === month && cursor.getFullYear() === year;
+      const entry = dailyMap.get(key);
+      const tradesCount = entry?.trades ?? 0;
+      const pnl =
+        tradesCount > 0 ? Math.round((entry?.pnl ?? 0) * 100) / 100 : null;
+
+      if (tradesCount > 0) {
+        weekPnl += pnl ?? 0;
+        weekActiveDays += 1;
+        if (inMonth) {
+          monthPnl += pnl ?? 0;
+          activeDays += 1;
+        }
+      }
+
+      days.push({
+        date: key,
+        dayOfMonth: cursor.getDate(),
+        inMonth,
+        pnl,
+        trades: tradesCount,
+      });
+      cursor = addDays(cursor, 1);
+    }
+
+    weeks.push({
+      days,
+      weekPnl: Math.round(weekPnl * 100) / 100,
+      activeDays: weekActiveDays,
+    });
+  }
+
+  return {
+    year,
+    month,
+    weeks,
+    monthPnl: Math.round(monthPnl * 100) / 100,
+    activeDays,
+  };
+}
+
+/** Twelve-month rollup for the yearly calendar view. */
+export function computeYearPnlSummary(
+  trades: JournalTrade[],
+  year: number
+): YearPnlSummaryData {
+  const daily = computeDailyPnl(trades);
+  const months: YearMonthSummary[] = [];
+  let yearPnl = 0;
+  let activeDays = 0;
+
+  for (let month = 0; month < 12; month++) {
+    const monthStart = startOfMonth(new Date(year, month, 1));
+    const monthEnd = endOfMonth(monthStart);
+    let pnl = 0;
+    let tradesCount = 0;
+    let days = 0;
+
+    for (const point of daily) {
+      const date = parseISO(point.date);
+      if (date < monthStart || date > monthEnd) continue;
+      pnl += point.pnl;
+      tradesCount += point.trades;
+      days += 1;
+    }
+
+    pnl = Math.round(pnl * 100) / 100;
+    yearPnl += pnl;
+    activeDays += days;
+
+    months.push({
+      month,
+      label: format(monthStart, "MMMM"),
+      pnl,
+      activeDays: days,
+      trades: tradesCount,
+    });
+  }
+
+  return {
+    year,
+    months,
+    yearPnl: Math.round(yearPnl * 100) / 100,
+    activeDays,
+  };
+}
+
+export interface MacroSummaryMonthRow {
+  month: number;
+  label: string;
+  trades: number;
+  winPct: number | null;
+  avgGain: number | null;
+  avgLoss: number | null;
+  biggestGain: number | null;
+  biggestLoss: number | null;
+  pnl: number | null;
+}
+
+/** Per-month win/loss stats for the calendar macro summary table. */
+export function computeYearMacroSummary(
+  trades: JournalTrade[],
+  year: number
+): MacroSummaryMonthRow[] {
+  const rows: MacroSummaryMonthRow[] = [];
+
+  for (let month = 0; month < 12; month++) {
+    const monthStart = startOfMonth(new Date(year, month, 1));
+    const monthEnd = endOfMonth(monthStart);
+    const monthTrades = trades.filter((trade) => {
+      const t = tradeTime(trade);
+      return !isBefore(t, monthStart) && !isAfter(t, monthEnd);
+    });
+
+    if (monthTrades.length === 0) {
+      rows.push({
+        month,
+        label: format(monthStart, "MMMM").toUpperCase(),
+        trades: 0,
+        winPct: null,
+        avgGain: null,
+        avgLoss: null,
+        biggestGain: null,
+        biggestLoss: null,
+        pnl: null,
+      });
+      continue;
+    }
+
+    const stats = computeWinLossStats(monthTrades);
+    const wins = monthTrades.filter((trade) => trade.pnl > 0);
+    const losses = monthTrades.filter((trade) => trade.pnl < 0);
+    const pnl =
+      Math.round(monthTrades.reduce((sum, trade) => sum + trade.pnl, 0) * 100) /
+      100;
+
+    rows.push({
+      month,
+      label: format(monthStart, "MMMM").toUpperCase(),
+      trades: monthTrades.length,
+      winPct:
+        Math.round((stats.winCount / monthTrades.length) * 1000) / 10,
+      avgGain: wins.length
+        ? Math.round(stats.avgWin * 100) / 100
+        : null,
+      avgLoss: losses.length
+        ? Math.round(stats.avgLoss * 100) / 100
+        : null,
+      biggestGain: wins.length
+        ? Math.round(stats.largestWin * 100) / 100
+        : null,
+      biggestLoss: losses.length
+        ? Math.round(stats.largestLoss * 100) / 100
+        : null,
+      pnl,
+    });
+  }
+
+  return rows;
 }
 
 export interface RMultipleBucket {

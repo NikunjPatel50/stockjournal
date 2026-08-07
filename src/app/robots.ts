@@ -11,6 +11,7 @@ const DISALLOW = [
   "/goals",
   "/settings",
   "/analytics",
+  "/calendar",
   "/feedback",
 ];
 
