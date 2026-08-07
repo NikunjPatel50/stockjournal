@@ -8,6 +8,7 @@ import { ReportSection } from "@/components/analytics-hub/report-section";
 import { PanelEmpty } from "@/components/data-panel";
 import { useSettings } from "@/components/settings/settings-provider";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
+import { LazySection } from "@/components/lazy-section";
 import {
   analyticsPeriodBadge,
   computeKpis,
@@ -163,49 +164,57 @@ export default function AnalyticsPage() {
         </>
       ) : (
         <>
-          <ReportSection
-            index="01"
-            title="Attribution"
-            description="How results cluster by sector and company size"
-          >
-            <PerformanceBreakdownCards
-              trades={filtered}
-              currency={currency}
-            />
-          </ReportSection>
+          <LazySection minHeight="16rem">
+            <ReportSection
+              index="01"
+              title="Attribution"
+              description="How results cluster by sector and company size"
+            >
+              <PerformanceBreakdownCards
+                trades={filtered}
+                currency={currency}
+              />
+            </ReportSection>
+          </LazySection>
 
-          <ReportSection
-            index="02"
-            title="Performance"
-            description="Realized P&L trend and open-position performance"
-          >
-            <div className={GRID_CLASS}>
-              <PnlLineChart trades={filtered} currency={currency} />
-              <PnlChartCard trades={trades} currency={currency} />
-            </div>
-          </ReportSection>
+          <LazySection minHeight="18rem">
+            <ReportSection
+              index="02"
+              title="Performance"
+              description="Realized P&L trend and open-position performance"
+            >
+              <div className={GRID_CLASS}>
+                <PnlLineChart trades={filtered} currency={currency} />
+                <PnlChartCard trades={trades} currency={currency} />
+              </div>
+            </ReportSection>
+          </LazySection>
 
-          <ReportSection
-            index="03"
-            title="Risk and outcome sizing"
-            description="How results scale against planned risk"
-          >
-            <div className={GRID_CLASS}>
-              <RMultipleSpectrum trades={filtered} />
-              <EdgePanel trades={filtered} currency={currency} />
-            </div>
-          </ReportSection>
+          <LazySection minHeight="16rem">
+            <ReportSection
+              index="03"
+              title="Risk and outcome sizing"
+              description="How results scale against planned risk"
+            >
+              <div className={GRID_CLASS}>
+                <RMultipleSpectrum trades={filtered} />
+                <EdgePanel trades={filtered} currency={currency} />
+              </div>
+            </ReportSection>
+          </LazySection>
 
-          <ReportSection
-            index="04"
-            title="Timing and duration"
-            description="When you trade during the week and how long positions are held"
-          >
-            <div className={GRID_CLASS}>
-              <SessionGrid trades={filtered} currency={currency} />
-              <HoldTimeBreakdown trades={filtered} currency={currency} />
-            </div>
-          </ReportSection>
+          <LazySection minHeight="16rem">
+            <ReportSection
+              index="04"
+              title="Timing and duration"
+              description="When you trade during the week and how long positions are held"
+            >
+              <div className={GRID_CLASS}>
+                <SessionGrid trades={filtered} currency={currency} />
+                <HoldTimeBreakdown trades={filtered} currency={currency} />
+              </div>
+            </ReportSection>
+          </LazySection>
         </>
       )}
     </div>

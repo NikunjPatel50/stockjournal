@@ -19,7 +19,7 @@ import { RiskSettings } from "@/components/settings/risk-settings";
 import { AppPageHeader } from "@/components/app-page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { APP_PAGE_SHELL_CLASS, MOBILE_NAV_OFFSET_CLASS } from "@/lib/app-shell";
+import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 
 const NAV = [
   {
@@ -94,12 +94,7 @@ export default function SettingsPage() {
           orientation="vertical"
           className="w-full gap-0 lg:flex-row"
         >
-          <aside
-            className={cn(
-              "min-w-0 border-b border-border bg-muted/30 p-3 lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0",
-              MOBILE_NAV_OFFSET_CLASS
-            )}
-          >
+          <aside className="min-w-0 border-b border-border bg-muted/30 p-3 lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0">
             <TabsList
               variant="line"
               className="h-auto w-full min-w-0 flex-row gap-1 overflow-x-auto bg-transparent p-0 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-visible [&::-webkit-scrollbar]:hidden"
@@ -139,22 +134,22 @@ export default function SettingsPage() {
 
           <div className="min-w-0 flex-1 bg-card">
             <TabsContent value="profile" className="mt-0">
-              <ProfileSettings />
+              {tab === "profile" ? <ProfileSettings /> : null}
             </TabsContent>
             <TabsContent value="password" className="mt-0 p-4 sm:p-6">
-              <PasswordSettings />
+              {tab === "password" ? <PasswordSettings /> : null}
             </TabsContent>
             <TabsContent value="risk" className="mt-0 p-4 sm:p-6">
-              <RiskSettings />
+              {tab === "risk" ? <RiskSettings /> : null}
             </TabsContent>
             <TabsContent value="customization" className="mt-0 p-4 sm:p-6">
-              <CustomizationSettings />
+              {tab === "customization" ? <CustomizationSettings /> : null}
             </TabsContent>
             <TabsContent value="display" className="mt-0 p-4 sm:p-6">
-              <DisplaySettings />
+              {tab === "display" ? <DisplaySettings /> : null}
             </TabsContent>
             <TabsContent value="data" className="mt-0 p-4 sm:p-6">
-              <DataSettings />
+              {tab === "data" ? <DataSettings /> : null}
             </TabsContent>
           </div>
         </Tabs>

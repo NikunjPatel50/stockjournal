@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Info } from "lucide-react";
 import {
   formatMoney,
@@ -115,7 +116,10 @@ function InsightKpiCard({
   );
 }
 
-export function KpiRibbon({ kpis, capitalBase = 0 }: KpiRibbonProps) {
+export const KpiRibbon = memo(function KpiRibbon({
+  kpis,
+  capitalBase = 0,
+}: KpiRibbonProps) {
   const pnlUp = kpis.netPnl > 0;
   const pnlDown = kpis.netPnl < 0;
   const closed = kpis.wins + kpis.losses;
@@ -228,4 +232,4 @@ export function KpiRibbon({ kpis, capitalBase = 0 }: KpiRibbonProps) {
       />
     </div>
   );
-}
+});

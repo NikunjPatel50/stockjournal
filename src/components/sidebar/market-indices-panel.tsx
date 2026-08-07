@@ -227,9 +227,9 @@ function OhlcCard({
 
 export function MarketIndicesPanel() {
   const pathname = usePathname();
-  const pollEnabled = shouldPollLiveMarketData(pathname);
-  const { quotes, loading, error, fetchedAt } = useMarketIndices(pollEnabled);
   const isCompact = useIsCompactApp();
+  const pollEnabled = shouldPollLiveMarketData(pathname) && !isCompact;
+  const { quotes, loading, error, fetchedAt } = useMarketIndices(pollEnabled);
   const now = useSessionClock(30_000);
   const [ohlcAnchor, setOhlcAnchor] = useState<OhlcAnchor | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);

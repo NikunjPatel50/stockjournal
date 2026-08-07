@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { AdminAccessProvider } from "@/components/admin/admin-access-provider";
 import { JournalTradesProvider } from "@/components/journal-trades-provider";
 import { MarketQuotesProvider } from "@/components/market-quotes-provider";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { ScrollActivityBinder } from "@/components/scroll-activity-binder";
 import { Sidebar } from "@/components/sidebar";
 import { UserStorageProvider } from "@/components/user-storage-provider";
 import { isAdminUser } from "@/lib/admin";
@@ -38,9 +40,14 @@ export default async function AppLayout({
           <MarketQuotesProvider>
             <div className="flex h-dvh min-h-0 w-full min-w-0 overflow-hidden">
               <Sidebar />
-              <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background supports-[padding:max(0px)]:pb-[max(0px,env(safe-area-inset-bottom))]">
+              <ScrollActivityBinder />
+              <main
+                id="app-scroll-main"
+                className="app-scroll-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background pb-[calc(4rem+env(safe-area-inset-bottom,0px))] lg:pb-[max(0px,env(safe-area-inset-bottom))]"
+              >
                 {children}
               </main>
+              <MobileBottomNav />
             </div>
           </MarketQuotesProvider>
         </JournalTradesProvider>

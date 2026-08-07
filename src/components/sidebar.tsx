@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
@@ -8,20 +7,12 @@ import {
   BarChart3,
   BookOpen,
   LayoutDashboard,
-  Menu,
   MessageSquare,
   Settings,
   Target,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { MarketIndicesPanel } from "@/components/sidebar/market-indices-panel";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const navGroups = [
@@ -50,7 +41,7 @@ function isActiveRoute(pathname: string, href: string) {
   );
 }
 
-function NavContent({ onNavigate }: { onNavigate?: () => void }) {
+function NavContent() {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
   const navSpring = reduceMotion
@@ -62,7 +53,6 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="border-b border-sidebar-border px-4 py-4">
         <Link
           href="/dashboard"
-          onClick={onNavigate}
           className="flex items-center gap-3 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <BrandLogo
@@ -99,7 +89,6 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                       <Link
                         key={item.href}
                         href={item.href}
-                        onClick={onNavigate}
                         aria-current={active ? "page" : undefined}
                         className={cn(
                           "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-200",
@@ -150,37 +139,9 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function Sidebar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   return (
-    <>
-      <aside className="sticky top-0 hidden h-full w-72 min-w-72 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
-        <NavContent />
-      </aside>
-
-      <div className="fixed top-[max(0.75rem,env(safe-area-inset-top))] left-[max(0.75rem,env(safe-area-inset-left))] z-40 lg:hidden">
-        <Button
-          variant="outline"
-          size="icon"
-          className="border-border bg-card shadow-sm"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation"
-        >
-          <Menu className="size-4" />
-        </Button>
-      </div>
-
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent
-          side="left"
-          className="flex h-full w-[min(100vw-1.5rem,21rem)] flex-col border-sidebar-border bg-sidebar p-0"
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Navigation</SheetTitle>
-          </SheetHeader>
-          <NavContent onNavigate={() => setMobileOpen(false)} />
-        </SheetContent>
-      </Sheet>
-    </>
+    <aside className="sticky top-0 hidden h-full w-72 min-w-72 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
+      <NavContent />
+    </aside>
   );
 }

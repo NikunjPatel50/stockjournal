@@ -1126,6 +1126,20 @@ export function formatMoney(
   return formatSignedMoney(value, currency);
 }
 
+/** Compact currency labels for chart Y-axes (no decimals). */
+export function formatChartAxisMoney(
+  value: number,
+  currency: CurrencyCode = DEFAULT_CURRENCY
+) {
+  const locale = currency === "INR" ? "en-IN" : "en-US";
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export function formatPf(value: number) {
   if (!Number.isFinite(value)) return "∞";
   return trimTrailingZeros(value.toFixed(2));
@@ -1142,7 +1156,9 @@ export function formatPercent(value: number, decimals = 1): string {
 }
 
 export function formatSignedPercent(value: number, decimals = 1): string {
-  if (value > 0) return `+${trimTrailingZeros(value.toFixed(decimals))}%`;
-  if (value < 0) return `-${trimTrailingZeros(Math.abs(value).toFixed(decimals))}%`;
-  return `${trimTrailingZeros(value.toFixed(decimals))}%`;
+  if (!Number.isFinite(value)) return "—";
+  const capped = Math.max(-9_999, Math.min(9_999, value));
+  if (capped > 0) return `+${trimTrailingZeros(capped.toFixed(decimals))}%`;
+  if (capped < 0) return `-${trimTrailingZeros(Math.abs(capped).toFixed(decimals))}%`;
+  return `${trimTrailingZeros(capped.toFixed(decimals))}%`;
 }

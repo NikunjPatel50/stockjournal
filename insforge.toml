@@ -1,11 +1,15 @@
 [auth]
 allowed_redirect_urls = [
   "http://localhost:3000/api/auth/callback",
+  "http://localhost:3000/api/auth/mobile-callback",
   "http://localhost:3000/login",
   "https://swingtradinglog.com/api/auth/callback",
+  "https://swingtradinglog.com/api/auth/mobile-callback",
   "https://swingtradinglog.com/login",
   "https://www.swingtradinglog.com/api/auth/callback",
+  "https://www.swingtradinglog.com/api/auth/mobile-callback",
   "https://www.swingtradinglog.com/login",
+  "swingtradinglog://auth/callback",
 ]
 require_email_verification = true
 verify_email_method = "code"

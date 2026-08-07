@@ -6,8 +6,6 @@ import { TradePulseCard } from "@/components/trade-pulse/trade-pulse-card";
 import { Button } from "@/components/ui/button";
 import { useTradePulseNotes } from "@/hooks/use-trade-pulse-notes";
 import { useJournalTrades } from "@/components/journal-trades-provider";
-import { MOBILE_NAV_OFFSET_CLASS } from "@/lib/app-shell";
-import { cn } from "@/lib/utils";
 
 export function TradePulseSection() {
   const { trades } = useJournalTrades();
@@ -31,12 +29,7 @@ export function TradePulseSection() {
 
   return (
     <section aria-label="Trade Pulse">
-      <div
-        className={cn(
-          "mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
-          MOBILE_NAV_OFFSET_CLASS
-        )}
-      >
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold tracking-tight text-foreground">
             Trade Pulse

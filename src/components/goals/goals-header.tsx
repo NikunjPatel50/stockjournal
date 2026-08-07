@@ -4,9 +4,7 @@ import { Plus } from "lucide-react";
 import { AppPageHeader } from "@/components/app-page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MOBILE_NAV_OFFSET_CLASS } from "@/lib/app-shell";
 import type { GoalPeriod } from "@/lib/goals";
-import { cn } from "@/lib/utils";
 
 interface GoalsHeaderProps {
   period: GoalPeriod;
@@ -34,12 +32,7 @@ export function GoalsHeader({
         className="[&_h1]:text-xl [&_h1]:sm:text-2xl"
       />
 
-      <div
-        className={cn(
-          "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
-          MOBILE_NAV_OFFSET_CLASS
-        )}
-      >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Tabs
             value={period}

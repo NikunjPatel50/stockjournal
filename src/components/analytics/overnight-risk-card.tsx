@@ -10,7 +10,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -143,6 +142,11 @@ function GapChip({ kind }: { kind: OvernightExposureRow["gapRisk"] }) {
   );
 }
 
+const EXPOSURE_VIEW_OPTIONS = [
+  { value: "table" as const, label: "Table", icon: Table2 },
+  { value: "chart" as const, label: "Chart", icon: PieChartIcon },
+];
+
 function ExposureViewToggle({
   value,
   onChange,
@@ -151,30 +155,38 @@ function ExposureViewToggle({
   onChange: (value: ExposureView) => void;
 }) {
   return (
-    <Tabs
-      value={value}
-      onValueChange={(next) => {
-        if (next === "table" || next === "chart") onChange(next);
-      }}
-      className="w-auto"
+    <div
+      role="group"
+      aria-label="Overnight exposure view"
+      className="inline-flex items-center gap-0.5 rounded-lg bg-muted/40 p-0.5"
     >
-      <TabsList className="inline-flex h-8 rounded-lg border border-border bg-muted/60 p-0.5 shadow-none">
-        <TabsTrigger
-          value="table"
-          className="h-7 gap-1 rounded-md px-2 text-[11px] font-medium data-active:bg-background data-active:shadow-sm"
-        >
-          <Table2 className="size-3.5" />
-          Table
-        </TabsTrigger>
-        <TabsTrigger
-          value="chart"
-          className="h-7 gap-1 rounded-md px-2 text-[11px] font-medium data-active:bg-background data-active:shadow-sm"
-        >
-          <PieChartIcon className="size-3.5" />
-          Chart
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
+      {EXPOSURE_VIEW_OPTIONS.map(({ value: optionValue, label, icon: Icon }) => {
+        const active = value === optionValue;
+        return (
+          <button
+            key={optionValue}
+            type="button"
+            aria-pressed={active}
+            aria-label={`${label} view`}
+            title={label}
+            onClick={() => onChange(optionValue)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+              active
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
+            )}
+          >
+            <Icon
+              className="size-3.5 shrink-0"
+              strokeWidth={active ? 2.25 : 2}
+              aria-hidden
+            />
+            <span className="hidden min-[420px]:inline">{label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

@@ -258,3 +258,19 @@ input[type="number"]::-webkit-inner-spin-button {
     animation-duration: 1ms !important;
   }
 }
+
+.app-scroll-main {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cv-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 12rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-scroll-main.is-scrolling .cv-section {
+    content-visibility: auto;
+  }
+}

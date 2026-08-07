@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   formatCurrency,
   formatMarketPrice,
@@ -85,7 +86,7 @@ function tradeCountLabel(count: number) {
   return `${count} ${count === 1 ? "trade" : "trades"}`;
 }
 
-export function JournalSummaryBar({
+export const JournalSummaryBar = memo(function JournalSummaryBar({
   summary,
   livePnl,
   filteredPnl,
@@ -211,4 +212,4 @@ export function JournalSummaryBar({
       />
     </div>
   );
-}
+});

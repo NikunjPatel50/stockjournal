@@ -18,6 +18,7 @@ import {
 import { useJournalTrades } from "@/components/journal-trades-provider";
 import { computeCapitalBase, computeOvernightRisk } from "@/lib/overnight-risk";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
+import { LazySection } from "@/components/lazy-section";
 
 const TradePulseSection = dynamic(
   () =>
@@ -49,6 +50,14 @@ const MonthlyPerformanceCard = dynamic(
       default: mod.MonthlyPerformanceCard,
     })),
   { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
+const PortfolioOverviewCard = dynamic(
+  () =>
+    import("@/components/analytics/portfolio-overview-card").then((mod) => ({
+      default: mod.PortfolioOverviewCard,
+    })),
+  { loading: () => <div className="min-h-[18rem] animate-pulse rounded-2xl bg-muted/40" /> }
 );
 
 export default function DashboardPage() {
@@ -87,26 +96,36 @@ export default function DashboardPage() {
       />
       <KpiRibbon kpis={kpis} capitalBase={capitalBase} />
 
-      <TradePulseSection />
+      <PortfolioOverviewCard trades={trades} currency={settings.profile.currency} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
-        <OvernightRiskCard
-          summary={overnightRisk}
-          currency={settings.profile.currency}
-          className="h-full"
-        />
-        <MonthlyPerformanceCard
-          trades={filtered}
-          startingEquity={capitalBase}
-        />
-      </div>
+      <LazySection minHeight="8rem">
+        <TradePulseSection />
+      </LazySection>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch">
-        <MainCharts equity={equity} weeklyPnl={weeklyPnl} />
-        <PnlBreakdownCard trades={filtered} />
-      </div>
+      <LazySection minHeight="12rem">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
+          <OvernightRiskCard
+            summary={overnightRisk}
+            currency={settings.profile.currency}
+            className="h-full"
+          />
+          <MonthlyPerformanceCard
+            trades={filtered}
+            startingEquity={capitalBase}
+          />
+        </div>
+      </LazySection>
 
-      <RecentTradesCard trades={filtered} currency={settings.profile.currency} />
+      <LazySection minHeight="16rem">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch">
+          <MainCharts equity={equity} weeklyPnl={weeklyPnl} />
+          <PnlBreakdownCard trades={filtered} />
+        </div>
+      </LazySection>
+
+      <LazySection minHeight="12rem">
+        <RecentTradesCard trades={filtered} currency={settings.profile.currency} />
+      </LazySection>
     </div>
   );
 }

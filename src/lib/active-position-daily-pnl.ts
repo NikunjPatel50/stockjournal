@@ -309,7 +309,8 @@ export function computeTradeDailyPnlFromQuote(
   trade: ActivePositionPnlInput,
   quote: LiveQuoteForDailyPnl | null | undefined,
   currency: CurrencyCode,
-  asOf = new Date()
+  asOf = new Date(),
+  priorSessionBarByTradeId: Record<string, boolean> = {}
 ): number | null {
   if (trade.assetClass !== "Equities") return null;
   if (!quote?.price || quote.price <= 0) return null;
@@ -317,9 +318,11 @@ export function computeTradeDailyPnlFromQuote(
   const listingMarket = resolveListingMarket(trade, currency);
   const today = todayYmdForListingMarket(listingMarket, asOf);
   const entryDay = entryDayKey(trade.entryDate, listingMarket);
+  const hasPriorSessionBar =
+    priorSessionBarByTradeId[trade.id] ?? entryDay < today;
 
   return quoteDailyPnlForSession(trade, quote, today, listingMarket, asOf, {
-    hasPriorSessionBar: entryDay < today,
+    hasPriorSessionBar,
   });
 }
 
@@ -328,7 +331,8 @@ export function computeTodayDailyPnlFromQuotes(
   trades: ActivePositionPnlInput[],
   quotesByTradeId: Record<string, LiveQuoteForDailyPnl | null | undefined>,
   currency: CurrencyCode,
-  asOf = new Date()
+  asOf = new Date(),
+  priorSessionBarByTradeId: Record<string, boolean> = {}
 ): TodayDailyPnlSummary {
   let totalPnl = 0;
   let pricedCount = 0;
@@ -338,7 +342,8 @@ export function computeTodayDailyPnlFromQuotes(
       trade,
       quotesByTradeId[trade.id],
       currency,
-      asOf
+      asOf,
+      priorSessionBarByTradeId
     );
     if (daily == null) continue;
 

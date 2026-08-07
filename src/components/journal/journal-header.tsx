@@ -32,7 +32,6 @@ import type { AnalyticsTimeframe } from "@/lib/analytics";
 import { emptyFilters, type JournalFilters } from "@/lib/journal-types";
 import { useIsCompactApp } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
-import { MOBILE_NAV_OFFSET_CLASS } from "@/lib/app-shell";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All statuses", dotClass: "bg-muted-foreground/50" },
@@ -134,12 +133,7 @@ export function JournalHeader({
         title="Trade journal"
       />
 
-      <div
-        className={cn(
-          "min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-none",
-          MOBILE_NAV_OFFSET_CLASS
-        )}
-      >
+      <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-none">
         <div className="flex flex-col gap-4 p-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center">

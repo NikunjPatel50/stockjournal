@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { isScrollActive, onScrollEnd } from "@/lib/scroll-activity";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import {
   defaultListingMarketForCurrency,
@@ -166,6 +167,31 @@ export function useMarketQuotesPoller(
   const schedulePollRef = useRef<(() => void) | null>(null);
   const quoteRevisionRef = useRef(0);
   const [quoteRevision, setQuoteRevision] = useState(0);
+  const pendingQuotePatchRef = useRef<{
+    quotes: Record<string, ClientMarketQuote | null>;
+    fetchedAt: number;
+    delayed: boolean;
+    sessionOpen: boolean;
+  } | null>(null);
+
+  const flushPendingQuotes = useCallback(() => {
+    const pending = pendingQuotePatchRef.current;
+    if (!pending) return;
+    pendingQuotePatchRef.current = null;
+    setState((prev) => ({
+      ...prev,
+      quotes: { ...prev.quotes, ...pending.quotes },
+      loading: false,
+      error: null,
+      fetchedAt: pending.fetchedAt,
+      delayed: pending.delayed,
+      sessionOpen: pending.sessionOpen,
+    }));
+    quoteRevisionRef.current += 1;
+    setQuoteRevision(quoteRevisionRef.current);
+  }, []);
+
+  useEffect(() => onScrollEnd(flushPendingQuotes), [flushPendingQuotes]);
 
   useLayoutEffect(() => {
     if (symbols.length === 0) return;
@@ -241,12 +267,16 @@ export function useMarketQuotesPoller(
       }
 
       const fetchedAt = data.fetchedAt ?? Date.now();
+      const incoming = data.quotes ?? {};
+      const sessionOpenAtFetch = anySymbolSessionOpen(
+        symbols,
+        new Date(fetchedAt)
+      );
 
-      writeQuotesCache(data.quotes ?? {});
+      writeQuotesCache(incoming);
 
       let quotesChanged = false;
       setState((prev) => {
-        const incoming = data.quotes ?? {};
         quotesChanged = quotesPayloadChanged(prev.quotes, incoming);
         if (!quotesChanged) {
           return {
@@ -254,25 +284,41 @@ export function useMarketQuotesPoller(
             loading: false,
             error: null,
             delayed: data.delayed !== false,
-            sessionOpen: anySymbolSessionOpen(symbols, new Date(fetchedAt)),
+            sessionOpen: sessionOpenAtFetch,
           };
         }
+
+        if (isScrollActive()) {
+          pendingQuotePatchRef.current = {
+            quotes: incoming,
+            fetchedAt,
+            delayed: data.delayed !== false,
+            sessionOpen: sessionOpenAtFetch,
+          };
+          return {
+            ...prev,
+            loading: false,
+            error: null,
+            sessionOpen: sessionOpenAtFetch,
+          };
+        }
+
         return {
           quotes: { ...prev.quotes, ...incoming },
           loading: false,
           error: null,
           fetchedAt,
           delayed: data.delayed !== false,
-          sessionOpen: anySymbolSessionOpen(symbols, new Date(fetchedAt)),
+          sessionOpen: sessionOpenAtFetch,
         };
       });
 
-      if (quotesChanged) {
+      if (quotesChanged && !isScrollActive()) {
         quoteRevisionRef.current += 1;
         setQuoteRevision(quoteRevisionRef.current);
       }
 
-      const nowOpen = anySymbolSessionOpen(symbols, new Date(fetchedAt));
+      const nowOpen = sessionOpenAtFetch;
       if (nowOpen !== sessionOpenRef.current) {
         sessionOpenRef.current = nowOpen;
         schedulePollRef.current?.();

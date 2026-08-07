@@ -1,5 +1,4 @@
 import { HeaderActions } from "@/components/header-actions";
-import { MOBILE_NAV_OFFSET_CLASS } from "@/lib/app-shell";
 import { cn } from "@/lib/utils";
 
 type AppPageHeaderProps = {
@@ -12,7 +11,7 @@ type AppPageHeaderProps = {
   actionsClassName?: string;
 };
 
-/** Consistent app shell header with mobile nav offset (hamburger). */
+/** Consistent app shell header. */
 export function AppPageHeader({
   eyebrow,
   overlineEyebrow = true,
@@ -28,13 +27,7 @@ export function AppPageHeader({
         className
       )}
     >
-      <div
-        className={cn(
-          "min-w-0 pr-1 max-lg:pt-1",
-          MOBILE_NAV_OFFSET_CLASS,
-          "lg:pr-0"
-        )}
-      >
+      <div className={cn("min-w-0 pr-1", "lg:pr-0")}>
         {eyebrow ? (
           <p
             className={cn(
@@ -62,7 +55,6 @@ export function AppPageHeader({
       <HeaderActions
         className={cn(
           "w-full max-w-full shrink-0 justify-end self-stretch sm:w-auto sm:self-auto",
-          MOBILE_NAV_OFFSET_CLASS,
           actionsClassName
         )}
       />

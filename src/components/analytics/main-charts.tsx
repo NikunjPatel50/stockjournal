@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import {
   Area,
@@ -267,6 +267,11 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
   );
 
   const defaultTab = weeklyPnl.length > 0 ? "weekly" : "cumulative";
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   return (
     <Card className={dashboardAnalyticsCardClass}>
@@ -280,8 +285,8 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
       </CardHeader>
       <CardContent className={dashboardAnalyticsContentClass}>
         <Tabs
-          defaultValue={defaultTab}
-          key={defaultTab}
+          value={activeTab}
+          onValueChange={setActiveTab}
           className="w-full"
         >
           <TabsList className="mb-3 h-8 w-full shrink-0 justify-start bg-muted p-0.5 sm:w-auto">
@@ -306,118 +311,126 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
           </TabsList>
 
           <TabsContent value="weekly" className="mt-0">
-            {weeklyPnl.length === 0 ? (
-              <EmptyChart />
-            ) : (
-              <WeeklyPnlChart data={weeklyPnl} domain={weeklyDomain} />
-            )}
+            {activeTab === "weekly" ? (
+              weeklyPnl.length === 0 ? (
+                <EmptyChart />
+              ) : (
+                <WeeklyPnlChart data={weeklyPnl} domain={weeklyDomain} />
+              )
+            ) : null}
           </TabsContent>
 
           <TabsContent value="cumulative" className="mt-0">
-            {cumulative.length < 2 ? (
-              <EmptyChart />
-            ) : (
-              <ChartContainer
-                config={cumulativeConfig}
-                className={CHART_BODY_CLASS}
-              >
-                <LineChart data={cumulative} margin={{ left: 4, right: 4, top: 4 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={(v) => String(v).slice(5)}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={48}
-                    tick={{ fontSize: 10 }}
-                    domain={cumulativeDomain}
-                    tickFormatter={(v) => formatMoney(Number(v), false)}
-                  />
-                  <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="4 4" />
-                  <ChartTooltip
-                    cursor={false}
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value) => (
-                          <span>Net: {formatMoney(Number(value))}</span>
-                        )}
-                      />
-                    }
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="cumulative"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "#10b981" }}
-                    activeDot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ChartContainer>
-            )}
+            {activeTab === "cumulative" ? (
+              cumulative.length < 2 ? (
+                <EmptyChart />
+              ) : (
+                <ChartContainer
+                  config={cumulativeConfig}
+                  className={CHART_BODY_CLASS}
+                >
+                  <LineChart data={cumulative} margin={{ left: 4, right: 4, top: 4 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v) => String(v).slice(5)}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      width={48}
+                      tick={{ fontSize: 10 }}
+                      domain={cumulativeDomain}
+                      tickFormatter={(v) => formatMoney(Number(v), false)}
+                    />
+                    <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="4 4" />
+                    <ChartTooltip
+                      cursor={false}
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value) => (
+                            <span>Net: {formatMoney(Number(value))}</span>
+                          )}
+                        />
+                      }
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="cumulative"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: "#10b981" }}
+                      activeDot={{ r: 4 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              )
+            ) : null}
           </TabsContent>
 
           <TabsContent value="drawdown" className="mt-0">
-            {equity.length < 2 ? (
-              <EmptyChart />
-            ) : (
-              <ChartContainer
-                config={ddConfig}
-                className={CHART_BODY_CLASS}
-              >
-                <AreaChart data={equity} margin={{ left: 4, right: 4, top: 4 }}>
-                  <defs>
-                    <linearGradient id="ddFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={(v) => String(v).slice(5)}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={48}
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={(v) => formatMoney(Number(v), false)}
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value, _name, item) => {
-                          const payload = item?.payload as EquityPoint | undefined;
-                          return (
-                            <div>
-                              DD: {formatMoney(Number(value))} (
-                              {payload?.drawdownPct.toFixed(2)}%)
-                            </div>
-                          );
-                        }}
-                      />
-                    }
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="drawdown"
-                    stroke="#f43f5e"
-                    fill="url(#ddFill)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ChartContainer>
-            )}
+            {activeTab === "drawdown" ? (
+              equity.length < 2 ? (
+                <EmptyChart />
+              ) : (
+                <ChartContainer
+                  config={ddConfig}
+                  className={CHART_BODY_CLASS}
+                >
+                  <AreaChart data={equity} margin={{ left: 4, right: 4, top: 4 }}>
+                    <defs>
+                      <linearGradient id="ddFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v) => String(v).slice(5)}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      width={48}
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v) => formatMoney(Number(v), false)}
+                    />
+                    <ChartTooltip
+                      cursor={false}
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, _name, item) => {
+                            const payload = item?.payload as EquityPoint | undefined;
+                            return (
+                              <div>
+                                DD: {formatMoney(Number(value))} (
+                                {payload?.drawdownPct.toFixed(2)}%)
+                              </div>
+                            );
+                          }}
+                        />
+                      }
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="drawdown"
+                      stroke="#f43f5e"
+                      fill="url(#ddFill)"
+                      strokeWidth={2}
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              )
+            ) : null}
           </TabsContent>
         </Tabs>
       </CardContent>

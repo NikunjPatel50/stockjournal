@@ -147,19 +147,19 @@ function hasStopAboveEntry(trade: JournalTrade): boolean {
 
 function rowAccentClass(trade: JournalTrade, livePnl?: number) {
   if (hasStopAboveEntry(trade)) {
-    return "border-l-sky-600 bg-sky-500/[0.18] hover:bg-sky-500/[0.26] dark:border-l-sky-400 dark:bg-sky-500/30 dark:hover:bg-sky-500/40";
+    return "border-l-4 border-l-sky-600 bg-card hover:bg-muted/50 dark:border-l-sky-400";
   }
   const pnl = livePnl ?? trade.pnl;
   if (pnl > 0) {
-    return "border-l-emerald-500 bg-emerald-500/[0.12] hover:bg-emerald-500/[0.18] dark:bg-emerald-500/20 dark:hover:bg-emerald-500/28";
+    return "border-l-4 border-l-emerald-500 bg-card hover:bg-muted/50";
   }
   if (pnl < 0) {
-    return "border-l-rose-500 bg-rose-500/[0.12] hover:bg-rose-500/[0.18] dark:bg-rose-500/20 dark:hover:bg-rose-500/28";
+    return "border-l-4 border-l-rose-500 bg-card hover:bg-muted/50";
   }
   if (trade.status === "Active") {
-    return "border-l-emerald-500/80 bg-muted/35 hover:bg-muted/45";
+    return "border-l-4 border-l-emerald-500/70 bg-card hover:bg-muted/50";
   }
-  return "border-l-border bg-muted/25 hover:bg-muted/40";
+  return "border-l-4 border-l-transparent bg-card hover:bg-muted/40";
 }
 
 function RowColorLegend() {
@@ -857,7 +857,68 @@ interface JournalTableProps {
   earningsLoading?: boolean;
 }
 
-export function JournalTable({
+type QuoteSlice = {
+  getQuote: (trade: JournalTrade) => ClientMarketQuote | null;
+  quoteRevision: number;
+  quotesLoading: boolean;
+  quotesError: string | null;
+  quotesDelayed: boolean;
+  quotesSessionOpen: boolean;
+};
+
+const STATIC_QUOTE_SLICE: QuoteSlice = {
+  getQuote: () => null,
+  quoteRevision: 0,
+  quotesLoading: false,
+  quotesError: null,
+  quotesDelayed: true,
+  quotesSessionOpen: false,
+};
+
+export function JournalTable(props: JournalTableProps) {
+  if (props.enableLiveQuotes === false) {
+    return (
+      <JournalTableInner
+        {...props}
+        enableLiveQuotes={false}
+        quoteSlice={STATIC_QUOTE_SLICE}
+      />
+    );
+  }
+  return <JournalTableLive {...props} />;
+}
+
+function JournalTableLive(props: JournalTableProps) {
+  const sharedQuotes = useMarketQuotes();
+  const quoteSlice = useMemo(
+    () => ({
+      getQuote: sharedQuotes.getQuote,
+      quoteRevision: sharedQuotes.quoteRevision,
+      quotesLoading: sharedQuotes.loading,
+      quotesError: sharedQuotes.error,
+      quotesDelayed: sharedQuotes.delayed,
+      quotesSessionOpen: sharedQuotes.sessionOpen,
+    }),
+    [
+      sharedQuotes.getQuote,
+      sharedQuotes.quoteRevision,
+      sharedQuotes.loading,
+      sharedQuotes.error,
+      sharedQuotes.delayed,
+      sharedQuotes.sessionOpen,
+    ]
+  );
+
+  return (
+    <JournalTableInner
+      {...props}
+      enableLiveQuotes
+      quoteSlice={quoteSlice}
+    />
+  );
+}
+
+function JournalTableInner({
   trades,
   title = "Trade log",
   totalTradeCount,
@@ -868,7 +929,8 @@ export function JournalTable({
   enableLiveQuotes = true,
   getEarningsDate: getEarningsDateProp,
   earningsLoading: earningsLoadingProp,
-}: JournalTableProps) {
+  quoteSlice,
+}: JournalTableProps & { quoteSlice: QuoteSlice }) {
   const isCompact = useIsJournalCompact();
   const [sorting, setSorting] = useState<SortingState>([
     { id: "entryDate", desc: true },
@@ -885,15 +947,14 @@ export function JournalTable({
   const { settings } = useSettings();
   const displayCurrency = settings.profile.currency;
 
-  const sharedQuotes = useMarketQuotes();
-  const getQuote = enableLiveQuotes
-    ? sharedQuotes.getQuote
-    : () => null as ClientMarketQuote | null;
-  const quotesLoading = enableLiveQuotes ? sharedQuotes.loading : false;
-  const quotesError = enableLiveQuotes ? sharedQuotes.error : null;
-  const quotesDelayed = enableLiveQuotes ? sharedQuotes.delayed : true;
-  const quotesSessionOpen = enableLiveQuotes ? sharedQuotes.sessionOpen : false;
-  const quoteRevision = enableLiveQuotes ? sharedQuotes.quoteRevision : 0;
+  const {
+    getQuote,
+    quoteRevision,
+    quotesLoading,
+    quotesError,
+    quotesDelayed,
+    quotesSessionOpen,
+  } = quoteSlice;
 
   const {
     getEarningsDate: getEarningsDateFromHook,
@@ -1402,8 +1463,8 @@ export function JournalTable({
   );
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]">
-      <header className="flex flex-col gap-3 border-b border-border/80 bg-gradient-to-r from-muted/50 via-card to-card px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+    <section className="cv-section overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]">
+      <header className="flex flex-col gap-3 border-b border-border/80 bg-card px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-semibold tracking-tight text-foreground">
@@ -1639,7 +1700,7 @@ export function JournalTable({
                 />
               ))}
             </colgroup>
-            <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-md">
+            <thead className="sticky top-0 z-10 border-b border-border bg-card shadow-[0_1px_0_0_hsl(var(--border))]">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr
                   key={headerGroup.id}

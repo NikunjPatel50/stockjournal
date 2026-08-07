@@ -9,9 +9,7 @@ import {
   defaultListingMarketForCurrency,
   LISTING_MARKET_IDS,
 } from "@/lib/equity-listing-markets";
-import { defaultEquityExchangeForCurrency } from "@/lib/eodhd";
 import { fetchDailyBarsCached } from "@/lib/daily-bars-cache";
-import { fetchMarketQuoteForTrade } from "@/lib/market-quote";
 import { mapWithConcurrency } from "@/lib/map-with-concurrency";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getMarketDataProvider } from "@/lib/trade-pulse/providers";
@@ -37,7 +35,7 @@ const requestSchema = z.object({
 
 export const maxDuration = 30;
 
-const FETCH_CONCURRENCY = 6;
+const FETCH_CONCURRENCY = 8;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -66,58 +64,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ daily: [] });
   }
 
-  const apiKey = process.env.EODHD_API_KEY?.trim();
-  const equityExchange = defaultEquityExchangeForCurrency(currency);
   const provider = getMarketDataProvider();
   const barsByTradeId: Record<
     string,
     Awaited<ReturnType<typeof provider.fetchDailyBars>>
-  > = {};
-  const quotesByTradeId: Record<
-    string,
-    { price: number; changePercent: number | null }
   > = {};
 
   await mapWithConcurrency(trades, FETCH_CONCURRENCY, async (trade) => {
     const listingMarket =
       trade.listingMarket ?? defaultListingMarketForCurrency(currency);
 
-    const [bars, quote] = await Promise.all([
-      fetchDailyBarsCached(trade.ticker, listingMarket, () =>
+    barsByTradeId[trade.id] = await fetchDailyBarsCached(
+      trade.ticker,
+      listingMarket,
+      () =>
         provider
           .fetchDailyBars(trade.ticker, listingMarket)
           .catch(
             () => [] as Awaited<ReturnType<typeof provider.fetchDailyBars>>
           )
-      ),
-      apiKey
-        ? fetchMarketQuoteForTrade(
-            trade.ticker,
-            "Equities",
-            apiKey,
-            equityExchange,
-            {
-              entryPrice: trade.entryPrice,
-              profileCurrency: currency,
-              listingMarket,
-            }
-          ).catch(() => null)
-        : Promise.resolve(null),
-    ]);
-
-    barsByTradeId[trade.id] = bars;
-    if (quote?.price != null && quote.price > 0) {
-      quotesByTradeId[trade.id] = {
-        price: quote.price,
-        changePercent: quote.changePercent,
-      };
-    }
+    );
   });
 
   const daily = computeActivePositionDailyPnl(trades, barsByTradeId, {
     asOf: new Date(),
     currency,
-    quotesByTradeId,
   });
 
   const asOf = new Date();

@@ -8,6 +8,10 @@ import {
   GOOGLE_OAUTH_HINT_COOKIE,
   GOOGLE_OAUTH_HINT_MAX_AGE,
 } from "@/lib/google-oauth-hint";
+import {
+  hasWebOAuthCookies,
+  mobileOAuthBridgeResponse,
+} from "@/lib/mobile-oauth-bridge";
 import { createSupabaseOAuthRouteClient } from "@/lib/supabase/route-client";
 import { mapSupabaseUser } from "@/lib/supabase/types";
 
@@ -19,6 +23,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       new URL("/login?error=oauth_failed", request.url)
     );
+  }
+
+  // Native app OAuth: no web PKCE cookies — hand code back to the app instead of
+  // exchanging server-side (which fails and strands the user on the web login page).
+  if (!hasWebOAuthCookies(request)) {
+    return mobileOAuthBridgeResponse(request);
   }
 
   const { supabase, applyCookiesTo } = createSupabaseOAuthRouteClient(request);

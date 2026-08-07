@@ -89,13 +89,13 @@ function Stat({
   tone?: "profit" | "loss" | "neutral";
 }) {
   return (
-    <div className="min-w-0">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+    <div className="flex min-w-0 flex-col items-center justify-center bg-card px-3 py-2.5 sm:px-4">
+      <p className="w-full text-center text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </p>
       <p
         className={cn(
-          "mt-0.5 truncate text-base font-semibold",
+          "mt-0.5 w-full text-center text-base font-semibold sm:text-[15px]",
           NUMERIC_CLASS,
           tone === "profit" && "text-emerald-600 dark:text-emerald-400",
           tone === "loss" && "text-rose-600 dark:text-rose-400",
@@ -151,7 +151,7 @@ export function PnlLineChart({ trades, currency }: PnlLineChartProps) {
         />
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-lg border-2 border-border bg-border/70 sm:grid-cols-4">
             <Stat
               label="Net P&L"
               value={formatMoney(summary.netPnl, true, currency)}

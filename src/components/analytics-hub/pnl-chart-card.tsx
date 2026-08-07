@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import {
@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { TimeframeSegmentedControl } from "@/components/analytics/timeframe-segmented-control";
+import { TimeframeSelect } from "@/components/analytics/timeframe-select";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -31,18 +31,23 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { useMarketQuotes } from "@/hooks/use-market-quotes";
 import {
   activePositionTodayPnl,
+  computeTodayDailyPnlFromQuotes,
   isActivePositionTodayPnlPending,
   patchTodayDailyFromQuotes,
   toActivePositionPnlInput,
 } from "@/lib/active-position-daily-pnl";
 import {
-  analyticsPeriodBadge,
   emptyAnalyticsFilters,
+  formatChartAxisMoney,
   formatMoney,
   getAnalyticsTimeframeRange,
   type AnalyticsFilters,
   type DailyPnlPoint,
 } from "@/lib/analytics";
+import {
+  readActivePositionPnlCache,
+  writeActivePositionPnlCache,
+} from "@/lib/active-position-pnl-cache";
 import { defaultListingMarketForCurrency } from "@/lib/equity-listing-markets";
 import { sessionCloseDescription } from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
@@ -90,18 +95,19 @@ function Stat({
   tone?: "profit" | "loss" | "neutral";
 }) {
   return (
-    <div className="min-w-0">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+    <div className="flex min-w-0 flex-col items-center justify-center bg-card px-2 py-3 sm:px-4">
+      <p className="w-full text-center text-[9px] font-semibold uppercase leading-tight tracking-[0.08em] text-muted-foreground sm:text-[10px] sm:tracking-[0.1em]">
         {label}
       </p>
       <p
         className={cn(
-          "mt-0.5 truncate text-base font-semibold",
+          "mt-1 w-full truncate text-center text-sm font-semibold sm:text-[15px]",
           NUMERIC_CLASS,
           tone === "profit" && "text-emerald-600 dark:text-emerald-400",
           tone === "loss" && "text-rose-600 dark:text-rose-400",
           tone === "neutral" && "text-foreground"
         )}
+        title={value}
       >
         {value}
       </p>
@@ -109,7 +115,10 @@ function Stat({
   );
 }
 
-export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
+export const PnlChartCard = memo(function PnlChartCard({
+  trades,
+  currency,
+}: PnlChartCardProps) {
   const [filters, setFilters] = useState<AnalyticsFilters>({
     ...emptyAnalyticsFilters(),
     timeframe: "7d",
@@ -120,8 +129,10 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
     Record<string, boolean>
   >({});
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const hasCachedDailyRef = useRef(false);
   const isMobile = useIsMobile();
 
   const activePool = useMemo(
@@ -150,6 +161,32 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
     [activeTrades]
   );
 
+  const pnlCacheKey = useMemo(
+    () => `${currency}:${activeTradesKey}`,
+    [currency, activeTradesKey]
+  );
+
+  useLayoutEffect(() => {
+    if (activeTrades.length === 0) {
+      hasCachedDailyRef.current = false;
+      setLoading(false);
+      return;
+    }
+
+    const cached = readActivePositionPnlCache(pnlCacheKey);
+    if (!cached) {
+      hasCachedDailyRef.current = false;
+      setLoading(true);
+      return;
+    }
+
+    setDaily(cached.daily);
+    setPriorSessionBarByTradeId(cached.priorSessionBarByTradeId);
+    setLoading(false);
+    setError(null);
+    hasCachedDailyRef.current = cached.daily.length > 0;
+  }, [pnlCacheKey, activeTrades.length]);
+
   const primaryListingMarket = useMemo(
     () =>
       activeTrades[0]?.listingMarket ??
@@ -167,11 +204,18 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
       if (activeTrades.length === 0) {
         setDaily([]);
         setLoading(false);
+        setRefreshing(false);
         setError(null);
+        hasCachedDailyRef.current = false;
         return;
       }
 
-      setLoading(true);
+      const hasCached = hasCachedDailyRef.current;
+      if (hasCached) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -192,19 +236,30 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
         if (!res.ok) {
           throw new Error(data.error ?? "Could not load active position P&L");
         }
-        setDaily(data.daily ?? []);
-        setPriorSessionBarByTradeId(data.priorSessionBarByTradeId ?? {});
+
+        const nextDaily = data.daily ?? [];
+        const nextPrior = data.priorSessionBarByTradeId ?? {};
+        setDaily(nextDaily);
+        setPriorSessionBarByTradeId(nextPrior);
+        hasCachedDailyRef.current = nextDaily.length > 0;
+        writeActivePositionPnlCache(pnlCacheKey, {
+          daily: nextDaily,
+          priorSessionBarByTradeId: nextPrior,
+        });
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
-        setError(
-          err instanceof Error ? err.message : "Could not load active position P&L"
-        );
-        setDaily([]);
+        if (!hasCachedDailyRef.current) {
+          setError(
+            err instanceof Error ? err.message : "Could not load active position P&L"
+          );
+          setDaily([]);
+        }
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
     },
-    [activeTrades, currency]
+    [activeTrades, currency, pnlCacheKey]
   );
 
   useEffect(() => {
@@ -278,9 +333,55 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
     [filteredDaily]
   );
 
+  const avgPnl = useMemo(() => {
+    if (filteredDaily.length === 0) return null;
+    return (
+      Math.round((netPnl / filteredDaily.length) * 100) / 100
+    );
+  }, [filteredDaily.length, netPnl]);
+
   const todayPnl = useMemo(
     () => activePositionTodayPnl(dailyWithQuotes, activeTrades, currency, now),
     [dailyWithQuotes, activeTrades, currency, now]
+  );
+
+  const todayLivePnl = useMemo(() => {
+    const quotesByTradeId: Record<
+      string,
+      { price: number; changePercent?: number | null }
+    > = {};
+
+    for (const trade of activePool) {
+      const input = toActivePositionPnlInput(trade);
+      if (!input) continue;
+      const quote = getQuote(trade);
+      if (quote?.price != null && quote.price > 0) {
+        quotesByTradeId[input.id] = {
+          price: quote.price,
+          changePercent: quote.changePercent,
+        };
+      }
+    }
+
+    return computeTodayDailyPnlFromQuotes(
+      activeTrades,
+      quotesByTradeId,
+      currency,
+      now,
+      priorSessionBarByTradeId
+    );
+  }, [
+    activePool,
+    activeTrades,
+    currency,
+    getQuote,
+    now,
+    priorSessionBarByTradeId,
+    quoteRevision,
+  ]);
+
+  const todayDisplayPnl = todayPnl ?? (
+    todayLivePnl.pricedCount > 0 ? todayLivePnl.totalPnl : null
   );
 
   const marketCloseHint = useMemo(
@@ -354,30 +455,35 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
       </Popover>
     ) : null;
 
+  const hasDailyData = daily.length > 0;
+
   return (
     <DataPanel
       title="P&L chart"
       subtitle="Daily mark-to-market P&L on your open positions"
       meta={
-        loading || quotesLoading ? (
+        loading && !hasDailyData ? (
           <span className="inline-flex items-center gap-1.5">
             <Loader2 className="size-3 animate-spin" />
             Loading
+          </span>
+        ) : refreshing ? (
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" />
+            Updating
           </span>
         ) : (
           `${activeTrades.length} open`
         )
       }
       action={
-        <div className="w-full min-w-0 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <TimeframeSegmentedControl
-            value={filters.timeframe}
-            onChange={(timeframe) =>
-              setFilters((current) => ({ ...current, timeframe }))
-            }
-            trailing={datePicker}
-          />
-        </div>
+        <TimeframeSelect
+          value={filters.timeframe}
+          onChange={(timeframe) =>
+            setFilters((current) => ({ ...current, timeframe }))
+          }
+          trailing={datePicker}
+        />
       }
       footer={
         todayPending
@@ -415,43 +521,63 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
         />
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid w-full min-w-0 grid-cols-2 gap-px overflow-hidden rounded-lg border-2 border-border bg-border/70 md:grid-cols-4">
             <Stat
               label="Period P&L"
               value={formatMoney(netPnl, true, currency)}
               tone={netPnl > 0 ? "profit" : netPnl < 0 ? "loss" : "neutral"}
             />
             <Stat
-              label="Today"
+              label="Avg P/L"
               value={
-                todayPending
-                  ? "Pending"
-                  : todayPnl != null
-                    ? formatMoney(todayPnl, true, currency)
-                    : "—"
+                avgPnl != null
+                  ? formatMoney(avgPnl, true, currency)
+                  : "—"
               }
               tone={
-                todayPending || todayPnl == null
+                avgPnl == null
                   ? "neutral"
-                  : todayPnl > 0
+                  : avgPnl > 0
                     ? "profit"
-                    : todayPnl < 0
+                    : avgPnl < 0
                       ? "loss"
                       : "neutral"
               }
             />
             <Stat label="Open positions" value={String(activeTrades.length)} />
             <Stat
-              label="Period"
-              value={analyticsPeriodBadge(filters)}
-              tone="neutral"
+              label="Today's P/L"
+              value={
+                activeTrades.length === 0
+                  ? formatMoney(0, true, currency)
+                  : (loading || quotesLoading) && todayDisplayPnl == null
+                    ? "…"
+                    : todayDisplayPnl != null
+                      ? formatMoney(todayDisplayPnl, true, currency)
+                      : todayPending
+                        ? "Pending"
+                        : "—"
+              }
+              tone={
+                activeTrades.length === 0
+                  ? "neutral"
+                  : (loading || quotesLoading) && todayDisplayPnl == null
+                    ? "neutral"
+                    : todayDisplayPnl == null
+                      ? "neutral"
+                      : todayDisplayPnl > 0
+                        ? "profit"
+                        : todayDisplayPnl < 0
+                          ? "loss"
+                          : "neutral"
+              }
             />
           </div>
 
-          <ChartContainer config={chartConfig} className="h-[220px] w-full">
+          <ChartContainer config={chartConfig} className="h-[220px] w-full min-w-0">
             <BarChart
               data={filteredDaily}
-              margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+              margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
               barCategoryGap="28%"
             >
               <CartesianGrid
@@ -464,18 +590,18 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                minTickGap={24}
+                minTickGap={isMobile ? 16 : 24}
                 className="text-[10px]"
               />
               <YAxis
                 tickLine={false}
                 axisLine={false}
                 tickMargin={4}
-                width={52}
+                width={isMobile ? 64 : 72}
                 domain={yDomain}
                 tickCount={5}
                 tickFormatter={(value) =>
-                  formatMoney(Number(value), false, currency)
+                  formatChartAxisMoney(Number(value), currency)
                 }
                 className="text-[10px]"
               />
@@ -531,4 +657,4 @@ export function PnlChartCard({ trades, currency }: PnlChartCardProps) {
       )}
     </DataPanel>
   );
-}
+});

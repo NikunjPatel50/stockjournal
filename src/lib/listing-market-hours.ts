@@ -251,7 +251,7 @@ export function quotePollIntervalMs(
   const anyOpen = symbols.some((symbol) =>
     isSymbolQuoteSessionOpen(symbol.assetClass, symbol.listingMarket, now)
   );
-  if (anyOpen) return 2_000;
+  if (anyOpen) return 4_000;
 
   const boundaryMs = msUntilNextSessionBoundaryForSymbols(symbols, now);
   if (boundaryMs != null && boundaryMs <= 15 * 60_000) {
