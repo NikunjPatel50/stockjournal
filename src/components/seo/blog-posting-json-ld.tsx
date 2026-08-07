@@ -22,7 +22,7 @@ export function BlogPostingJsonLd({ post }: { post: BlogPost }) {
       url: absoluteUrl("/"),
       logo: {
         "@type": "ImageObject",
-        url: absoluteUrl("/logo.png"),
+        url: absoluteUrl("/icon-512.png"),
       },
     },
     mainEntityOfPage: {

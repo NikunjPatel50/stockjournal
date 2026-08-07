@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getAllBlogSlugs } from "@/lib/blog-posts";
 import { absoluteUrl } from "@/lib/site";
+import { getRouteLastModified } from "@/lib/sitemap-lastmod";
 
 const PUBLIC_ROUTES = [
   { path: "/", changeFrequency: "weekly" as const, priority: 1 },
@@ -18,18 +19,16 @@ const PUBLIC_ROUTES = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
-
   const staticPages = PUBLIC_ROUTES.map(({ path, changeFrequency, priority }) => ({
     url: absoluteUrl(path),
-    lastModified: now,
+    lastModified: getRouteLastModified(path),
     changeFrequency,
     priority,
   }));
 
   const blogPages = getAllBlogSlugs().map((slug) => ({
     url: absoluteUrl(`/blog/${slug}`),
-    lastModified: now,
+    lastModified: getRouteLastModified("/blog", slug),
     changeFrequency: "monthly" as const,
     priority: 0.45,
   }));

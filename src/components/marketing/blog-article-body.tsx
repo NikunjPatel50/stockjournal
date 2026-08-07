@@ -1,6 +1,46 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { ReactNode } from "react";
 import type { BlogBlock } from "@/lib/blog-posts";
+
+const INTERNAL_LINK_RE =
+  /(\/(?:blog\/[a-z0-9-]+|risk-calculator|trading-guides|features|pricing|preview|faq))/gi;
+
+const linkClassName =
+  "font-medium text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400";
+
+function internalLinkLabel(path: string) {
+  if (path.startsWith("/blog/")) {
+    return path
+      .slice("/blog/".length)
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+  return path.slice(1).replace(/-/g, " ");
+}
+
+function linkifyInternalPaths(text: string): ReactNode {
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(INTERNAL_LINK_RE)) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      nodes.push(text.slice(lastIndex, index));
+    }
+    const path = match[0];
+    nodes.push(
+      <Link key={`${path}-${index}`} href={path} className={linkClassName}>
+        {internalLinkLabel(path)}
+      </Link>
+    );
+    lastIndex = index + path.length;
+  }
+
+  if (nodes.length === 0) return text;
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+  return nodes;
+}
 
 function BlogBlockView({ block }: { block: BlogBlock }) {
   switch (block.type) {
@@ -20,7 +60,7 @@ function BlogBlockView({ block }: { block: BlogBlock }) {
       return (
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
           {block.items.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item}>{linkifyInternalPaths(item)}</li>
           ))}
         </ul>
       );
@@ -44,7 +84,7 @@ function BlogBlockView({ block }: { block: BlogBlock }) {
                 >
                   ✓
                 </span>
-                <span>{item}</span>
+                <span>{linkifyInternalPaths(item)}</span>
               </li>
             ))}
           </ul>
@@ -103,7 +143,7 @@ function BlogBlockView({ block }: { block: BlogBlock }) {
                 {item.question}
               </summary>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                {item.answer}
+                {linkifyInternalPaths(item.answer)}
               </p>
             </details>
           ))}
@@ -131,7 +171,7 @@ function BlogBlockView({ block }: { block: BlogBlock }) {
     default:
       return (
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {block.text}
+          {linkifyInternalPaths(block.text)}
         </p>
       );
   }

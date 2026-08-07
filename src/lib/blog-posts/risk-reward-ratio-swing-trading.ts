@@ -241,7 +241,7 @@ export const RISK_REWARD_RATIO_POST: BlogPost = {
     },
     {
       type: "p",
-      text: "Notice quantity stayed constant because risk per share and account risk were fixed. That is position sizing doing its job, R:R only changes what you earn when right. For deeper sizing rules, read our guide on position sizing for swing traders.",
+      text: "Notice quantity stayed constant because risk per share and account risk were fixed. That is position sizing doing its job, R:R only changes what you earn when right. For deeper sizing rules, read our /blog/position-sizing-for-swing-traders guide.",
     },
 
     { type: "h2", text: "The Difference Between Win Rate and Risk Reward" },

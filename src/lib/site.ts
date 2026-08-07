@@ -45,7 +45,6 @@ export function buildPageMetadata({
   title,
   description = DEFAULT_DESCRIPTION,
   path,
-  keywords,
   openGraphTitle,
   absoluteTitle = false,
   noIndex = false,
@@ -54,7 +53,6 @@ export function buildPageMetadata({
   title: string;
   description?: string;
   path: string;
-  keywords?: string[];
   openGraphTitle?: string;
   absoluteTitle?: boolean;
   noIndex?: boolean;
@@ -77,7 +75,6 @@ export function buildPageMetadata({
   return {
     title: resolvedTitle,
     description,
-    ...(keywords?.length ? { keywords } : {}),
     alternates: {
       canonical: url,
     },

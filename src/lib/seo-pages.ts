@@ -38,9 +38,9 @@ export type SeoPageConfig = {
 export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
   home: {
     path: "/",
-    title: "Trading Journal & Trade Log | SwingTradingLog — Free Beta",
+    title: "Free Trading Journal for Swing Traders | SwingTradingLog",
     description:
-      "Free trading journal at swingtradinglog.com: Dashboard analytics, overnight gap exposure, Journal, Goals, and shareable trade cards — no credit card.",
+      "Free trading journal at swingtradinglog.com with dashboard analytics, overnight gap exposure, journal, goals, and shareable trade cards. No credit card required.",
     keywords: [
       "trading journal",
       "trade log",
@@ -342,7 +342,6 @@ export function getSeoMetadata(
     title: page.title,
     description: page.description,
     path: page.path,
-    keywords: page.keywords,
     absoluteTitle: page.absoluteTitle,
     noIndex: page.noIndex,
     openGraphTitle,
@@ -351,19 +350,10 @@ export function getSeoMetadata(
 }
 
 export function getBlogPostMetadata(post: BlogPost): Metadata {
-  const keywords = [
-    ...SEO_PAGES.blog.keywords,
-    ...(post.seo?.keywords ?? []),
-    ...post.tags.map((tag) => tag.toLowerCase()),
-    "swing trading",
-    "trading journal",
-  ];
-
   return buildPageMetadata({
     title: post.seo?.metaTitle ?? `${post.title} | SwingTradingLog`,
     description: post.seo?.metaDescription ?? post.description,
     path: `/blog/${post.slug}`,
-    keywords: [...new Set(keywords)],
     absoluteTitle: true,
     image: absoluteUrl(post.coverImage.src),
   });

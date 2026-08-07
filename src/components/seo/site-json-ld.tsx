@@ -1,6 +1,5 @@
 import {
   absoluteUrl,
-  DEFAULT_DESCRIPTION,
   getSiteUrl,
   SITE_NAME,
 } from "@/lib/site";
@@ -36,7 +35,8 @@ export function SiteJsonLd() {
           "swingtradinglog",
           "swingtradinglog.com",
         ],
-        description: DEFAULT_DESCRIPTION,
+        description:
+          "Free trading journal with dashboard analytics, overnight gap exposure tracking, goals, and shareable trade cards.",
         publisher: { "@id": `${url}/#organization` },
         inLanguage: "en-US",
       },
@@ -47,7 +47,8 @@ export function SiteJsonLd() {
         applicationCategory: "FinanceApplication",
         operatingSystem: "Web",
         url: absoluteUrl("/"),
-        description: DEFAULT_DESCRIPTION,
+        description:
+          "Free trading journal with dashboard analytics, overnight gap exposure tracking, goals, and shareable trade cards.",
         offers: {
           "@type": "Offer",
           price: "0",

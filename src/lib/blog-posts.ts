@@ -177,7 +177,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Before you enter, ask: If this gaps 3% against me at the open, am I still within daily loss limits? If not, size down or skip. SwingTradingLog surfaces overnight and weekend exposure on the dashboard so you see aggregate gap risk next to P&L, not buried in a spreadsheet.",
+        text: "Before you enter, ask: If this gaps 3% against me at the open, am I still within daily loss limits? If not, size down or skip using /blog/position-sizing-for-swing-traders. SwingTradingLog surfaces overnight and weekend exposure on the dashboard so you see aggregate gap risk next to P&L, not buried in a spreadsheet.",
       },
       {
         type: "h3",
@@ -337,7 +337,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Record quantity, stop, and target when you open the trade. SwingTradingLog shows overnight exposure and return on your starting balance so you see whether sizing drifted over the month, not just whether individual picks worked.",
+        text: "Record quantity, stop, and target when you open the trade. Pair sizing with planned R:R using our /blog/risk-reward-ratio-swing-trading-guide. SwingTradingLog shows overnight exposure and return on your starting balance so you see whether sizing drifted over the month, not just whether individual picks worked.",
       },
     ],
   },
