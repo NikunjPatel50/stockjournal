@@ -3,6 +3,7 @@ import {
   LegalDocumentPage,
   LegalSection,
 } from "@/components/marketing/legal-document-page";
+import { MarketingBreadcrumbs } from "@/components/marketing/marketing-breadcrumbs";
 import { BRAND_NAME } from "@/components/brand-logo";
 import { getSeoMetadata } from "@/lib/seo-pages";
 
@@ -12,7 +13,9 @@ export const metadata: Metadata = getSeoMetadata("terms");
 
 export default function TermsOfServicePage() {
   return (
-    <LegalDocumentPage title="Terms of Service" effectiveDate={EFFECTIVE}>
+    <>
+      <MarketingBreadcrumbs items={[{ name: "Terms of Service", path: "/terms" }]} />
+      <LegalDocumentPage title="Terms of Service" effectiveDate={EFFECTIVE}>
       <LegalSection id="agreement" title="Agreement">
         <p>
           By accessing or using {BRAND_NAME} (&quot;the Service&quot;), you agree
@@ -142,5 +145,6 @@ export default function TermsOfServicePage() {
         </p>
       </LegalSection>
     </LegalDocumentPage>
+    </>
   );
 }

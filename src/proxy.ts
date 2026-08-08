@@ -62,6 +62,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
+  if (pathname === "/login" || pathname.startsWith("/login/")) {
+    return withNoIndex(supabaseResponse);
+  }
+
   if (!isPublicPath(pathname)) {
     return withNoIndex(supabaseResponse);
   }

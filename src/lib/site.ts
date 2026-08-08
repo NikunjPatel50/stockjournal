@@ -78,15 +78,17 @@ export function buildPageMetadata({
     alternates: {
       canonical: url,
     },
-    ...(noIndex
+    robots: noIndex
       ? {
-          robots: {
-            index: false,
-            follow: true,
-            googleBot: { index: false, follow: true },
-          },
+          index: false,
+          follow: false,
+          googleBot: { index: false, follow: false },
         }
-      : {}),
+      : {
+          index: true,
+          follow: true,
+          googleBot: { index: true, follow: true },
+        },
     openGraph: {
       type: "website",
       url,

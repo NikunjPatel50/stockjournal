@@ -173,6 +173,7 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
       "SwingTradingLog",
     ],
     absoluteTitle: true,
+    noIndex: true,
   },
   riskCalculator: {
     path: "/risk-calculator",
@@ -189,6 +190,7 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
       "SwingTradingLog",
     ],
     absoluteTitle: true,
+    noIndex: true,
   },
   changelog: {
     path: "/changelog",
@@ -202,10 +204,11 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
       "release notes",
     ],
     absoluteTitle: true,
+    noIndex: true,
   },
   privacy: {
     path: "/privacy",
-    title: "Privacy Policy",
+    title: "Privacy Policy | SwingTradingLog",
     description:
       "How SwingTradingLog collects, uses, and protects your account and journal data.",
     keywords: [
@@ -214,10 +217,11 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
       "trading journal privacy",
       "SwingTradingLog",
     ],
+    absoluteTitle: true,
   },
   terms: {
     path: "/terms",
-    title: "Terms of Service",
+    title: "Terms of Service | SwingTradingLog",
     description:
       "Terms for using the SwingTradingLog trading journal and related services.",
     keywords: [
@@ -226,6 +230,7 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
       "trading journal terms",
       "SwingTradingLog",
     ],
+    absoluteTitle: true,
   },
   dashboard: {
     path: "/dashboard",
