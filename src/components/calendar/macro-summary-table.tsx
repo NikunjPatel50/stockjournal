@@ -29,8 +29,8 @@ type ChartPoint = {
   trades: number;
   hasTrades: boolean;
   winPct: number | null;
-  avgGain: number | null;
-  avgLoss: number | null;
+  totalGain: number | null;
+  totalLoss: number | null;
   biggestGain: number | null;
   biggestLoss: number | null;
 };
@@ -142,14 +142,14 @@ function MacroTooltip({
           }
         />
         <TooltipStatRow
-          label="Avg gain"
-          value={moneyValue(row.avgGain, currency)}
-          valueClassName={toneTextClass(pnlTone(row.avgGain))}
+          label="Total gain"
+          value={moneyValue(row.totalGain, currency)}
+          valueClassName={toneTextClass(pnlTone(row.totalGain))}
         />
         <TooltipStatRow
-          label="Avg loss"
-          value={moneyValue(row.avgLoss, currency)}
-          valueClassName={toneTextClass(pnlTone(row.avgLoss))}
+          label="Total loss"
+          value={moneyValue(row.totalLoss, currency)}
+          valueClassName={toneTextClass(pnlTone(row.totalLoss))}
         />
         <TooltipStatRow
           label="Biggest gain"
@@ -240,8 +240,8 @@ export function MacroSummaryTable({ rows, currency, year }: MacroSummaryTablePro
         trades: row.trades,
         hasTrades: row.trades > 0,
         winPct: row.winPct,
-        avgGain: row.avgGain,
-        avgLoss: row.avgLoss,
+        totalGain: row.totalGain,
+        totalLoss: row.totalLoss,
         biggestGain: row.biggestGain,
         biggestLoss: row.biggestLoss,
       })),

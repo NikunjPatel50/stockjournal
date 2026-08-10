@@ -1045,8 +1045,8 @@ export interface MacroSummaryMonthRow {
   label: string;
   trades: number;
   winPct: number | null;
-  avgGain: number | null;
-  avgLoss: number | null;
+  totalGain: number | null;
+  totalLoss: number | null;
   biggestGain: number | null;
   biggestLoss: number | null;
   pnl: number | null;
@@ -1073,8 +1073,8 @@ export function computeYearMacroSummary(
         label: format(monthStart, "MMMM").toUpperCase(),
         trades: 0,
         winPct: null,
-        avgGain: null,
-        avgLoss: null,
+        totalGain: null,
+        totalLoss: null,
         biggestGain: null,
         biggestLoss: null,
         pnl: null,
@@ -1095,11 +1095,11 @@ export function computeYearMacroSummary(
       trades: monthTrades.length,
       winPct:
         Math.round((stats.winCount / monthTrades.length) * 1000) / 10,
-      avgGain: wins.length
-        ? Math.round(stats.avgWin * 100) / 100
+      totalGain: wins.length
+        ? Math.round(stats.grossProfit * 100) / 100
         : null,
-      avgLoss: losses.length
-        ? Math.round(stats.avgLoss * 100) / 100
+      totalLoss: losses.length
+        ? -Math.round(stats.grossLoss * 100) / 100
         : null,
       biggestGain: wins.length
         ? Math.round(stats.largestWin * 100) / 100
