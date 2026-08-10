@@ -281,7 +281,7 @@ function TradePulseMock() {
 function MetricStripMock() {
   const items = [
     {
-      label: "Net realized P&L",
+      label: "Net Realized P&L",
       value: "+₹12,480",
       detail: "75 closed trades",
       tone: mockPositive,
@@ -488,7 +488,7 @@ function KpiCardMock({
 function DashboardPreview({ compact = false }: { compact?: boolean }) {
   const kpis = [
     {
-      title: "Net realized P&L",
+      title: "Net Realized P&L",
       value: "+₹12,480",
       footer: "Return +12.4%",
       tone: mockPositive,

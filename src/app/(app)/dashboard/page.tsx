@@ -6,6 +6,7 @@ import { AnalyticsHeader } from "@/components/analytics/analytics-header";
 import { PnlBreakdownCard } from "@/components/analytics/pnl-breakdown-card";
 import { RecentTradesCard } from "@/components/analytics/recent-trades-card";
 import { KpiRibbon } from "@/components/analytics/kpi-ribbon";
+import { PortfolioSummaryStrip } from "@/components/analytics/portfolio-summary-strip";
 import { useSettings } from "@/components/settings/settings-provider";
 import {
   computeWeeklyPnl,
@@ -95,6 +96,11 @@ export default function DashboardPage() {
         title="Dashboard"
       />
       <KpiRibbon kpis={kpis} capitalBase={capitalBase} />
+
+      <PortfolioSummaryStrip
+        trades={trades}
+        currency={settings.profile.currency}
+      />
 
       <PortfolioOverviewCard trades={trades} currency={settings.profile.currency} />
 

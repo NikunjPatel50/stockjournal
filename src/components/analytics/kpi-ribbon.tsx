@@ -128,7 +128,7 @@ export const KpiRibbon = memo(function KpiRibbon({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <InsightKpiCard
-        title="Net realized P&L"
+        title="Net Realized P&L"
         hint="Total profit or loss from closed trades in the selected period, before fees unless recorded per trade."
         value={formatMoney(kpis.netPnl)}
         valueClassName={
@@ -179,7 +179,7 @@ export const KpiRibbon = memo(function KpiRibbon({
       />
 
       <InsightKpiCard
-        title="Win rate"
+        title="Win Rate"
         hint="Share of closed trades marked as wins in the selected period."
         value={formatPercent(kpis.winRate, 1)}
         valueClassName={cn(
@@ -218,7 +218,7 @@ export const KpiRibbon = memo(function KpiRibbon({
       />
 
       <InsightKpiCard
-        title="Max drawdown"
+        title="Max Drawdown"
         hint="Largest peak-to-trough decline in account equity for the filtered trades."
         value={formatMoney(kpis.maxDrawdown)}
         valueClassName="text-rose-600 dark:text-rose-400"

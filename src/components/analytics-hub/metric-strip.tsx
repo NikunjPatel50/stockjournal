@@ -40,7 +40,7 @@ export function MetricStrip({
     <MetricBand
       items={[
         {
-          label: "Net realized P&L",
+          label: "Net Realized P&L",
           value: formatMoney(kpis.netPnl, true, currency),
           detail: `${tradeCount} closed trade${tradeCount === 1 ? "" : "s"}`,
           tone: pnlTone,
