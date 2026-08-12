@@ -58,23 +58,25 @@ export function TargetStopProgressBar({
       )}
       title={status.text}
     >
-      <div className="relative h-2 overflow-hidden rounded-full bg-muted/80 ring-1 ring-border/50">
-        <div className="absolute inset-0 bg-gradient-to-r from-rose-500/50 to-emerald-500/50" />
-        {progress.hasTarget && progress.hasStop ? (
-          <div
-            className="absolute top-0 bottom-0 z-[1] w-px -translate-x-1/2 bg-foreground/30"
-            style={{ left: entryLeft }}
-            aria-hidden
-          />
-        ) : null}
+      <div className="relative h-2 rounded-full bg-muted/80 ring-1 ring-border/50">
+        <div className="absolute inset-0 overflow-hidden rounded-full">
+          <div className="absolute inset-0 bg-gradient-to-r from-rose-500/50 to-emerald-500/50" />
+          {progress.hasTarget && progress.hasStop ? (
+            <div
+              className="absolute top-0 bottom-0 z-[1] w-px -translate-x-1/2 bg-foreground/30"
+              style={{ left: entryLeft }}
+              aria-hidden
+            />
+          ) : null}
+        </div>
         <div
           className={cn(
-            "absolute top-1/2 z-10 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background shadow-sm",
+            "absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm",
+            markerBlink == null && "size-2.5 bg-foreground",
             markerBlink === "green" &&
-              "bg-emerald-500 target-stop-marker-blink target-stop-marker-blink-green",
+              "size-3 bg-emerald-400 target-stop-marker-blink-green",
             markerBlink === "red" &&
-              "bg-rose-500 target-stop-marker-blink target-stop-marker-blink-red",
-            markerBlink == null && "bg-foreground"
+              "size-3 bg-rose-400 target-stop-marker-blink-red"
           )}
           style={{ left: markerLeft }}
         />
