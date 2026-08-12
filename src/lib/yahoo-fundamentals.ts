@@ -5,6 +5,7 @@ import type { CurrencyCode } from "@/lib/settings";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { getYahooAuth } from "@/lib/yahoo-earnings";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
+import { lookupTickerSectorOverride } from "@/lib/ticker-sector-overrides";
 
 const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; SwingTradingLog/1.0)";
 const YAHOO_FETCH_TIMEOUT_MS = 6000;
@@ -115,9 +116,26 @@ export async function fetchYahooFundamentals(
     };
 
     const row = payload.quoteSummary?.result?.[0];
-    if (!row) return null;
+    const sectorOverride = lookupTickerSectorOverride(
+      request.ticker,
+      request.assetClass
+    );
 
-    const sector = row.assetProfile?.sector?.trim() || null;
+    if (!row) {
+      if (!sectorOverride) return null;
+      const currency =
+        request.listingMarket === "IN_NSE" || request.listingMarket === "IN_BSE"
+          ? "INR"
+          : "USD";
+      return {
+        sector: sectorOverride,
+        marketCap: null,
+        marketCapBucket: "Unknown",
+        currency,
+      };
+    }
+
+    const sector = sectorOverride || row.assetProfile?.sector?.trim() || null;
     const currency =
       request.listingMarket === "IN_NSE" || request.listingMarket === "IN_BSE"
         ? "INR"

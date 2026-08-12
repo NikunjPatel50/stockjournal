@@ -161,7 +161,7 @@ export const KpiRibbon = memo(function KpiRibbon({
       />
 
       <InsightKpiCard
-        title="Profit factor"
+        title="Profit Factor"
         hint="Gross profit divided by gross loss. Above 1.0 means winners outweigh losers in dollar terms."
         value={formatPf(kpis.profitFactor)}
         footer={[

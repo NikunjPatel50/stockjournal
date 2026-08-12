@@ -4,6 +4,7 @@ import {
   fundamentalsLookupKey,
   type TickerFundamentals,
 } from "@/lib/yahoo-fundamentals";
+import { lookupTickerSectorOverride } from "@/lib/ticker-sector-overrides";
 import {
   defaultListingMarketForCurrency,
   normalizeListingMarket,
@@ -54,6 +55,8 @@ function groupLabel(
   const profile = fundamentals.get(key);
 
   if (dimension === "sector") {
+    const override = lookupTickerSectorOverride(trade.ticker, trade.assetClass);
+    if (override) return override;
     return profile?.sector?.trim() || "Unknown sector";
   }
 
