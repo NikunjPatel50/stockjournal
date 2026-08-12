@@ -35,6 +35,34 @@ function sanitizeDecimalInput(value: string) {
   return cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, "");
 }
 
+function sanitizeIntegerInput(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function syncCapitalFromQty(
+  qty: string,
+  entry: number,
+  setCapital: (value: string) => void
+) {
+  const qtyNum = Number(qty);
+  if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(qtyNum) || qtyNum <= 0) {
+    return;
+  }
+  setCapital(sanitizeDecimalInput(String(qtyNum * entry)));
+}
+
+function syncQtyFromCapital(
+  capital: string,
+  entry: number,
+  setQuantity: (value: string) => void
+) {
+  const capNum = Number(capital);
+  if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(capNum) || capNum <= 0) {
+    return;
+  }
+  setQuantity(String(Math.floor(capNum / entry)));
+}
+
 function selectAllOnFocus(event: React.FocusEvent<HTMLInputElement>) {
   requestAnimationFrame(() => event.target.select());
 }
@@ -71,6 +99,7 @@ export function SmartPositionSizer({
 }: SmartPositionSizerProps) {
   const [open, setOpen] = useState(false);
   const [stockPrice, setStockPrice] = useState("");
+  const [quantity, setQuantity] = useState("");
   const [capital, setCapital] = useState("");
   const [riskReward, setRiskReward] = useState("");
   const [stopLossPrice, setStopLossPrice] = useState("");
@@ -107,6 +136,7 @@ export function SmartPositionSizer({
   useEffect(() => {
     if (!open) return;
     setStockPrice("");
+    setQuantity("");
     setCapital("");
     setRiskReward("");
     setStopLossPrice("");
@@ -225,6 +255,7 @@ export function SmartPositionSizer({
           <div className="mt-3 space-y-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
             <p className="text-xs text-muted-foreground">
               Enter {TRADE_FIELD_LABELS.entryPrice.toLowerCase()},{" "}
+              {TRADE_FIELD_LABELS.qty.toLowerCase()} or{" "}
               {TRADE_FIELD_LABELS.capital.toLowerCase()}, and{" "}
               {TRADE_FIELD_LABELS.riskReward.toLowerCase()} to auto-fill{" "}
               {TRADE_FIELD_LABELS.stopLoss.toLowerCase()} and{" "}
@@ -232,7 +263,7 @@ export function SmartPositionSizer({
               target anytime; {TRADE_FIELD_LABELS.stopPercent.toLowerCase()}{" "}
               updates from your stop. Click Apply to update the form.
             </p>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
               <AssistantField label={TRADE_FIELD_LABELS.entryPrice}>
                 <Input
                   type="text"
@@ -240,11 +271,39 @@ export function SmartPositionSizer({
                   autoComplete="off"
                   className={numberInputClass}
                   value={stockPrice}
-                  onChange={(e) =>
-                    setStockPrice(sanitizeDecimalInput(e.target.value))
-                  }
+                  onChange={(e) => {
+                    const nextPrice = sanitizeDecimalInput(e.target.value);
+                    setStockPrice(nextPrice);
+                    const entry = Number(nextPrice || entryHint || "");
+                    if (quantity) {
+                      syncCapitalFromQty(quantity, entry, setCapital);
+                    } else if (capital) {
+                      syncQtyFromCapital(capital, entry, setQuantity);
+                    }
+                  }}
                   onFocus={selectAllOnFocus}
                   placeholder={entryHint ?? "0.00"}
+                />
+              </AssistantField>
+              <AssistantField label={TRADE_FIELD_LABELS.qty}>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className={numberInputClass}
+                  value={quantity}
+                  onChange={(e) => {
+                    const nextQty = sanitizeIntegerInput(e.target.value);
+                    setQuantity(nextQty);
+                    if (!nextQty) return;
+                    syncCapitalFromQty(
+                      nextQty,
+                      Number(stockPrice || entryHint || ""),
+                      setCapital
+                    );
+                  }}
+                  onFocus={selectAllOnFocus}
+                  placeholder="0"
                 />
               </AssistantField>
               <AssistantField label={TRADE_FIELD_LABELS.capital}>
@@ -254,9 +313,16 @@ export function SmartPositionSizer({
                   autoComplete="off"
                   className={numberInputClass}
                   value={capital}
-                  onChange={(e) =>
-                    setCapital(sanitizeDecimalInput(e.target.value))
-                  }
+                  onChange={(e) => {
+                    const nextCapital = sanitizeDecimalInput(e.target.value);
+                    setCapital(nextCapital);
+                    if (!nextCapital) return;
+                    syncQtyFromCapital(
+                      nextCapital,
+                      Number(stockPrice || entryHint || ""),
+                      setQuantity
+                    );
+                  }}
                   onFocus={selectAllOnFocus}
                   placeholder={capitalHint ?? "10000"}
                 />

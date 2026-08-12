@@ -19,6 +19,7 @@ export const TRADE_FIELD_LABELS = {
   targetPrice: "Target price",
   stopPercent: "Stop %",
   capital: "Capital",
+  qty: "Qty",
   riskReward: "Risk : reward",
   notes: "Notes",
   chartAttachment: "Chart attachment",
