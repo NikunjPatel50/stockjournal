@@ -61,7 +61,7 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
     path: "/features",
     title: "Trading Journal Features | Dashboard, Journal & Goals | SwingTradingLog",
     description:
-      "Explore SwingTradingLog features: dashboard analytics, overnight gap exposure, trade journal, goals, shareable trade cards, and data export — free during beta.",
+      "Explore SwingTradingLog features: dashboard analytics, overnight gap exposure, trade journal, goals, shareable trade cards, and data export — all included free.",
     keywords: [
       "trading journal features",
       "trade log app",
@@ -92,7 +92,7 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
     path: "/pricing",
     title: "Pricing | Free Trading Journal | SwingTradingLog",
     description:
-      "SwingTradingLog is free during beta — full dashboard, journal, goals, analytics, CSV export, and workspace backup. No credit card required.",
+      "SwingTradingLog is free — full dashboard, journal, goals, analytics, CSV export, and workspace backup. No credit card required.",
     keywords: [
       "free trading journal",
       "trading journal pricing",
@@ -106,7 +106,7 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
     path: "/roadmap",
     title: "Product Roadmap | SwingTradingLog",
     description:
-      "See what’s shipped in SwingTradingLog beta and what we’re building next: live quotes, risk calculator, mobile apps, and broker integrations.",
+      "See what’s shipped in SwingTradingLog and what we’re building next: live quotes, risk calculator, mobile apps, and broker integrations.",
     keywords: [
       "SwingTradingLog roadmap",
       "product roadmap",

@@ -28,7 +28,7 @@ function formatAmount(amount: number, currency: PricingCurrency) {
   }).format(amount);
 }
 
-/** Localized display for the free beta tier (always zero). */
+/** Localized display for the free tier (always zero). */
 export function getFreePriceForCountry(
   countryCode?: string | null
 ): LocalizedPrice {

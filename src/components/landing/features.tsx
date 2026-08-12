@@ -63,7 +63,7 @@ export function LandingFeatures() {
             Dashboard, Journal, Goals, Settings, and Feedback, the same screens
             as{" "}
             <span className="font-medium text-foreground">swingtradinglog.com</span>
-            , free during beta. What&apos;s next is on the{" "}
+            , included free. What&apos;s next is on the{" "}
             <Link
               href="/roadmap"
               className="font-medium text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
