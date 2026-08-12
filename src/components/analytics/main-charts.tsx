@@ -42,6 +42,8 @@ import {
   type DailyPnlPoint,
   type EquityPoint,
 } from "@/lib/analytics";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
+import type { CurrencyCode } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 
 const CHART_BODY_CLASS = `aspect-auto ${dashboardChartBodyMinClass}`;
@@ -75,9 +77,11 @@ function formatWeekTooltipLabel(dateKey: string) {
 function WeeklyPnlTooltip({
   active,
   payload,
+  currency,
 }: {
   active?: boolean;
   payload?: ReadonlyArray<{ payload?: DailyPnlPoint; value?: number }>;
+  currency: CurrencyCode;
 }) {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload;
@@ -102,7 +106,7 @@ function WeeklyPnlTooltip({
               !pnlUp && !pnlDown && "text-foreground"
             )}
           >
-            {formatMoney(pnl)}
+            {formatMoney(pnl, true, currency)}
           </span>
         </div>
         <div className="flex items-center justify-between gap-4">
@@ -119,9 +123,11 @@ function WeeklyPnlTooltip({
 function WeeklyPnlChart({
   data,
   domain,
+  currency,
 }: {
   data: DailyPnlPoint[];
   domain: [number, number];
+  currency: CurrencyCode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const needsScroll = data.length > WEEKLY_SCROLL_AFTER;
@@ -180,10 +186,13 @@ function WeeklyPnlChart({
               tick={{ fontSize: 10 }}
               domain={domain}
               tickCount={5}
-              tickFormatter={(v) => formatMoney(Number(v), true)}
+              tickFormatter={(v) => formatMoney(Number(v), true, currency)}
             />
             <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="4 4" />
-            <ChartTooltip cursor={false} content={<WeeklyPnlTooltip />} />
+            <ChartTooltip
+              cursor={false}
+              content={<WeeklyPnlTooltip currency={currency} />}
+            />
             <Bar
               dataKey="pnl"
               radius={[4, 4, 0, 0]}
@@ -237,6 +246,7 @@ function paddedDomain(
 }
 
 export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
+  const { activeCurrency } = useJournalMarket();
   const baseline = equity[0]?.equity ?? 0;
 
   const cumulative = useMemo(
@@ -315,7 +325,11 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
               weeklyPnl.length === 0 ? (
                 <EmptyChart />
               ) : (
-                <WeeklyPnlChart data={weeklyPnl} domain={weeklyDomain} />
+                <WeeklyPnlChart
+                  data={weeklyPnl}
+                  domain={weeklyDomain}
+                  currency={activeCurrency}
+                />
               )
             ) : null}
           </TabsContent>
@@ -344,7 +358,9 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
                       width={48}
                       tick={{ fontSize: 10 }}
                       domain={cumulativeDomain}
-                      tickFormatter={(v) => formatMoney(Number(v), false)}
+                      tickFormatter={(v) =>
+                        formatMoney(Number(v), false, activeCurrency)
+                      }
                     />
                     <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="4 4" />
                     <ChartTooltip
@@ -352,7 +368,9 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
                       content={
                         <ChartTooltipContent
                           formatter={(value) => (
-                            <span>Net: {formatMoney(Number(value))}</span>
+                            <span>
+                              Net: {formatMoney(Number(value), true, activeCurrency)}
+                            </span>
                           )}
                         />
                       }
@@ -401,7 +419,9 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
                       axisLine={false}
                       width={48}
                       tick={{ fontSize: 10 }}
-                      tickFormatter={(v) => formatMoney(Number(v), false)}
+                      tickFormatter={(v) =>
+                        formatMoney(Number(v), false, activeCurrency)
+                      }
                     />
                     <ChartTooltip
                       cursor={false}
@@ -411,7 +431,7 @@ export function MainCharts({ equity, weeklyPnl }: MainChartsProps) {
                             const payload = item?.payload as EquityPoint | undefined;
                             return (
                               <div>
-                                DD: {formatMoney(Number(value))} (
+                                DD: {formatMoney(Number(value), true, activeCurrency)} (
                                 {payload?.drawdownPct.toFixed(2)}%)
                               </div>
                             );

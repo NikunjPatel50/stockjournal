@@ -17,7 +17,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { computePnlBreakdown, formatMoney } from "@/lib/analytics";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import type { JournalTrade } from "@/lib/journal-types";
+import type { CurrencyCode } from "@/lib/settings";
 import { cn, NUMERIC_CLASS, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 
 function pct(count: number, total: number) {
@@ -32,6 +34,7 @@ function OutcomeSpectrum({
   winRate,
   netPnl,
   metricLabel,
+  currency,
 }: {
   winShare: number;
   lossShare: number;
@@ -39,6 +42,7 @@ function OutcomeSpectrum({
   winRate: number;
   netPnl: number;
   metricLabel: string;
+  currency: CurrencyCode;
 }) {
   const netUp = netPnl > 0;
   const netDown = netPnl < 0;
@@ -67,7 +71,7 @@ function OutcomeSpectrum({
               !netUp && !netDown && "text-foreground"
             )}
           >
-            {formatMoney(netPnl)}
+            {formatMoney(netPnl, true, currency)}
           </p>
         </div>
       </div>
@@ -119,6 +123,7 @@ function OutcomeSpectrum({
 }
 
 export function PnlBreakdownCard({ trades }: { trades: JournalTrade[] }) {
+  const { activeCurrency } = useJournalMarket();
   const stats = useMemo(() => computePnlBreakdown(trades), [trades]);
 
   const totalTrades =
@@ -163,13 +168,14 @@ export function PnlBreakdownCard({ trades }: { trades: JournalTrade[] }) {
                 winRate={winRate}
                 netPnl={stats.netPnl}
                 metricLabel="by trade count"
+                currency={activeCurrency}
               />
 
               <ul className="grid gap-1.5 sm:grid-cols-2">
                 <LegendRow
                   color="bg-emerald-500"
                   label="Winners"
-                  amount={formatMoney(stats.grossProfit, false)}
+                  amount={formatMoney(stats.grossProfit, false, activeCurrency)}
                   share={pct(stats.winCount, totalTrades)}
                   shareClassName="text-emerald-700 dark:text-emerald-400"
                   barPct={
@@ -180,7 +186,7 @@ export function PnlBreakdownCard({ trades }: { trades: JournalTrade[] }) {
                 <LegendRow
                   color="bg-rose-500"
                   label="Losers"
-                  amount={formatMoney(-stats.grossLoss, false)}
+                  amount={formatMoney(-stats.grossLoss, false, activeCurrency)}
                   share={pct(stats.lossCount, totalTrades)}
                   shareClassName="text-rose-700 dark:text-rose-400"
                   barPct={
@@ -192,7 +198,7 @@ export function PnlBreakdownCard({ trades }: { trades: JournalTrade[] }) {
                   <LegendRow
                     color="bg-slate-400"
                     label="Breakeven"
-                    amount={formatMoney(0, false)}
+                    amount={formatMoney(0, false, activeCurrency)}
                     share={pct(stats.breakevenCount, totalTrades)}
                     shareClassName="text-slate-700 dark:text-slate-300"
                     barPct={
@@ -209,13 +215,13 @@ export function PnlBreakdownCard({ trades }: { trades: JournalTrade[] }) {
             <div className="grid grid-cols-2 gap-1.5 border-t border-border pt-3 lg:grid-cols-4">
               <FooterStat
                 label="Best trade"
-                value={formatMoney(stats.largestWin)}
+                value={formatMoney(stats.largestWin, true, activeCurrency)}
                 sub={stats.bestTradeTicker}
                 valueClass="text-emerald-600 dark:text-emerald-400"
               />
               <FooterStat
                 label="Worst trade"
-                value={formatMoney(stats.largestLoss)}
+                value={formatMoney(stats.largestLoss, true, activeCurrency)}
                 sub={stats.worstTradeTicker}
                 valueClass="text-rose-600 dark:text-rose-400"
               />

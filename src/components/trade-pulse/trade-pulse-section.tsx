@@ -5,10 +5,10 @@ import { RefreshCw } from "lucide-react";
 import { TradePulseCard } from "@/components/trade-pulse/trade-pulse-card";
 import { Button } from "@/components/ui/button";
 import { useTradePulseNotes } from "@/hooks/use-trade-pulse-notes";
-import { useJournalTrades } from "@/components/journal-trades-provider";
+import { useRegionTrades } from "@/components/journal/journal-market-provider";
 
 export function TradePulseSection() {
-  const { trades } = useJournalTrades();
+  const { trades } = useRegionTrades();
   const activeEquityCount = useMemo(
     () =>
       trades.filter(

@@ -30,7 +30,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useSettings } from "@/components/settings/settings-provider";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import {
   displayTradeOutcome,
   formatCurrency,
@@ -947,8 +947,8 @@ function JournalTableInner({
   );
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() => new Set());
 
-  const { settings } = useSettings();
-  const displayCurrency = displayCurrencyProp ?? settings.profile.currency;
+  const { activeCurrency } = useJournalMarket();
+  const displayCurrency = displayCurrencyProp ?? activeCurrency;
 
   const {
     getQuote,

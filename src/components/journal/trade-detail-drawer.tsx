@@ -27,7 +27,7 @@ import {
   isClosedTrade,
   type JournalTrade,
 } from "@/lib/journal-types";
-import { useSettings } from "@/components/settings/settings-provider";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import { ShareTradeButton } from "@/components/journal/share-trade-dialog";
 import { ChartScreenshotPreview } from "@/components/journal/chart-screenshot-preview";
 import {
@@ -49,8 +49,7 @@ export function TradeDetailDrawer({
   open,
   onOpenChange,
 }: TradeDetailDrawerProps) {
-  const { settings } = useSettings();
-  const currency = settings.profile.currency;
+  const { activeCurrency: currency } = useJournalMarket();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

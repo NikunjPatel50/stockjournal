@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -12,7 +11,6 @@ import type { JournalMarketRegionId } from "@/lib/journal-market-regions";
 import { cn } from "@/lib/utils";
 
 export function JournalMarketSelector({ className }: { className?: string }) {
-  const pathname = usePathname();
   const {
     activeRegionId,
     activeRegion,
@@ -20,8 +18,6 @@ export function JournalMarketSelector({ className }: { className?: string }) {
     setActiveRegionId,
     canSwitchRegion,
   } = useJournalMarket();
-
-  if (!pathname.startsWith("/journal")) return null;
 
   return (
     <Select

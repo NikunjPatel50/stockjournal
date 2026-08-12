@@ -14,12 +14,14 @@ import { useSettings } from "@/components/settings/settings-provider";
 import {
   collectJournalMarketRegions,
   defaultListingMarketForRegion,
+  filterTradesByJournalRegion,
   getJournalMarketRegion,
   isJournalMarketRegionId,
   regionIdForCurrency,
   type JournalMarketRegion,
   type JournalMarketRegionId,
 } from "@/lib/journal-market-regions";
+import type { JournalTrade } from "@/lib/journal-types";
 import type { CurrencyCode } from "@/lib/settings";
 import {
   getActiveStorageUserId,
@@ -32,6 +34,8 @@ type JournalMarketContextValue = {
   activeRegionId: JournalMarketRegionId;
   activeRegion: JournalMarketRegion;
   activeCurrency: CurrencyCode;
+  /** Trades scoped to the active market region. */
+  regionTrades: JournalTrade[];
   availableRegions: JournalMarketRegion[];
   defaultListingMarket: ReturnType<typeof defaultListingMarketForRegion>;
   setActiveRegionId: (regionId: JournalMarketRegionId) => void;
@@ -101,17 +105,30 @@ export function JournalMarketProvider({ children }: { children: ReactNode }) {
     [activeRegionId]
   );
 
+  const regionTrades = useMemo(
+    () =>
+      filterTradesByJournalRegion(trades, activeRegionId, defaultCurrency),
+    [trades, activeRegionId, defaultCurrency]
+  );
+
   const value = useMemo<JournalMarketContextValue>(
     () => ({
       activeRegionId,
       activeRegion,
       activeCurrency: activeRegion.currency,
+      regionTrades,
       availableRegions,
       defaultListingMarket: defaultListingMarketForRegion(activeRegionId),
       setActiveRegionId,
       canSwitchRegion: availableRegions.length > 1,
     }),
-    [activeRegion, activeRegionId, availableRegions, setActiveRegionId]
+    [
+      activeRegion,
+      activeRegionId,
+      availableRegions,
+      regionTrades,
+      setActiveRegionId,
+    ]
   );
 
   return (
@@ -127,4 +144,16 @@ export function useJournalMarket() {
     throw new Error("useJournalMarket must be used within JournalMarketProvider");
   }
   return ctx;
+}
+
+/** Active market trades + currency for app-wide views (dashboard, analytics, journal, etc.). */
+export function useRegionTrades() {
+  const { regionTrades, activeCurrency, activeRegion, activeRegionId } =
+    useJournalMarket();
+  return {
+    trades: regionTrades,
+    currency: activeCurrency,
+    activeRegion,
+    activeRegionId,
+  };
 }

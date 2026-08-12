@@ -30,7 +30,7 @@ import {
 } from "@/lib/analytics";
 import type { JournalTrade } from "@/lib/journal-types";
 import { formatSignedMoney } from "@/lib/journal-types";
-import { useSettings } from "@/components/settings/settings-provider";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 const chartConfig = {
@@ -155,8 +155,7 @@ export function MonthlyPerformanceCard({
   trades: JournalTrade[];
   startingEquity: number;
 }) {
-  const { settings } = useSettings();
-  const currency = settings.profile.currency;
+  const { activeCurrency: currency } = useJournalMarket();
   const yearOptions = useMemo(() => getAnalyticsYears(trades), [trades]);
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [granularity, setGranularity] =

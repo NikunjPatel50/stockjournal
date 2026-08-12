@@ -2,12 +2,11 @@
 
 import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { useSettings } from "@/components/settings/settings-provider";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import {
   MarketQuotesContext,
   useMarketQuotesPoller,
 } from "@/hooks/use-market-quotes";
-import { useJournalTrades } from "@/components/journal-trades-provider";
 
 const LIVE_MARKET_POLL_ROUTES = ["/journal", "/analytics", "/dashboard"] as const;
 
@@ -21,17 +20,16 @@ export function shouldPollLiveMarketData(pathname: string): boolean {
 export function MarketQuotesProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const pollEnabled = shouldPollLiveMarketData(pathname);
-  const { trades } = useJournalTrades();
-  const { settings } = useSettings();
+  const { regionTrades, activeCurrency } = useJournalMarket();
 
   const activeTrades = useMemo(
-    () => trades.filter((trade) => (trade.status ?? "Closed") === "Active"),
-    [trades]
+    () => regionTrades.filter((trade) => (trade.status ?? "Closed") === "Active"),
+    [regionTrades]
   );
 
   const value = useMarketQuotesPoller(
     activeTrades,
-    settings.profile.currency,
+    activeCurrency,
     pollEnabled
   );
 

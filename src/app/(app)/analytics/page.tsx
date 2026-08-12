@@ -6,7 +6,6 @@ import { AnalyticsHeader } from "@/components/analytics/analytics-header";
 import { MetricStrip } from "@/components/analytics-hub/metric-strip";
 import { ReportSection } from "@/components/analytics-hub/report-section";
 import { PanelEmpty } from "@/components/data-panel";
-import { useSettings } from "@/components/settings/settings-provider";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import { LazySection } from "@/components/lazy-section";
 import {
@@ -17,7 +16,7 @@ import {
   filterAnalyticsTrades,
   type AnalyticsFilters,
 } from "@/lib/analytics";
-import { useJournalTrades } from "@/components/journal-trades-provider";
+import { useRegionTrades } from "@/components/journal/journal-market-provider";
 import { computeCapitalBase } from "@/lib/overnight-risk";
 
 const GRID_CLASS = "grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch";
@@ -79,10 +78,8 @@ const SessionGrid = dynamic(
 );
 
 export default function AnalyticsPage() {
-  const { settings } = useSettings();
-  const { trades } = useJournalTrades();
+  const { trades, currency } = useRegionTrades();
   const capitalBase = useMemo(() => computeCapitalBase(trades), [trades]);
-  const currency = settings.profile.currency;
   const [filters, setFilters] = useState<AnalyticsFilters>(
     emptyAnalyticsFilters()
   );

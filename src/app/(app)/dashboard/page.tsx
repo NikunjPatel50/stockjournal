@@ -7,7 +7,6 @@ import { PnlBreakdownCard } from "@/components/analytics/pnl-breakdown-card";
 import { RecentTradesCard } from "@/components/analytics/recent-trades-card";
 import { KpiRibbon } from "@/components/analytics/kpi-ribbon";
 import { PortfolioSummaryStrip } from "@/components/analytics/portfolio-summary-strip";
-import { useSettings } from "@/components/settings/settings-provider";
 import {
   computeWeeklyPnl,
   computeEquitySeries,
@@ -16,7 +15,7 @@ import {
   filterAnalyticsTrades,
   type AnalyticsFilters,
 } from "@/lib/analytics";
-import { useJournalTrades } from "@/components/journal-trades-provider";
+import { useRegionTrades } from "@/components/journal/journal-market-provider";
 import { computeCapitalBase, computeOvernightRisk } from "@/lib/overnight-risk";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import { LazySection } from "@/components/lazy-section";
@@ -62,8 +61,7 @@ const PortfolioOverviewCard = dynamic(
 );
 
 export default function DashboardPage() {
-  const { settings } = useSettings();
-  const { trades } = useJournalTrades();
+  const { trades, currency } = useRegionTrades();
   const capitalBase = useMemo(() => computeCapitalBase(trades), [trades]);
   const [filters, setFilters] = useState<AnalyticsFilters>(
     emptyAnalyticsFilters()
@@ -97,12 +95,9 @@ export default function DashboardPage() {
       />
       <KpiRibbon kpis={kpis} capitalBase={capitalBase} />
 
-      <PortfolioSummaryStrip
-        trades={trades}
-        currency={settings.profile.currency}
-      />
+      <PortfolioSummaryStrip trades={trades} currency={currency} />
 
-      <PortfolioOverviewCard trades={trades} currency={settings.profile.currency} />
+      <PortfolioOverviewCard trades={trades} currency={currency} />
 
       <LazySection minHeight="8rem">
         <TradePulseSection />
@@ -112,7 +107,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
           <OvernightRiskCard
             summary={overnightRisk}
-            currency={settings.profile.currency}
+            currency={currency}
             className="h-full"
           />
           <MonthlyPerformanceCard
@@ -130,7 +125,7 @@ export default function DashboardPage() {
       </LazySection>
 
       <LazySection minHeight="12rem">
-        <RecentTradesCard trades={filtered} currency={settings.profile.currency} />
+        <RecentTradesCard trades={filtered} currency={currency} />
       </LazySection>
     </div>
   );

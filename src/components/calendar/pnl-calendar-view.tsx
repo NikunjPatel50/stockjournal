@@ -17,8 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useJournalTrades } from "@/components/journal-trades-provider";
-import { useSettings } from "@/components/settings/settings-provider";
+import { useRegionTrades } from "@/components/journal/journal-market-provider";
 import { MacroSummaryTable } from "@/components/calendar/macro-summary-table";
 import { YearMiniCalendarGrid } from "@/components/calendar/year-mini-calendar-grid";
 import {
@@ -88,9 +87,7 @@ function CalendarStatCard({
 }
 
 export function PnlCalendarView() {
-  const { trades } = useJournalTrades();
-  const { settings } = useSettings();
-  const currency = settings.profile.currency;
+  const { trades, currency } = useRegionTrades();
 
   const closedTrades = useMemo(() => filterClosedTrades(trades), [trades]);
 

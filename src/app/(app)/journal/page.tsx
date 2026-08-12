@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { JournalHeader } from "@/components/journal/journal-header";
 import { JournalSummaryBar } from "@/components/journal/journal-summary-bar";
 import { JournalTable } from "@/components/journal/journal-table";
-import { useSettings } from "@/components/settings/settings-provider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,9 +30,8 @@ import {
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
 import { computeFilteredPnl } from "@/lib/trade-pnl";
 import { useJournalTrades } from "@/components/journal-trades-provider";
-import { useJournalMarket } from "@/components/journal/journal-market-provider";
+import { useRegionTrades } from "@/components/journal/journal-market-provider";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
-import { filterTradesByJournalRegion } from "@/lib/journal-market-regions";
 
 const AddTradeModal = dynamic(
   () =>
@@ -88,9 +86,9 @@ function tradesToCsv(trades: JournalTrade[]) {
 }
 
 export default function JournalPage() {
-  const { trades, setTrades, hydrated: tradesHydrated } = useJournalTrades();
-  const { settings } = useSettings();
-  const { activeRegionId, activeCurrency } = useJournalMarket();
+  const { trades: allTrades, setTrades, hydrated: tradesHydrated } =
+    useJournalTrades();
+  const { trades: regionTrades, currency: activeCurrency } = useRegionTrades();
   const [filters, setFilters] = useState<JournalFilters>(emptyFilters);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTrade, setEditingTrade] = useState<JournalTrade | null>(null);
@@ -100,16 +98,6 @@ export default function JournalPage() {
     setEditingTrade(trade);
     setModalOpen(true);
   }
-
-  const regionTrades = useMemo(
-    () =>
-      filterTradesByJournalRegion(
-        trades,
-        activeRegionId,
-        settings.profile.currency
-      ),
-    [trades, activeRegionId, settings.profile.currency]
-  );
 
   const filtered = useMemo(
     () => filterJournalTrades(regionTrades, filters),
@@ -161,7 +149,7 @@ export default function JournalPage() {
   function confirmDelete() {
     if (!deleteTarget?.length) return;
 
-    const removed = trades.filter((t) => deleteTarget.includes(t.id));
+    const removed = allTrades.filter((t) => deleteTarget.includes(t.id));
     setTrades((prev) => prev.filter((t) => !deleteTarget.includes(t.id)));
     setDeleteTarget(null);
 
@@ -179,7 +167,7 @@ export default function JournalPage() {
     }
 
     if (deleteTarget.length === 1) {
-      const trade = trades.find((t) => t.id === deleteTarget[0]);
+      const trade = allTrades.find((t) => t.id === deleteTarget[0]);
       const label = trade?.ticker ?? "this trade";
       return {
         title: `Delete ${label}?`,
@@ -193,7 +181,7 @@ export default function JournalPage() {
       description:
         "These trades will be permanently removed from your journal. You can't undo this action.",
     };
-  }, [deleteTarget, trades]);
+  }, [deleteTarget, allTrades]);
 
   function handleDuplicate(trade: JournalTrade) {
     const copy: JournalTrade = {

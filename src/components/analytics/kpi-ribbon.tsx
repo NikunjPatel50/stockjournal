@@ -9,6 +9,7 @@ import {
   formatSignedPercent,
   type AnalyticsKpis,
 } from "@/lib/analytics";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 
 interface KpiRibbonProps {
@@ -120,6 +121,7 @@ export const KpiRibbon = memo(function KpiRibbon({
   kpis,
   capitalBase = 0,
 }: KpiRibbonProps) {
+  const { activeCurrency } = useJournalMarket();
   const pnlUp = kpis.netPnl > 0;
   const pnlDown = kpis.netPnl < 0;
   const closed = kpis.wins + kpis.losses;
@@ -130,7 +132,7 @@ export const KpiRibbon = memo(function KpiRibbon({
       <InsightKpiCard
         title="Net Realized P&L"
         hint="Total profit or loss from closed trades in the selected period, before fees unless recorded per trade."
-        value={formatMoney(kpis.netPnl)}
+        value={formatMoney(kpis.netPnl, true, activeCurrency)}
         valueClassName={
           pnlUp
             ? "text-emerald-500 dark:text-emerald-400"
@@ -167,12 +169,12 @@ export const KpiRibbon = memo(function KpiRibbon({
         footer={[
           {
             label: "Gross profit",
-            value: formatMoney(kpis.totalWinAmount, false),
+            value: formatMoney(kpis.totalWinAmount, false, activeCurrency),
             tone: "profit",
           },
           {
             label: "Gross loss",
-            value: formatMoney(kpis.totalLossAmount, false),
+            value: formatMoney(kpis.totalLossAmount, false, activeCurrency),
             tone: "loss",
           },
         ]}
@@ -220,7 +222,7 @@ export const KpiRibbon = memo(function KpiRibbon({
       <InsightKpiCard
         title="Max Drawdown"
         hint="Largest peak-to-trough decline in account equity for the filtered trades."
-        value={formatMoney(kpis.maxDrawdown)}
+        value={formatMoney(kpis.maxDrawdown, true, activeCurrency)}
         valueClassName="text-rose-600 dark:text-rose-400"
         footer={[
           {
