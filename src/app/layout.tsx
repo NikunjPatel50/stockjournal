@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { SiteJsonLd } from "@/components/seo/site-json-ld";
@@ -80,11 +81,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/theme-init.js" />
         <SiteJsonLd />
       </head>
       <body className="min-h-dvh w-full overflow-x-hidden bg-background text-foreground">
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <Providers>{children}</Providers>
       </body>
     </html>
