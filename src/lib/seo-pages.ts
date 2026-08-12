@@ -119,7 +119,7 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
     path: "/faq",
     title: "FAQ | SwingTradingLog Trading Journal",
     description:
-      "Answers about SwingTradingLog: free beta access, journaling assets, exports, overnight exposure, sharing trades, and mobile support.",
+      "Answers about SwingTradingLog: free access, journaling assets, exports, overnight exposure, sharing trades, and mobile support.",
     keywords: [
       "trading journal FAQ",
       "SwingTradingLog help",

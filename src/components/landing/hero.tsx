@@ -24,7 +24,7 @@ export function LandingHero() {
           className="mx-auto max-w-3xl text-center"
         >
           <p className="text-sm font-semibold tracking-tight text-emerald-600 dark:text-emerald-400">
-            SwingTradingLog · Free beta
+            SwingTradingLog
           </p>
           <h1 className="mt-3 text-balance text-[1.75rem] font-semibold leading-tight tracking-tight text-foreground sm:text-4xl sm:leading-[1.1] lg:text-5xl">
             Free trading journal with dashboard, goals, and gap risk in one place
@@ -33,8 +33,7 @@ export function LandingHero() {
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             Log multi-day trades in the Journal, review P&amp;L and overnight
             exposure on the Dashboard, track Goals, and share branded cards for
-            closed trades. Full access free while we&apos;re in beta, no credit
-            card.
+            closed trades. Full access free, no credit card.
           </p>
 
           <div className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:mx-auto sm:max-w-none sm:flex-row sm:items-center sm:justify-center">

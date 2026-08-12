@@ -24,7 +24,7 @@ export function LandingCtaBanner() {
             Start with the same app as swingtradinglog.com
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Free beta: journal trades, watch gap risk on the dashboard, hit your
+            Journal trades, watch gap risk on the dashboard, hit your
             goals, and share closed-trade cards. See the{" "}
             <Link
               href="/roadmap"

@@ -1,6 +1,6 @@
 "use client";
 
-import type { JournalTrade } from "@/lib/journal-types";
+import { isClosedTrade, type JournalTrade } from "@/lib/journal-types";
 import {
   computeTargetStopProgress,
   getTargetStopMarkerBlink,
@@ -46,7 +46,9 @@ export function TargetStopProgressBar({
   }
 
   const status = getTargetStopStatusLabel(progress);
-  const markerBlink = getTargetStopMarkerBlink(progress);
+  const markerBlink = isClosedTrade(trade)
+    ? null
+    : getTargetStopMarkerBlink(progress);
   const markerLeft = `${(1 - progress.barPosition) * 100}%`;
   const entryLeft = `${(1 - progress.entryBarPosition) * 100}%`;
 
