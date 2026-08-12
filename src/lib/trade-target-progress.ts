@@ -140,3 +140,15 @@ export function getTargetStopStatusLabel(progress: TargetStopProgress): {
     tone: "text-muted-foreground",
   };
 }
+
+/** Blink the progress marker when price has moved >50% toward target or stop. */
+export function getTargetStopMarkerBlink(
+  progress: TargetStopProgress
+): "green" | "red" | null {
+  if (progress.stopPct > 50 && progress.targetPct > 50) {
+    return progress.stopPct >= progress.targetPct ? "red" : "green";
+  }
+  if (progress.stopPct > 50) return "red";
+  if (progress.targetPct > 50) return "green";
+  return null;
+}

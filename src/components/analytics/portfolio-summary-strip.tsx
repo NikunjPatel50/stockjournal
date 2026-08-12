@@ -2,10 +2,7 @@
 
 import { memo, useMemo } from "react";
 import { formatMoney, formatSignedPercent } from "@/lib/analytics";
-import {
-  computeTodayDailyPnlFromQuotes,
-  toActivePositionPnlInput,
-} from "@/lib/active-position-daily-pnl";
+import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
 import { computeLivePortfolioSnapshot } from "@/lib/portfolio-timeline";
 import { useMarketQuotes } from "@/hooks/use-market-quotes";
 import type { CurrencyCode } from "@/lib/settings";
@@ -54,6 +51,7 @@ export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
   currency,
 }: PortfolioSummaryStripProps) {
   const { getQuote, quoteRevision } = useMarketQuotes();
+  const todayDailyPnl = useTodayDailyPnl(trades, currency);
 
   const snapshot = useMemo(
     () => computeLivePortfolioSnapshot(trades, getQuote, currency),
@@ -65,36 +63,12 @@ export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
     [trades]
   );
 
-  const todayPnl = useMemo(() => {
-    if (activeTrades.length === 0) return 0;
-
-    const inputs = activeTrades
-      .map(toActivePositionPnlInput)
-      .filter((trade): trade is NonNullable<typeof trade> => trade != null);
-
-    const quotesByTradeId: Record<
-      string,
-      { price: number; changePercent?: number | null }
-    > = {};
-
-    for (const trade of activeTrades) {
-      const quote = getQuote(trade);
-      if (quote?.price != null && quote.price > 0) {
-        quotesByTradeId[trade.id] = {
-          price: quote.price,
-          changePercent: quote.changePercent,
-        };
-      }
-    }
-
-    const summary = computeTodayDailyPnlFromQuotes(
-      inputs,
-      quotesByTradeId,
-      currency
-    );
-
-    return summary.pricedCount > 0 ? summary.totalPnl : null;
-  }, [activeTrades, getQuote, currency, quoteRevision]);
+  const todayPnl =
+    activeTrades.length === 0
+      ? 0
+      : todayDailyPnl.pricedCount > 0
+        ? todayDailyPnl.totalPnl
+        : null;
 
   const overallPct =
     snapshot.invested > 0

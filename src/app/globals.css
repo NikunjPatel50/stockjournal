@@ -252,6 +252,34 @@ input[type="number"]::-webkit-inner-spin-button {
   }
 }
 
+@keyframes target-stop-marker-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.target-stop-marker-blink {
+  animation: target-stop-marker-blink 0.9s ease-in-out infinite;
+}
+
+.target-stop-marker-blink-green {
+  box-shadow: 0 0 0 2px rgb(16 185 129 / 0.55);
+}
+
+.target-stop-marker-blink-red {
+  box-shadow: 0 0 0 2px rgb(244 63 94 / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target-stop-marker-blink {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .markets-dialog-dock-motion,
   .markets-dialog-dock-backdrop {

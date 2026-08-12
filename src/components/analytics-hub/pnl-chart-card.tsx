@@ -380,9 +380,8 @@ export const PnlChartCard = memo(function PnlChartCard({
     quoteRevision,
   ]);
 
-  const todayDisplayPnl = todayPnl ?? (
-    todayLivePnl.pricedCount > 0 ? todayLivePnl.totalPnl : null
-  );
+  const todayDisplayPnl =
+    todayLivePnl.pricedCount > 0 ? todayLivePnl.totalPnl : todayPnl;
 
   const marketCloseHint = useMemo(
     () => sessionCloseDescription(primaryListingMarket),

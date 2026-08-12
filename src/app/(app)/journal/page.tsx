@@ -28,10 +28,7 @@ import {
   type JournalFilters,
   type JournalTrade,
 } from "@/lib/journal-types";
-import {
-  computeTodayDailyPnlFromQuotes,
-  toActivePositionPnlInput,
-} from "@/lib/active-position-daily-pnl";
+import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
 import { computeFilteredPnl } from "@/lib/trade-pnl";
 import { useJournalTrades } from "@/components/journal-trades-provider";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
@@ -129,31 +126,7 @@ export default function JournalPage() {
   );
 
   const { getQuote, loading: quotesLoading, quoteRevision } = useMarketQuotes();
-  const livePnl = useMemo(() => {
-    const inputs = activeTrades
-      .map(toActivePositionPnlInput)
-      .filter((trade): trade is NonNullable<typeof trade> => trade != null);
-
-    const quotesByTradeId: Record<
-      string,
-      { price: number; changePercent?: number | null }
-    > = {};
-    for (const trade of activeTrades) {
-      const quote = getQuote(trade);
-      if (quote?.price != null && quote.price > 0) {
-        quotesByTradeId[trade.id] = {
-          price: quote.price,
-          changePercent: quote.changePercent,
-        };
-      }
-    }
-
-    return computeTodayDailyPnlFromQuotes(
-      inputs,
-      quotesByTradeId,
-      settings.profile.currency
-    );
-  }, [activeTrades, getQuote, quoteRevision, quotesLoading, settings.profile.currency]);
+  const livePnl = useTodayDailyPnl(trades, settings.profile.currency);
   const filteredPnl = useMemo(
     () =>
       computeFilteredPnl(filtered, getQuote, settings.profile.currency),
@@ -325,7 +298,7 @@ export default function JournalPage() {
         summary={summary}
         livePnl={livePnl}
         filteredPnl={filteredPnl}
-        livePnlLoading={quotesLoading}
+        livePnlLoading={livePnl.loading || livePnl.quotesLoading}
         liveDataReady={tradesHydrated}
       />
 

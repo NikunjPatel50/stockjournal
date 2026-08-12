@@ -3,6 +3,7 @@
 import type { JournalTrade } from "@/lib/journal-types";
 import {
   computeTargetStopProgress,
+  getTargetStopMarkerBlink,
   getTargetStopStatusLabel,
 } from "@/lib/trade-target-progress";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ export function TargetStopProgressBar({
   }
 
   const status = getTargetStopStatusLabel(progress);
+  const markerBlink = getTargetStopMarkerBlink(progress);
   const markerLeft = `${(1 - progress.barPosition) * 100}%`;
   const entryLeft = `${(1 - progress.entryBarPosition) * 100}%`;
 
@@ -66,7 +68,14 @@ export function TargetStopProgressBar({
           />
         ) : null}
         <div
-          className="absolute top-1/2 z-10 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground shadow-sm"
+          className={cn(
+            "absolute top-1/2 z-10 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background shadow-sm",
+            markerBlink === "green" &&
+              "bg-emerald-500 target-stop-marker-blink target-stop-marker-blink-green",
+            markerBlink === "red" &&
+              "bg-rose-500 target-stop-marker-blink target-stop-marker-blink-red",
+            markerBlink == null && "bg-foreground"
+          )}
           style={{ left: markerLeft }}
         />
       </div>
