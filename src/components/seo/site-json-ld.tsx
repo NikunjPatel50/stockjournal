@@ -3,12 +3,11 @@ import {
   getSiteUrl,
   SITE_NAME,
 } from "@/lib/site";
-import { JsonLd } from "@/components/seo/json-ld";
+import { JsonLd, serializeJsonLd } from "@/components/seo/json-ld";
 
-/** Brand + site graph for search engines (homepage and marketing). */
-export function SiteJsonLd() {
+export function buildSiteJsonLdSchema() {
   const url = getSiteUrl();
-  const schema = {
+  return {
     "@context": "https://schema.org",
     "@graph": [
       {
@@ -58,6 +57,13 @@ export function SiteJsonLd() {
       },
     ],
   };
+}
 
-  return <JsonLd data={schema} />;
+/** Brand + site graph for search engines (homepage and marketing). */
+export function SiteJsonLd() {
+  return <JsonLd data={buildSiteJsonLdSchema()} />;
+}
+
+export function siteJsonLdScriptHtml() {
+  return serializeJsonLd(buildSiteJsonLdSchema());
 }

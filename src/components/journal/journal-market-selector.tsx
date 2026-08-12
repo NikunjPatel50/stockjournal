@@ -17,7 +17,20 @@ export function JournalMarketSelector({ className }: { className?: string }) {
     availableRegions,
     setActiveRegionId,
     canSwitchRegion,
+    hydrated,
   } = useJournalMarket();
+
+  if (!hydrated) {
+    return (
+      <div
+        aria-hidden
+        className={cn(
+          "h-9 w-[9.5rem] animate-pulse rounded-lg bg-muted",
+          className
+        )}
+      />
+    );
+  }
 
   return (
     <Select

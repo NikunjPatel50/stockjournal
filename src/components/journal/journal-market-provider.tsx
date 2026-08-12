@@ -40,6 +40,8 @@ type JournalMarketContextValue = {
   defaultListingMarket: ReturnType<typeof defaultListingMarketForRegion>;
   setActiveRegionId: (regionId: JournalMarketRegionId) => void;
   canSwitchRegion: boolean;
+  /** False until client storage preference has been applied. */
+  hydrated: boolean;
 };
 
 const JournalMarketContext = createContext<JournalMarketContextValue | null>(
@@ -83,9 +85,19 @@ export function JournalMarketProvider({ children }: { children: ReactNode }) {
     [trades, defaultCurrency]
   );
 
-  const [activeRegionId, setActiveRegionIdState] = useState<JournalMarketRegionId>(
-    () => loadStoredRegionId() ?? regionIdForCurrency(defaultCurrency)
-  );
+  const fallbackRegionId = regionIdForCurrency(defaultCurrency);
+
+  const [activeRegionId, setActiveRegionIdState] =
+    useState<JournalMarketRegionId>(fallbackRegionId);
+  const [marketHydrated, setMarketHydrated] = useState(false);
+
+  useEffect(() => {
+    const stored = loadStoredRegionId();
+    if (stored) {
+      setActiveRegionIdState(stored);
+    }
+    setMarketHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (!availableRegions.some((region) => region.id === activeRegionId)) {
@@ -121,11 +133,13 @@ export function JournalMarketProvider({ children }: { children: ReactNode }) {
       defaultListingMarket: defaultListingMarketForRegion(activeRegionId),
       setActiveRegionId,
       canSwitchRegion: availableRegions.length > 1,
+      hydrated: marketHydrated,
     }),
     [
       activeRegion,
       activeRegionId,
       availableRegions,
+      marketHydrated,
       regionTrades,
       setActiveRegionId,
     ]
