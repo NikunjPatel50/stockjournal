@@ -11,6 +11,7 @@ import {
   readActivePositionPnlCache,
   writeActivePositionPnlCache,
 } from "@/lib/active-position-pnl-cache";
+import type { DailyPnlPoint } from "@/lib/analytics";
 import { useMarketQuotes } from "@/hooks/use-market-quotes";
 import type { JournalTrade } from "@/lib/journal-types";
 import type { CurrencyCode } from "@/lib/settings";
@@ -84,7 +85,7 @@ export function useTodayDailyPnl(
       .then(async (res) => {
         const data = (await res.json()) as {
           error?: string;
-          daily?: unknown[];
+          daily?: DailyPnlPoint[];
           priorSessionBarByTradeId?: Record<string, boolean>;
         };
         if (!res.ok) {
