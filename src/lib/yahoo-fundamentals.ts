@@ -5,7 +5,7 @@ import type { CurrencyCode } from "@/lib/settings";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { getYahooAuth } from "@/lib/yahoo-earnings";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
-import { lookupTickerSectorOverride } from "@/lib/ticker-sector-overrides";
+import { lookupTickerSectorOverride, lookupTickerMarketCapBucketOverride } from "@/lib/ticker-sector-overrides";
 
 const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; SwingTradingLog/1.0)";
 const YAHOO_FETCH_TIMEOUT_MS = 6000;
@@ -120,9 +120,13 @@ export async function fetchYahooFundamentals(
       request.ticker,
       request.assetClass
     );
+    const marketCapBucketOverride = lookupTickerMarketCapBucketOverride(
+      request.ticker,
+      request.assetClass
+    );
 
     if (!row) {
-      if (!sectorOverride) return null;
+      if (!sectorOverride && !marketCapBucketOverride) return null;
       const currency =
         request.listingMarket === "IN_NSE" || request.listingMarket === "IN_BSE"
           ? "INR"
@@ -130,7 +134,7 @@ export async function fetchYahooFundamentals(
       return {
         sector: sectorOverride,
         marketCap: null,
-        marketCapBucket: "Unknown",
+        marketCapBucket: marketCapBucketOverride ?? "Unknown",
         currency,
       };
     }
@@ -145,7 +149,9 @@ export async function fetchYahooFundamentals(
     return {
       sector,
       marketCap,
-      marketCapBucket: classifyMarketCapBucket(marketCap, currency),
+      marketCapBucket:
+        marketCapBucketOverride ??
+        classifyMarketCapBucket(marketCap, currency),
       currency,
     };
   } catch {

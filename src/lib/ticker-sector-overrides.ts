@@ -1,9 +1,17 @@
 import type { AssetClass } from "@/lib/journal-types";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 
-/** Manual sector labels when Yahoo fundamentals are missing or unreliable. */
-const SECTOR_BY_TICKER: Record<string, string> = {
-  ARTEMISMED: "Healthcare",
+type TickerFundamentalsOverride = {
+  sector?: string;
+  marketCapBucket?: string;
+};
+
+/** Manual fundamentals when Yahoo data is missing or unreliable. */
+const FUNDAMENTALS_OVERRIDES: Record<string, TickerFundamentalsOverride> = {
+  ARTEMISMED: {
+    sector: "Healthcare",
+    marketCapBucket: "Small cap",
+  },
 };
 
 export function lookupTickerSectorOverride(
@@ -11,5 +19,15 @@ export function lookupTickerSectorOverride(
   assetClass: AssetClass = "Equities"
 ): string | null {
   if (assetClass !== "Equities") return null;
-  return SECTOR_BY_TICKER[normalizeEquityTicker(ticker)] ?? null;
+  return FUNDAMENTALS_OVERRIDES[normalizeEquityTicker(ticker)]?.sector ?? null;
+}
+
+export function lookupTickerMarketCapBucketOverride(
+  ticker: string,
+  assetClass: AssetClass = "Equities"
+): string | null {
+  if (assetClass !== "Equities") return null;
+  return (
+    FUNDAMENTALS_OVERRIDES[normalizeEquityTicker(ticker)]?.marketCapBucket ?? null
+  );
 }
