@@ -845,6 +845,8 @@ interface JournalTableProps {
   title?: string;
   /** All trades in this section before header filters (for empty-state copy). */
   totalTradeCount?: number;
+  /** Override display currency (e.g. journal market switcher). */
+  displayCurrency?: CurrencyCode;
   onEdit: (trade: JournalTrade) => void;
   onDuplicate: (trade: JournalTrade) => void;
   onDelete: (ids: string[]) => void;
@@ -922,6 +924,7 @@ function JournalTableInner({
   trades,
   title = "Trade log",
   totalTradeCount,
+  displayCurrency: displayCurrencyProp,
   onEdit,
   onDuplicate,
   onDelete,
@@ -945,7 +948,7 @@ function JournalTableInner({
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() => new Set());
 
   const { settings } = useSettings();
-  const displayCurrency = settings.profile.currency;
+  const displayCurrency = displayCurrencyProp ?? settings.profile.currency;
 
   const {
     getQuote,

@@ -1,4 +1,5 @@
 import { AdminPanelButton } from "@/components/admin/admin-panel-button";
+import { JournalMarketSelector } from "@/components/journal/journal-market-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserProfileBadge } from "@/components/user-profile-badge";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ export function HeaderActions({
 }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
+      <JournalMarketSelector />
       <AdminPanelButton
         className={cn(
           "border border-border bg-card hover:bg-muted",

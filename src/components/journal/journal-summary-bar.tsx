@@ -6,6 +6,8 @@ import {
   type computeJournalSummary,
 } from "@/lib/journal-types";
 import type { FilteredPnlSummary, LiveActivePnlSummary } from "@/lib/trade-pnl";
+import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 interface JournalSummaryBarProps {
@@ -15,6 +17,7 @@ interface JournalSummaryBarProps {
   livePnlLoading?: boolean;
   /** Wait until client storage/quotes are ready to avoid hydration mismatch. */
   liveDataReady?: boolean;
+  displayCurrency?: CurrencyCode;
 }
 
 function statValueFontClass(value: string, largeValue?: boolean): string {
@@ -129,6 +132,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
   filteredPnl,
   livePnlLoading,
   liveDataReady = true,
+  displayCurrency = DEFAULT_CURRENCY,
 }: JournalSummaryBarProps) {
   const filteredTotal = filteredPnl?.totalPnl ?? summary.totalPnl;
   const pnlUp = filteredTotal > 0;
@@ -144,11 +148,11 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
   const liveValue = !liveDataReady
     ? "…"
     : !hasActive
-      ? formatCurrency(0)
+      ? formatCurrency(0, displayCurrency)
       : livePnlLoading && !hasLivePrice
         ? "…"
         : hasLivePrice
-          ? formatCurrency(livePnl!.totalPnl)
+          ? formatCurrency(livePnl!.totalPnl, displayCurrency)
           : "—";
 
   const filteredValue = !liveDataReady
@@ -158,7 +162,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
     livePnlLoading &&
     !hasFilteredLivePrice
       ? "…"
-      : formatCurrency(filteredTotal);
+      : formatCurrency(filteredTotal, displayCurrency);
 
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7">
@@ -231,13 +235,13 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
       <Stat
         label="Total invested"
         hint="Total capital deployed in open positions (entry price × quantity)."
-        value={formatMarketPrice(summary.totalInvested)}
+        value={formatMarketPrice(summary.totalInvested, displayCurrency)}
         subValue={tradeCountLabel(summary.activeCount)}
       />
       <Stat
         label="Total win"
         hint="Sum of all positive P&L from winning trades in your current filter."
-        value={formatCurrency(summary.totalWin)}
+        value={formatCurrency(summary.totalWin, displayCurrency)}
         subValue={tradeCountLabel(summary.winningTrades)}
         accent={summary.totalWin > 0 ? "emerald" : "slate"}
         valueClass={
@@ -249,7 +253,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
       <Stat
         label="Total loss"
         hint="Sum of all losses from losing trades in your current filter, shown as a negative amount."
-        value={formatCurrency(-summary.totalLoss)}
+        value={formatCurrency(-summary.totalLoss, displayCurrency)}
         subValue={tradeCountLabel(summary.losingTrades)}
         accent={summary.totalLoss > 0 ? "rose" : "slate"}
         valueClass={

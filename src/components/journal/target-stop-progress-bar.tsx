@@ -76,9 +76,9 @@ export function TargetStopProgressBar({
             "absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm",
             markerBlink == null && "size-2.5 bg-foreground",
             markerBlink === "green" &&
-              "size-3 bg-emerald-400 target-stop-marker-blink-green",
+              "size-2.5 bg-emerald-400 target-stop-marker-blink-green",
             markerBlink === "red" &&
-              "size-3 bg-rose-400 target-stop-marker-blink-red"
+              "size-2.5 bg-rose-400 target-stop-marker-blink-red"
           )}
           style={{ left: markerLeft }}
         />

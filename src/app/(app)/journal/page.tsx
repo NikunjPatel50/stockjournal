@@ -31,7 +31,9 @@ import {
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
 import { computeFilteredPnl } from "@/lib/trade-pnl";
 import { useJournalTrades } from "@/components/journal-trades-provider";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
+import { filterTradesByJournalRegion } from "@/lib/journal-market-regions";
 
 const AddTradeModal = dynamic(
   () =>
@@ -88,6 +90,7 @@ function tradesToCsv(trades: JournalTrade[]) {
 export default function JournalPage() {
   const { trades, setTrades, hydrated: tradesHydrated } = useJournalTrades();
   const { settings } = useSettings();
+  const { activeRegionId, activeCurrency } = useJournalMarket();
   const [filters, setFilters] = useState<JournalFilters>(emptyFilters);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTrade, setEditingTrade] = useState<JournalTrade | null>(null);
@@ -98,9 +101,19 @@ export default function JournalPage() {
     setModalOpen(true);
   }
 
+  const regionTrades = useMemo(
+    () =>
+      filterTradesByJournalRegion(
+        trades,
+        activeRegionId,
+        settings.profile.currency
+      ),
+    [trades, activeRegionId, settings.profile.currency]
+  );
+
   const filtered = useMemo(
-    () => filterJournalTrades(trades, filters),
-    [trades, filters]
+    () => filterJournalTrades(regionTrades, filters),
+    [regionTrades, filters]
   );
   const activeTrades = useMemo(
     () => filtered.filter((t) => (t.status ?? "Closed") === "Active"),
@@ -111,26 +124,26 @@ export default function JournalPage() {
     [filtered]
   );
   const activePoolCount = useMemo(
-    () => trades.filter((t) => (t.status ?? "Closed") === "Active").length,
-    [trades]
+    () => regionTrades.filter((t) => (t.status ?? "Closed") === "Active").length,
+    [regionTrades]
   );
   const closedPoolCount = useMemo(
-    () => trades.filter((t) => (t.status ?? "Closed") === "Closed").length,
-    [trades]
+    () => regionTrades.filter((t) => (t.status ?? "Closed") === "Closed").length,
+    [regionTrades]
   );
   const summary = useMemo(() => computeJournalSummary(filtered), [filtered]);
 
   const { getEarningsDate, loading: earningsLoading } = useEarningsDates(
-    trades,
-    settings.profile.currency
+    regionTrades,
+    activeCurrency
   );
 
   const { getQuote, loading: quotesLoading, quoteRevision } = useMarketQuotes();
-  const livePnl = useTodayDailyPnl(trades, settings.profile.currency);
+  const livePnl = useTodayDailyPnl(regionTrades, activeCurrency);
   const filteredPnl = useMemo(
     () =>
-      computeFilteredPnl(filtered, getQuote, settings.profile.currency),
-    [filtered, getQuote, quoteRevision, settings.profile.currency]
+      computeFilteredPnl(filtered, getQuote, activeCurrency),
+    [filtered, getQuote, quoteRevision, activeCurrency]
   );
 
   function handleSave(trade: JournalTrade) {
@@ -300,6 +313,7 @@ export default function JournalPage() {
         filteredPnl={filteredPnl}
         livePnlLoading={livePnl.loading || livePnl.quotesLoading}
         liveDataReady={tradesHydrated}
+        displayCurrency={activeCurrency}
       />
 
       <div className="space-y-6">
@@ -307,6 +321,7 @@ export default function JournalPage() {
           title="Active trade log"
           trades={activeTrades}
           totalTradeCount={activePoolCount}
+          displayCurrency={activeCurrency}
           getEarningsDate={getEarningsDate}
           earningsLoading={earningsLoading}
           onEdit={openEditTrade}
@@ -319,6 +334,7 @@ export default function JournalPage() {
             title="Closed trades"
             trades={closedTrades}
             totalTradeCount={closedPoolCount}
+            displayCurrency={activeCurrency}
             enableLiveQuotes={false}
             getEarningsDate={getEarningsDate}
             earningsLoading={earningsLoading}
@@ -336,7 +352,7 @@ export default function JournalPage() {
           if (!open) setEditingTrade(null);
         }}
         initialTrade={editingTrade}
-        trades={trades}
+        trades={regionTrades}
         onSave={handleSave}
       />
 

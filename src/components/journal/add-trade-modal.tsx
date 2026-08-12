@@ -34,6 +34,7 @@ import {
   type TickerSearchInputHandle,
 } from "@/components/journal/ticker-search-input";
 import { useSettings } from "@/components/settings/settings-provider";
+import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import {
   type AssetClass,
   type JournalDirection,
@@ -41,7 +42,6 @@ import {
   type JournalTradeStatus,
 } from "@/lib/journal-types";
 import {
-  defaultListingMarketForCurrency,
   EQUITY_LISTING_MARKETS,
   LISTING_MARKET_IDS,
   normalizeListingMarket,
@@ -252,9 +252,8 @@ export function AddTradeModal({
   onSave,
 }: AddTradeModalProps) {
   const { settings } = useSettings();
-  const defaultMarket = defaultListingMarketForCurrency(
-    settings.profile.currency
-  );
+  const { defaultListingMarket, activeCurrency } = useJournalMarket();
+  const defaultMarket = defaultListingMarket;
   const defaultCapital = useMemo(() => computeCapitalBase(trades), [trades]);
   const [tradeMeta, setTradeMeta] = useState<{
     direction: JournalDirection;
@@ -707,7 +706,7 @@ export function AddTradeModal({
                       ticker={tickerWatch}
                       listingMarket={listingMarket}
                       entryDate={entryDate}
-                      currency={settings.profile.currency}
+                      currency={activeCurrency}
                     />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Controller
@@ -968,7 +967,7 @@ export function AddTradeModal({
 
           <DialogFooter className="m-0 shrink-0 items-center gap-2 rounded-none border-t border-border/80 bg-background px-6 py-3 sm:justify-between">
             <p className="hidden text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:block">
-              All prices in {settings.profile.currency}
+              All prices in {activeCurrency}
             </p>
             <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
               <Button

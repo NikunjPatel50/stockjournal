@@ -141,14 +141,17 @@ export function getTargetStopStatusLabel(progress: TargetStopProgress): {
   };
 }
 
-/** Blink the progress marker when price has moved >50% toward target or stop. */
+/** Blink the progress marker when price has moved ≥75% toward target or stop. */
+export const TARGET_STOP_BLINK_THRESHOLD_PCT = 75;
+
 export function getTargetStopMarkerBlink(
   progress: TargetStopProgress
 ): "green" | "red" | null {
-  if (progress.stopPct > 50 && progress.targetPct > 50) {
+  const threshold = TARGET_STOP_BLINK_THRESHOLD_PCT;
+  if (progress.stopPct >= threshold && progress.targetPct >= threshold) {
     return progress.stopPct >= progress.targetPct ? "red" : "green";
   }
-  if (progress.stopPct > 50) return "red";
-  if (progress.targetPct > 50) return "green";
+  if (progress.stopPct >= threshold) return "red";
+  if (progress.targetPct >= threshold) return "green";
   return null;
 }
