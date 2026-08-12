@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   MessageSquare,
   Settings,
-  Target,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { MarketIndicesPanel } from "@/components/sidebar/market-indices-panel";
@@ -24,7 +23,6 @@ const navGroups = [
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/journal", label: "Journal", icon: BookOpen },
-      { href: "/goals", label: "Goals", icon: Target },
     ],
   },
   {
