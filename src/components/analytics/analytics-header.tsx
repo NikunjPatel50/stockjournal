@@ -30,7 +30,7 @@ export function AnalyticsHeader({
   filters,
   onFiltersChange,
   title = "Dashboard",
-  subtitle = "Portfolio performance and execution analytics",
+  subtitle = "",
 }: AnalyticsHeaderProps) {
   const [dateOpen, setDateOpen] = useState(false);
   const isMobile = useIsMobile();

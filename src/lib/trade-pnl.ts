@@ -28,6 +28,7 @@ function isRewardSideTarget(
 
 export function plannedMaxProfitLoss(trade: JournalTrade): {
   maxProfit: number | null;
+  /** Signed P&L if price hits stop: negative = loss, positive = locked profit. */
   maxLoss: number | null;
 } {
   const { entryPrice, stopLoss, profitTarget, quantity, direction } = trade;
@@ -48,11 +49,13 @@ export function plannedMaxProfitLoss(trade: JournalTrade): {
   }
   if (
     stopLoss > 0 &&
-    Math.abs(entryPrice - stopLoss) / entryPrice > 0.000_01 &&
-    isRiskSideStop(direction, entryPrice, stopLoss)
+    Math.abs(entryPrice - stopLoss) / entryPrice > 0.000_01
   ) {
-    maxLoss =
-      Math.round(Math.abs(entryPrice - stopLoss) * quantity * 100) / 100;
+    const stopPnl =
+      direction === "Long"
+        ? (stopLoss - entryPrice) * quantity
+        : (entryPrice - stopLoss) * quantity;
+    maxLoss = Math.round(stopPnl * 100) / 100;
   }
 
   return { maxProfit, maxLoss };
@@ -117,7 +120,7 @@ export function resolveMaxProfitLossDisplay(
   const { maxProfit, maxLoss } = plannedMaxProfitLoss(trade);
   return {
     maxProfit,
-    maxLoss: maxLoss != null ? -maxLoss : null,
+    maxLoss,
     currency: defaultCurrency,
   };
 }

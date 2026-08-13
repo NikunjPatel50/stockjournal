@@ -82,7 +82,6 @@ export default function SettingsPage() {
       <AppPageHeader
         eyebrow="Workspace"
         title="Settings"
-        description="Account defaults, risk guardrails, journal taxonomy, and data controls."
       />
 
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-none lg:flex">

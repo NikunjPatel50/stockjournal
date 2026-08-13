@@ -313,7 +313,13 @@ function MaxProfitLossValue({
         {maxProfit != null ? formatSignedMoney(maxProfit, currency) : "—"}
       </span>
       <span className="px-0.5 text-muted-foreground">/</span>
-      <span className="text-rose-700 dark:text-rose-400">
+      <span
+        className={cn(
+          maxLoss != null && maxLoss >= 0
+            ? "text-emerald-700 dark:text-emerald-400"
+            : "text-rose-700 dark:text-rose-400"
+        )}
+      >
         {maxLoss != null ? formatSignedMoney(maxLoss, currency) : "—"}
       </span>
     </span>

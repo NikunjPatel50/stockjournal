@@ -162,7 +162,6 @@ export function PnlCalendarView() {
         <AppPageHeader
           eyebrow="Portfolio analytics"
           title="Calendar"
-          description="Daily and weekly realized P&L from closed trades. Active positions are excluded."
         />
 
         <div className="pl-12 lg:pl-0">

@@ -128,9 +128,7 @@ export function JournalHeader({
   return (
     <div className="space-y-6">
       <AppPageHeader
-        eyebrow="Execution log"
-        overlineEyebrow={false}
-        title="Trade journal"
+        title="Journal"
       />
 
       <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-none">

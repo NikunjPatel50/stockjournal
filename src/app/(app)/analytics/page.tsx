@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
         filters={filters}
         onFiltersChange={setFilters}
         title="Analytics"
-        subtitle="Deep-dive into edge, timing, risk, and strategy performance"
+        subtitle=""
       />
 
       <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
@@ -126,10 +126,6 @@ export default function AnalyticsPage() {
           Open positions{" "}
           <span className="font-medium text-foreground">{activeCount}</span>
         </span>
-        <span className="hidden sm:inline" aria-hidden>
-          ·
-        </span>
-        <span className="sm:inline">Realized results only — open positions are excluded</span>
       </div>
 
       <MetricStrip
