@@ -202,3 +202,15 @@ export function filterTradesByJournalRegion(
     tradeBelongsToRegion(trade, regionId, defaultCurrency)
   );
 }
+
+/** True when `trade` would be the first position in its market region. */
+export function isFirstTradeInMarketRegion(
+  trade: JournalTrade,
+  existingTrades: JournalTrade[],
+  defaultCurrency: CurrencyCode
+): boolean {
+  const regionId = resolveTradeRegionId(trade, defaultCurrency);
+  return !existingTrades.some(
+    (existing) => resolveTradeRegionId(existing, defaultCurrency) === regionId
+  );
+}

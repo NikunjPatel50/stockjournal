@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Info } from "lucide-react";
+import { MetricHint } from "@/components/ui/metric-hint";
 import {
   formatCurrency,
   formatMarketPrice,
@@ -95,37 +95,6 @@ function tradeCountLabel(count: number) {
   return `${count} ${count === 1 ? "trade" : "trades"}`;
 }
 
-function MetricHint({ title, hint }: { title: string; hint: string }) {
-  return (
-    <span className="group/hint relative inline-flex align-middle">
-      <button
-        type="button"
-        className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 group-focus-within/hint:bg-muted group-focus-within/hint:text-foreground"
-        aria-label={`About ${title}`}
-      >
-        <Info className="size-3" strokeWidth={2} aria-hidden />
-      </button>
-      <span
-        role="tooltip"
-        className={cn(
-          "pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 w-[min(calc(100vw-2rem),16.5rem)] -translate-x-1/2 sm:left-0 sm:translate-x-0",
-          "rounded-lg border border-border/80 bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-foreground/10",
-          "invisible opacity-0 transition-[opacity,visibility] duration-150",
-          "group-hover/hint:visible group-hover/hint:opacity-100",
-          "group-focus-within/hint:visible group-focus-within/hint:opacity-100"
-        )}
-      >
-        <span className="block text-xs font-semibold leading-snug text-foreground">
-          {title}
-        </span>
-        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-          {hint}
-        </span>
-      </span>
-    </span>
-  );
-}
-
 export const JournalSummaryBar = memo(function JournalSummaryBar({
   summary,
   livePnl,
@@ -192,7 +161,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
       />
       <Stat
         label="Total P/L"
-        hint="Net profit or loss for all trades in your current filter—realized on closed trades plus live unrealized on open positions."
+        hint="Net profit or loss for all trades in your current filter, including realized on closed trades plus live unrealized on open positions."
         value={filteredValue}
         largeValue
         accent={pnlUp ? "emerald" : pnlDown ? "rose" : "slate"}
@@ -214,7 +183,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
       />
       <Stat
         label="Accuracy %"
-        hint="Win rate among decided outcomes only—wins divided by wins plus losses, excluding open and breakeven trades."
+        hint="Win rate among decided outcomes only: wins divided by wins plus losses, excluding open and breakeven trades."
         value={`${summary.accuracyPercent.toFixed(1)}%`}
         largeValue
         accent={

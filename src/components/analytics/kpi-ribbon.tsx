@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Info } from "lucide-react";
+import { MetricHint } from "@/components/ui/metric-hint";
 import {
   formatMoney,
   formatPercent,
@@ -23,37 +23,6 @@ function toneClass(tone: FooterTone) {
   if (tone === "profit") return "text-emerald-600 dark:text-emerald-400";
   if (tone === "loss") return "text-rose-600 dark:text-rose-400";
   return "text-muted-foreground";
-}
-
-function MetricHint({ title, hint }: { title: string; hint: string }) {
-  return (
-    <span className="group/hint relative inline-flex align-middle">
-      <button
-        type="button"
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 group-focus-within/hint:bg-muted group-focus-within/hint:text-foreground"
-        aria-label={`About ${title}`}
-      >
-        <Info className="size-3.5" strokeWidth={2} aria-hidden />
-      </button>
-      <span
-        role="tooltip"
-        className={cn(
-          "pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 w-[min(calc(100vw-2rem),16.5rem)] -translate-x-1/2 sm:left-0 sm:translate-x-0",
-          "rounded-lg border border-border/80 bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-foreground/10",
-          "invisible opacity-0 transition-[opacity,visibility] duration-150",
-          "group-hover/hint:visible group-hover/hint:opacity-100",
-          "group-focus-within/hint:visible group-focus-within/hint:opacity-100"
-        )}
-      >
-        <span className="block text-xs font-semibold leading-snug text-foreground">
-          {title}
-        </span>
-        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-          {hint}
-        </span>
-      </span>
-    </span>
-  );
 }
 
 function InsightKpiCard({
@@ -78,7 +47,7 @@ function InsightKpiCard({
     >
       <div className="flex items-center justify-center gap-1">
         <p className="text-sm font-medium text-foreground">{title}</p>
-        <MetricHint title={title} hint={hint} />
+        <MetricHint title={title} hint={hint} size="md" />
       </div>
 
       <p

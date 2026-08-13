@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { JournalHeader } from "@/components/journal/journal-header";
@@ -30,13 +31,29 @@ import {
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
 import { computeFilteredPnl } from "@/lib/trade-pnl";
 import { useJournalTrades } from "@/components/journal-trades-provider";
-import { useRegionTrades } from "@/components/journal/journal-market-provider";
+import {
+  useJournalMarket,
+  useRegionTrades,
+} from "@/components/journal/journal-market-provider";
+import { useSettings } from "@/components/settings/settings-provider";
+import {
+  isFirstTradeInMarketRegion,
+  resolveTradeRegionId,
+} from "@/lib/journal-market-regions";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 
 const AddTradeModal = dynamic(
   () =>
     import("@/components/journal/add-trade-modal").then((mod) => ({
       default: mod.AddTradeModal,
+    })),
+  { ssr: false }
+);
+
+const PartialExitModal = dynamic(
+  () =>
+    import("@/components/journal/partial-exit-modal").then((mod) => ({
+      default: mod.PartialExitModal,
     })),
   { ssr: false }
 );
@@ -86,12 +103,19 @@ function tradesToCsv(trades: JournalTrade[]) {
 }
 
 export default function JournalPage() {
+  const router = useRouter();
   const { trades: allTrades, setTrades, hydrated: tradesHydrated } =
     useJournalTrades();
+  const { setActiveRegionId } = useJournalMarket();
+  const { settings } = useSettings();
+  const defaultCurrency = settings.profile.currency;
   const { trades: regionTrades, currency: activeCurrency } = useRegionTrades();
   const [filters, setFilters] = useState<JournalFilters>(emptyFilters);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTrade, setEditingTrade] = useState<JournalTrade | null>(null);
+  const [partialExitTrade, setPartialExitTrade] = useState<JournalTrade | null>(
+    null
+  );
   const [deleteTarget, setDeleteTarget] = useState<string[] | null>(null);
 
   function openEditTrade(trade: JournalTrade) {
@@ -135,11 +159,22 @@ export default function JournalPage() {
   );
 
   function handleSave(trade: JournalTrade) {
+    const isNewTrade = !allTrades.some((t) => t.id === trade.id);
+    const opensNewMarket =
+      isNewTrade &&
+      isFirstTradeInMarketRegion(trade, allTrades, defaultCurrency);
+
     setTrades((prev) => {
       const exists = prev.some((t) => t.id === trade.id);
       if (exists) return prev.map((t) => (t.id === trade.id ? trade : t));
       return [trade, ...prev];
     });
+
+    if (opensNewMarket) {
+      const regionId = resolveTradeRegionId(trade, defaultCurrency);
+      setActiveRegionId(regionId);
+      router.push("/dashboard");
+    }
   }
 
   function handleDelete(ids: string[]) {
@@ -195,6 +230,26 @@ export default function JournalPage() {
       })),
     };
     setTrades((prev) => [copy, ...prev]);
+  }
+
+  function handlePartialExit(result: {
+    closedLot: JournalTrade;
+    updatedActive: JournalTrade | null;
+  }) {
+    const originalId = result.updatedActive?.id ?? result.closedLot.id;
+    setTrades((prev) => {
+      const withoutOriginal = prev.filter((t) => t.id !== originalId);
+      if (result.updatedActive) {
+        return [result.closedLot, result.updatedActive, ...withoutOriginal];
+      }
+      return [result.closedLot, ...withoutOriginal];
+    });
+    setPartialExitTrade(null);
+    toast.success(
+      result.updatedActive
+        ? `Partial exit recorded — ${result.updatedActive.quantity} share${result.updatedActive.quantity === 1 ? "" : "s"} still active`
+        : `${result.closedLot.ticker} fully closed`
+    );
   }
 
   function handleExportCsv() {
@@ -315,6 +370,7 @@ export default function JournalPage() {
           onEdit={openEditTrade}
           onDuplicate={handleDuplicate}
           onDelete={handleDelete}
+          onPartialExit={setPartialExitTrade}
         />
 
         {closedPoolCount > 0 ? (
@@ -332,6 +388,15 @@ export default function JournalPage() {
           />
         ) : null}
       </div>
+
+      <PartialExitModal
+        open={partialExitTrade !== null}
+        onOpenChange={(open) => {
+          if (!open) setPartialExitTrade(null);
+        }}
+        trade={partialExitTrade}
+        onConfirm={handlePartialExit}
+      />
 
       <AddTradeModal
         open={modalOpen}

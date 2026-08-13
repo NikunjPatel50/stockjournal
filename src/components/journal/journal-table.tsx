@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Copy,
   Pencil,
+  Split,
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -787,6 +788,7 @@ function TradeActions({
   onEdit,
   onDuplicate,
   onDelete,
+  onPartialExit,
   className,
   compact = false,
 }: {
@@ -794,16 +796,30 @@ function TradeActions({
   onEdit: (t: JournalTrade) => void;
   onDuplicate: (t: JournalTrade) => void;
   onDelete: (ids: string[]) => void;
+  onPartialExit?: (t: JournalTrade) => void;
   className?: string;
   compact?: boolean;
 }) {
   const actionSize = compact ? "icon" : "icon-sm";
+  const isActive = (trade.status ?? "Closed") === "Active";
 
   return (
     <div
       className={cn("flex items-center justify-center gap-0.5", className)}
       onClick={(e) => e.stopPropagation()}
     >
+      {isActive && onPartialExit ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size={actionSize}
+          title="Partial exit"
+          aria-label="Partial exit"
+          onClick={() => onPartialExit(trade)}
+        >
+          <Split className="size-4" />
+        </Button>
+      ) : null}
       <Button
         type="button"
         variant="ghost"
@@ -850,6 +866,8 @@ interface JournalTableProps {
   onEdit: (trade: JournalTrade) => void;
   onDuplicate: (trade: JournalTrade) => void;
   onDelete: (ids: string[]) => void;
+  /** Active trades only — opens partial exit flow. */
+  onPartialExit?: (trade: JournalTrade) => void;
   /** Show column visibility menu (default true). */
   showColumnsMenu?: boolean;
   /** Poll live quotes for active rows (default true). */
@@ -928,6 +946,7 @@ function JournalTableInner({
   onEdit,
   onDuplicate,
   onDelete,
+  onPartialExit,
   showColumnsMenu = true,
   enableLiveQuotes = true,
   getEarningsDate: getEarningsDateProp,
@@ -1315,6 +1334,7 @@ function JournalTableInner({
             onEdit={onEdit}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
+            onPartialExit={onPartialExit}
           />
         ),
       },
@@ -1328,6 +1348,7 @@ function JournalTableInner({
       onDelete,
       onDuplicate,
       onEdit,
+      onPartialExit,
       quoteRevision,
       quotesLoading,
       portfolioWeights,
@@ -1664,6 +1685,7 @@ function JournalTableInner({
                           onEdit={onEdit}
                           onDuplicate={onDuplicate}
                           onDelete={onDelete}
+                          onPartialExit={onPartialExit}
                           compact
                         />
                       </div>
