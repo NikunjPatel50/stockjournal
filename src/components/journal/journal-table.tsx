@@ -59,7 +59,7 @@ import { MarketSessionTimer } from "@/components/journal/market-session-timer";
 import { TargetStopProgressBar } from "@/components/journal/target-stop-progress-bar";
 import { useEarningsDates } from "@/hooks/use-earnings-dates";
 import { useMarketQuotes, type ClientMarketQuote } from "@/hooks/use-market-quotes";
-import { useIsJournalCompact } from "@/hooks/use-media-query";
+import { useIsJournalCompact, useIsMobile } from "@/hooks/use-media-query";
 import type { CurrencyCode } from "@/lib/settings";
 import { parseEarningsDisplayDate, type EarningsDateInfo } from "@/lib/yahoo-earnings";
 import {
@@ -146,21 +146,29 @@ function hasStopAboveEntry(trade: JournalTrade): boolean {
   return hasDistinctLevel(stopLoss, entryPrice) && stopLoss > entryPrice;
 }
 
-function rowAccentClass(trade: JournalTrade, livePnl?: number) {
+function rowAccentBorderColor(trade: JournalTrade, livePnl?: number) {
   if (hasStopAboveEntry(trade)) {
-    return "border-l-4 border-l-sky-600 bg-card hover:bg-muted/50 dark:border-l-sky-400";
+    return "border-l-sky-600 dark:border-l-sky-400";
   }
   const pnl = livePnl ?? trade.pnl;
-  if (pnl > 0) {
-    return "border-l-4 border-l-emerald-500 bg-card hover:bg-muted/50";
-  }
-  if (pnl < 0) {
-    return "border-l-4 border-l-rose-500 bg-card hover:bg-muted/50";
-  }
-  if (trade.status === "Active") {
-    return "border-l-4 border-l-emerald-500/70 bg-card hover:bg-muted/50";
-  }
-  return "border-l-4 border-l-transparent bg-card hover:bg-muted/40";
+  if (pnl > 0) return "border-l-emerald-500";
+  if (pnl < 0) return "border-l-rose-500";
+  if (trade.status === "Active") return "border-l-emerald-500/70";
+  return "border-l-transparent";
+}
+
+function rowAccentClass(trade: JournalTrade, livePnl?: number) {
+  return cn(
+    "border-l-4 bg-card hover:bg-muted/50",
+    rowAccentBorderColor(trade, livePnl)
+  );
+}
+
+function compactRowAccentClass(trade: JournalTrade, livePnl?: number) {
+  return cn(
+    "border-l-2 bg-card",
+    rowAccentBorderColor(trade, livePnl)
+  );
 }
 
 function RowColorLegend() {
@@ -181,7 +189,7 @@ function RowColorLegend() {
   ] as const;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 sm:flex">
       {items.map((item) => (
         <span
           key={item.label}
@@ -797,6 +805,7 @@ function TradeActions({
   onPartialExit,
   className,
   compact = false,
+  touchFriendly = false,
 }: {
   trade: JournalTrade;
   onEdit: (t: JournalTrade) => void;
@@ -805,8 +814,10 @@ function TradeActions({
   onPartialExit?: (t: JournalTrade) => void;
   className?: string;
   compact?: boolean;
+  touchFriendly?: boolean;
 }) {
-  const actionSize = compact ? "icon" : "icon-sm";
+  const actionSize = touchFriendly ? "icon" : compact ? "icon" : "icon-sm";
+  const actionButtonClass = touchFriendly ? "size-9" : undefined;
   const isActive = (trade.status ?? "Closed") === "Active";
 
   return (
@@ -819,6 +830,7 @@ function TradeActions({
           type="button"
           variant="ghost"
           size={actionSize}
+          className={actionButtonClass}
           title="Partial exit"
           aria-label="Partial exit"
           onClick={() => onPartialExit(trade)}
@@ -830,6 +842,7 @@ function TradeActions({
         type="button"
         variant="ghost"
         size={actionSize}
+        className={actionButtonClass}
         title="Edit trade"
         aria-label="Edit trade"
         onClick={() => onEdit(trade)}
@@ -840,6 +853,7 @@ function TradeActions({
         type="button"
         variant="ghost"
         size={actionSize}
+        className={actionButtonClass}
         title="Duplicate trade"
         aria-label="Duplicate trade"
         onClick={() => onDuplicate(trade)}
@@ -852,7 +866,10 @@ function TradeActions({
         size={actionSize}
         title="Delete trade"
         aria-label="Delete trade"
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        className={cn(
+          actionButtonClass,
+          "text-destructive hover:bg-destructive/10 hover:text-destructive"
+        )}
         onClick={() => onDelete([trade.id])}
       >
         <Trash2 className="size-4" />
@@ -960,6 +977,7 @@ function JournalTableInner({
   quoteSlice,
 }: JournalTableProps & { quoteSlice: QuoteSlice }) {
   const isCompact = useIsJournalCompact();
+  const isMobile = useIsMobile();
   const [sorting, setSorting] = useState<SortingState>([
     { id: "entryDate", desc: true },
   ]);
@@ -1427,7 +1445,7 @@ function JournalTableInner({
       : "100%";
 
   const paginationBar = totalRows > 0 && (
-    <div className="flex flex-col gap-2.5 border-t border-border/70 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+    <div className="flex flex-col gap-2.5 border-t border-border/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <p className="text-[11px] tabular-nums text-muted-foreground">
         <span className="font-semibold text-foreground">
           {rangeStart}–{rangeEnd}
@@ -1465,7 +1483,7 @@ function JournalTableInner({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="size-7 rounded-md disabled:opacity-35"
+            className={cn("rounded-md disabled:opacity-35", isMobile && "size-9")}
             disabled={!table.getCanPreviousPage()}
             onClick={() => table.previousPage()}
             aria-label="Previous page"
@@ -1480,7 +1498,7 @@ function JournalTableInner({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="size-7 rounded-md disabled:opacity-35"
+            className={cn("rounded-md disabled:opacity-35", isMobile && "size-9")}
             disabled={!table.getCanNextPage()}
             onClick={() => table.nextPage()}
             aria-label="Next page"
@@ -1494,7 +1512,7 @@ function JournalTableInner({
 
   return (
     <section className="cv-section overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]">
-      <header className="flex flex-col gap-3 border-b border-border/80 bg-card px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+      <header className="flex flex-col gap-2.5 border-b border-border/80 bg-card px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-semibold tracking-tight text-foreground">
@@ -1520,7 +1538,7 @@ function JournalTableInner({
             <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
           ) : null}
         </div>
-        {showColumnsMenu ? (
+        {showColumnsMenu && !isCompact ? (
           <JournalColumnsMenu prefs={columnPrefs} onChange={setColumnPrefs} />
         ) : null}
       </header>
@@ -1558,16 +1576,11 @@ function JournalTableInner({
                 : null;
             return (
               <li key={row.id}>
-                <div
-                  className={cn(
-                    "border-l-[3px]",
-                    rowAccentClass(trade, pnlDisplay.pnl)
-                  )}
-                >
-                  <div className="flex items-start gap-2 px-4 py-4">
+                <div className={compactRowAccentClass(trade, pnlDisplay.pnl)}>
+                  <div className="flex items-start gap-2 px-3 py-3 sm:px-4 sm:py-4">
                     <button
                       type="button"
-                      className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground sm:mt-0.5"
                       aria-expanded={expanded}
                       aria-label={expanded ? "Hide row details" : "Show row details"}
                       onClick={() => toggleRowExpanded(row.id)}
@@ -1584,24 +1597,24 @@ function JournalTableInner({
                       className="min-w-0 flex-1 text-left"
                       onClick={() => toggleRowExpanded(row.id)}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-2 sm:gap-3">
                         <div className="min-w-0">
                           <span
                             className={cn(
-                              "text-base font-bold tracking-tight",
+                              "text-[15px] font-bold tracking-tight sm:text-base",
                               NUMERIC_CLASS
                             )}
                           >
                             {trade.ticker}
                           </span>
-                          <p className="mt-1 text-xs text-muted-foreground">
+                          <p className="mt-0.5 text-[11px] text-muted-foreground sm:mt-1 sm:text-xs">
                             {format(new Date(trade.entryDate), "MMM d, yyyy")} · Qty{" "}
                             {trade.quantity}
                           </p>
                         </div>
                         <div
                           className={cn(
-                            "shrink-0 text-right text-sm font-bold",
+                            "shrink-0 text-right text-sm font-bold leading-tight",
                             NUMERIC_CLASS,
                             pnlDisplay.pnl >= 0
                               ? "text-emerald-700 dark:text-emerald-400"
@@ -1614,7 +1627,7 @@ function JournalTableInner({
                           {dailyPnl != null ? (
                             <p
                               className={cn(
-                                "mt-0.5 text-[11px] font-semibold",
+                                "mt-0.5 text-[10px] font-semibold sm:text-[11px]",
                                 dailyPnl >= 0
                                   ? "text-emerald-700 dark:text-emerald-400"
                                   : "text-rose-700 dark:text-rose-400"
@@ -1632,20 +1645,26 @@ function JournalTableInner({
                     </button>
                   </div>
 
-                  <div className="space-y-3 px-4 pb-4 pl-14">
-                      <div className="grid grid-cols-2 gap-2 rounded-lg border border-border/70 bg-muted/25 p-2.5 sm:grid-cols-3">
-                        <div className="col-span-2 sm:col-span-1">
-                          <EntryExitValue
-                            entry={trade.entryPrice}
-                            exit={trade.exitPrice}
-                            isActive={(trade.status ?? "Closed") === "Active"}
-                          />
+                  <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">
+                    <div className="space-y-3 rounded-lg border border-border/70 bg-muted/25 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Entry / Exit
+                          </p>
+                          <div className="mt-1 text-left [&_span]:text-left">
+                            <EntryExitValue
+                              entry={trade.entryPrice}
+                              exit={trade.exitPrice}
+                              isActive={(trade.status ?? "Closed") === "Active"}
+                            />
+                          </div>
                         </div>
-                        <div className="text-right sm:text-right">
+                        <div className="shrink-0 text-right">
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                             Market
                           </p>
-                          <div className="mt-0.5 flex justify-end">
+                          <div className="mt-1 flex justify-end">
                             <LivePrice
                               trade={trade}
                               quote={quote}
@@ -1658,43 +1677,45 @@ function JournalTableInner({
                             />
                           </div>
                         </div>
-                        <div className="col-span-2 sm:col-span-3">
-                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Target / Stop
-                          </p>
-                          <TargetStopProgressBar
-                            trade={trade}
-                            currentPrice={
-                              (trade.status ?? "Closed") === "Active"
-                                ? (quote?.price ?? null)
-                                : trade.exitPrice > 0
-                                  ? trade.exitPrice
-                                  : null
-                            }
-                            loading={
-                              (trade.status ?? "Closed") === "Active" &&
-                              quotesLoading &&
-                              quote?.price == null
-                            }
-                            compact
-                          />
-                        </div>
                       </div>
-
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          Hold {formatHoldTime(resolveTradeHoldHours(trade, holdNow))}
-                          {(trade.status ?? "Closed") === "Active" ? " · live" : ""}
-                        </span>
-                        <TradeActions
+                      <div>
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Target / Stop
+                        </p>
+                        <TargetStopProgressBar
                           trade={trade}
-                          onEdit={onEdit}
-                          onDuplicate={onDuplicate}
-                          onDelete={onDelete}
-                          onPartialExit={onPartialExit}
+                          currentPrice={
+                            (trade.status ?? "Closed") === "Active"
+                              ? (quote?.price ?? null)
+                              : trade.exitPrice > 0
+                                ? trade.exitPrice
+                                : null
+                          }
+                          loading={
+                            (trade.status ?? "Closed") === "Active" &&
+                            quotesLoading &&
+                            quote?.price == null
+                          }
                           compact
                         />
                       </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground sm:text-xs">
+                        Hold {formatHoldTime(resolveTradeHoldHours(trade, holdNow))}
+                        {(trade.status ?? "Closed") === "Active" ? " · live" : ""}
+                      </span>
+                      <TradeActions
+                        trade={trade}
+                        onEdit={onEdit}
+                        onDuplicate={onDuplicate}
+                        onDelete={onDelete}
+                        onPartialExit={onPartialExit}
+                        compact
+                        touchFriendly={isMobile}
+                      />
+                    </div>
                   </div>
 
                   <JournalRowAccordionPanel

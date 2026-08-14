@@ -55,8 +55,8 @@ export function TargetStopProgressBar({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-[8.5rem]",
-        compact ? "space-y-0.5" : "space-y-1"
+        "mx-auto w-full",
+        compact ? "max-w-none space-y-1" : "max-w-[8.5rem] space-y-1"
       )}
       title={status.text}
     >

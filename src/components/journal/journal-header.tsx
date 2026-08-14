@@ -132,7 +132,7 @@ export function JournalHeader({
       />
 
       <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-none">
-        <div className="flex flex-col gap-4 p-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-3 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center">
               <div className="relative w-full min-w-0 xl:max-w-sm xl:shrink-0">

@@ -21,7 +21,7 @@ export function HeaderActions({
   showProfile?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex min-w-0 flex-wrap items-center justify-end gap-2", className)}>
       <JournalMarketSelector />
       <AdminPanelButton
         className={cn(
