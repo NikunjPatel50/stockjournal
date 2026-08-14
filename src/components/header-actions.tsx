@@ -11,6 +11,7 @@ export function HeaderActions({
   profileClassName,
   themeToggleClassName,
   showProfile = true,
+  compact = false,
 }: {
   className?: string;
   align?: "start" | "center" | "end";
@@ -19,19 +20,29 @@ export function HeaderActions({
   themeToggleClassName?: string;
   /** When false, only the theme toggle is shown (e.g. sidebar footer). */
   showProfile?: boolean;
+  /** Icon-only controls for narrow mobile headers. */
+  compact?: boolean;
 }) {
   return (
-    <div className={cn("flex min-w-0 flex-wrap items-center justify-end gap-2", className)}>
-      <JournalMarketSelector />
+    <div
+      className={cn(
+        "flex min-w-0 items-center justify-end",
+        compact ? "flex-nowrap gap-1" : "flex-wrap gap-2",
+        className
+      )}
+    >
+      <JournalMarketSelector compact={compact} />
       <AdminPanelButton
         className={cn(
           "border border-border bg-card hover:bg-muted",
+          compact && "size-8",
           themeToggleClassName
         )}
       />
       <ThemeToggle
         className={cn(
           "shrink-0 border border-border bg-card hover:bg-muted",
+          compact && "size-8",
           themeToggleClassName
         )}
       />
@@ -39,6 +50,7 @@ export function HeaderActions({
         <UserProfileBadge
           align={align}
           fullWidth={fullWidth}
+          compact={compact}
           className={profileClassName}
         />
       ) : null}

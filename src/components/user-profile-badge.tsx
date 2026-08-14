@@ -21,10 +21,12 @@ export function UserProfileBadge({
   className,
   align = "end",
   fullWidth = false,
+  compact = false,
 }: {
   className?: string;
   align?: "start" | "center" | "end";
   fullWidth?: boolean;
+  compact?: boolean;
 }) {
   const { settings } = useSettings();
   const isAdmin = useIsAdmin();
@@ -39,25 +41,32 @@ export function UserProfileBadge({
       <DropdownMenu>
         <DropdownMenuTrigger
           className={cn(
-            "group inline-flex max-w-[min(100%,11rem)] items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 sm:max-w-[200px]",
+            "group inline-flex items-center outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50",
+            compact
+              ? "size-8 shrink-0 justify-center rounded-lg border border-border bg-card p-0"
+              : "max-w-[min(100%,11rem)] gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-left sm:max-w-[200px]",
             fullWidth && "flex w-full max-w-none",
             className
           )}
         >
-          <Avatar className="size-7 shrink-0">
+          <Avatar className={cn("shrink-0", compact ? "size-7" : "size-7")}>
             <AvatarFallback className="bg-emerald-500/15 text-[10px] font-semibold text-emerald-500">
               {settings.profile.initials}
             </AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium leading-tight text-foreground">
-              {displayName}
-            </p>
-            <p className="truncate text-[11px] leading-tight text-muted-foreground">
-              {displayHandle}
-            </p>
-          </div>
-          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-popup-open:rotate-180" />
+          {!compact ? (
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium leading-tight text-foreground">
+                  {displayName}
+                </p>
+                <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                  {displayHandle}
+                </p>
+              </div>
+              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-popup-open:rotate-180" />
+            </>
+          ) : null}
         </DropdownMenuTrigger>
 
         <DropdownMenuContent

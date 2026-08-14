@@ -13,12 +13,14 @@ export function TimeframeSegmentedControl({
   onChange,
   className,
   trailing,
+  compact = false,
 }: {
   value: AnalyticsTimeframe;
   onChange: (value: AnalyticsTimeframe) => void;
   className?: string;
   /** Shown after presets (e.g. custom date range picker). */
   trailing?: ReactNode;
+  compact?: boolean;
 }) {
   return (
     <Tabs
@@ -41,9 +43,10 @@ export function TimeframeSegmentedControl({
       >
         <TabsList
           className={cn(
-            "inline-flex h-10 w-max max-w-none flex-nowrap items-center gap-0.5",
+            "inline-flex w-max max-w-none flex-nowrap items-center gap-0.5",
+            compact ? "h-9 p-0.5" : "h-10 p-1",
             "group-data-horizontal/tabs:h-10",
-            "rounded-lg border border-border bg-muted/60 p-1",
+            "rounded-lg border border-border bg-muted/60",
             "shadow-none dark:bg-muted/40"
           )}
         >
@@ -52,9 +55,10 @@ export function TimeframeSegmentedControl({
               key={tf.value}
               value={tf.value}
               className={cn(
-                "h-8 flex-none rounded-md border border-transparent px-2 py-0",
-                "text-[11px] font-medium tracking-wide text-muted-foreground sm:px-3 sm:text-xs",
-                "shadow-none transition-colors hover:bg-background/60 hover:text-foreground",
+                "flex-none rounded-md border border-transparent py-0 shadow-none transition-colors",
+                compact ? "h-7 px-2 text-[10px]" : "h-8 px-2 text-[11px] sm:px-3 sm:text-xs",
+                "font-medium tracking-wide text-muted-foreground",
+                "hover:bg-background/60 hover:text-foreground",
                 "focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
                 "after:hidden",
                 "group-data-[variant=default]/tabs-list:data-active:ring-0",

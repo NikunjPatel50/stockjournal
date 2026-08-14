@@ -1,4 +1,7 @@
+"use client";
+
 import { HeaderActions } from "@/components/header-actions";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
 type AppPageHeaderProps = {
@@ -20,6 +23,29 @@ export function AppPageHeader({
   className,
   actionsClassName,
 }: AppPageHeaderProps) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2 border-b border-border/60 pb-3",
+          className
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">
+            {title}
+          </h1>
+        </div>
+        <HeaderActions
+          compact
+          className={cn("shrink-0 flex-nowrap", actionsClassName)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

@@ -10,7 +10,13 @@ import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import type { JournalMarketRegionId } from "@/lib/journal-market-regions";
 import { cn } from "@/lib/utils";
 
-export function JournalMarketSelector({ className }: { className?: string }) {
+export function JournalMarketSelector({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   const {
     activeRegionId,
     activeRegion,
@@ -25,7 +31,8 @@ export function JournalMarketSelector({ className }: { className?: string }) {
       <div
         aria-hidden
         className={cn(
-          "h-9 w-[9.5rem] animate-pulse rounded-lg bg-muted",
+          "animate-pulse rounded-lg bg-muted",
+          compact ? "size-8" : "h-9 w-[9.5rem]",
           className
         )}
       />
@@ -41,9 +48,12 @@ export function JournalMarketSelector({ className }: { className?: string }) {
       disabled={!canSwitchRegion}
     >
       <SelectTrigger
-        aria-label="Journal market"
+        aria-label={`Journal market: ${activeRegion.label}`}
         className={cn(
-          "h-9 w-auto min-w-[9.5rem] gap-2 rounded-lg border border-border bg-card px-2.5 font-normal shadow-none hover:bg-muted",
+          "rounded-lg border border-border bg-card font-normal shadow-none hover:bg-muted",
+          compact
+            ? "size-8 justify-center gap-0 px-0"
+            : "h-9 w-auto min-w-[9.5rem] gap-2 px-2.5",
           !canSwitchRegion && "cursor-default opacity-100",
           className
         )}
@@ -51,7 +61,9 @@ export function JournalMarketSelector({ className }: { className?: string }) {
         <span className="text-base leading-none" aria-hidden>
           {activeRegion.flag}
         </span>
-        <span className="truncate text-sm">{activeRegion.label}</span>
+        {!compact ? (
+          <span className="truncate text-sm">{activeRegion.label}</span>
+        ) : null}
       </SelectTrigger>
       <SelectContent align="end" className="min-w-[12rem]">
         {availableRegions.map((region) => (

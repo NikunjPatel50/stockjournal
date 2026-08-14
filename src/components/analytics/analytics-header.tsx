@@ -86,19 +86,21 @@ export function AnalyticsHeader({
   ) : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <AppPageHeader
         eyebrow="Portfolio analytics"
         title={title}
         description={subtitle}
       />
 
-      <div className="relative z-20 min-w-0 w-full pl-12 lg:pl-0">
+      <div className="relative z-20 min-w-0 w-full">
         <div className="max-w-full overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TimeframeSegmentedControl
             value={filters.timeframe}
             onChange={setTimeframe}
             trailing={datePicker}
+            compact={isMobile}
+            className="w-full"
           />
         </div>
       </div>
