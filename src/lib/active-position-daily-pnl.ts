@@ -12,6 +12,7 @@ import {
   hasExchangeSessionStartedForDate,
   isExchangeSessionClosedForDate,
   isExchangeSessionPendingForToday,
+  resolveDailyPnlSessionDate,
   todayYmdForListingMarket,
 } from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
@@ -176,15 +177,16 @@ function applyQuoteDailyForToday(
   bars: OhlcvBar[] = []
 ) {
   const today = todayYmdForListingMarket(listingMarket, asOf);
+  const sessionDate = resolveDailyPnlSessionDate(listingMarket, asOf);
   const entryDay = entryDayKey(trade.entryDate, listingMarket);
   const quoteDaily = quoteDailyPnlForSession(
     trade,
     quote,
-    today,
+    sessionDate,
     listingMarket,
     asOf,
     {
-      hasPriorSessionBar: hasPriorExchangeSessionBar(bars, entryDay, today),
+      hasPriorSessionBar: hasPriorExchangeSessionBar(bars, entryDay, sessionDate),
     }
   );
   if (quoteDaily == null) return;
@@ -212,13 +214,14 @@ export function patchTodayDailyFromQuotes(
 
     const listingMarket = resolveListingMarket(trade, currency);
     const today = todayYmdForListingMarket(listingMarket, asOf);
+    const sessionDate = resolveDailyPnlSessionDate(listingMarket, asOf);
     const entryDay = entryDayKey(trade.entryDate, listingMarket);
     const hasPriorSessionBar =
-      priorSessionBarByTradeId[trade.id] ?? entryDay < today;
+      priorSessionBarByTradeId[trade.id] ?? entryDay < sessionDate;
     const quoteDaily = quoteDailyPnlForSession(
       trade,
       quote,
-      today,
+      sessionDate,
       listingMarket,
       asOf,
       { hasPriorSessionBar }
@@ -257,9 +260,9 @@ export function tradeHasPriorSessionBar(
   listingMarket: ListingMarketId,
   asOf = new Date()
 ): boolean {
-  const today = todayYmdForListingMarket(listingMarket, asOf);
+  const sessionDate = resolveDailyPnlSessionDate(listingMarket, asOf);
   const entryDay = entryDayKey(trade.entryDate, listingMarket);
-  return hasPriorExchangeSessionBar(bars, entryDay, today);
+  return hasPriorExchangeSessionBar(bars, entryDay, sessionDate);
 }
 
 export function buildPriorSessionBarByTradeId(
@@ -271,10 +274,10 @@ export function buildPriorSessionBarByTradeId(
   const result: Record<string, boolean> = {};
   for (const trade of trades) {
     const listingMarket = resolveListingMarket(trade, currency);
-    const today = todayYmdForListingMarket(listingMarket, asOf);
+    const sessionDate = resolveDailyPnlSessionDate(listingMarket, asOf);
     const entryDay = entryDayKey(trade.entryDate, listingMarket);
     const bars = barsByTradeId[trade.id] ?? [];
-    result[trade.id] = hasPriorExchangeSessionBar(bars, entryDay, today);
+    result[trade.id] = hasPriorExchangeSessionBar(bars, entryDay, sessionDate);
   }
   return result;
 }
@@ -316,12 +319,12 @@ export function computeTradeDailyPnlFromQuote(
   if (!quote?.price || quote.price <= 0) return null;
 
   const listingMarket = resolveListingMarket(trade, currency);
-  const today = todayYmdForListingMarket(listingMarket, asOf);
+  const sessionDate = resolveDailyPnlSessionDate(listingMarket, asOf);
   const entryDay = entryDayKey(trade.entryDate, listingMarket);
   const hasPriorSessionBar =
-    priorSessionBarByTradeId[trade.id] ?? entryDay < today;
+    priorSessionBarByTradeId[trade.id] ?? entryDay < sessionDate;
 
-  return quoteDailyPnlForSession(trade, quote, today, listingMarket, asOf, {
+  return quoteDailyPnlForSession(trade, quote, sessionDate, listingMarket, asOf, {
     hasPriorSessionBar,
   });
 }

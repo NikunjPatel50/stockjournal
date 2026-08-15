@@ -308,6 +308,56 @@ function isListingMarketTradingDay(
   return true;
 }
 
+/** Weekend or exchange holiday for the listing market's local calendar today. */
+export function isListingMarketNonTradingDay(
+  listingMarket: ListingMarketId,
+  now = new Date()
+): boolean {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return false;
+  const todayYmd = ymdInTimeZone(now, cfg.timeZone);
+  return !isListingMarketTradingDay(cfg, todayYmd);
+}
+
+/** Most recent session date with trading activity (today when open, else prior session). */
+export function lastCompletedTradingSessionYmd(
+  listingMarket: ListingMarketId,
+  asOf = new Date()
+): string | null {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return todayYmdForListingMarket(listingMarket, asOf);
+
+  const todayYmd = ymdInTimeZone(asOf, cfg.timeZone);
+
+  if (
+    isListingMarketTradingDay(cfg, todayYmd) &&
+    hasExchangeSessionStartedForDate(listingMarket, todayYmd, asOf)
+  ) {
+    return todayYmd;
+  }
+
+  let cursor = addCalendarDaysYmd(todayYmd, -1);
+  for (let i = 0; i < 14; i++) {
+    if (isListingMarketTradingDay(cfg, cursor)) {
+      return cursor;
+    }
+    cursor = addCalendarDaysYmd(cursor, -1);
+  }
+  return null;
+}
+
+/** Session date used for daily P&L when the exchange is closed for the weekend or a holiday. */
+export function resolveDailyPnlSessionDate(
+  listingMarket: ListingMarketId,
+  asOf = new Date()
+): string {
+  const today = todayYmdForListingMarket(listingMarket, asOf);
+  if (isListingMarketNonTradingDay(listingMarket, asOf)) {
+    return lastCompletedTradingSessionYmd(listingMarket, asOf) ?? today;
+  }
+  return today;
+}
+
 export function nextListingMarketOpenAt(
   listingMarket: ListingMarketId,
   now = new Date()
