@@ -6,7 +6,6 @@ import {
   formatMoney,
   formatPercent,
   formatPf,
-  formatSignedPercent,
   type AnalyticsKpis,
 } from "@/lib/analytics";
 import { useJournalMarket } from "@/components/journal/journal-market-provider";
@@ -88,13 +87,14 @@ function InsightKpiCard({
 
 export const KpiRibbon = memo(function KpiRibbon({
   kpis,
-  capitalBase = 0,
 }: KpiRibbonProps) {
   const { activeCurrency } = useJournalMarket();
   const pnlUp = kpis.netPnl > 0;
   const pnlDown = kpis.netPnl < 0;
   const closed = kpis.wins + kpis.losses;
-  const hasCapitalBase = capitalBase > 0;
+  const avgWinAmount = kpis.wins > 0 ? kpis.totalWinAmount / kpis.wins : null;
+  const avgLossAmount =
+    kpis.losses > 0 ? kpis.totalLossAmount / kpis.losses : null;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -111,22 +111,20 @@ export const KpiRibbon = memo(function KpiRibbon({
         }
         footer={[
           {
-            label: "Return on balance",
-            value: hasCapitalBase
-              ? formatSignedPercent(kpis.returnPct, 2)
-              : "—",
-            tone: hasCapitalBase
-              ? pnlUp
-                ? "profit"
-                : pnlDown
-                  ? "loss"
-                  : "neutral"
-              : "neutral",
+            label: "Avg. Win",
+            value:
+              avgWinAmount != null
+                ? formatMoney(avgWinAmount, false, activeCurrency)
+                : "—",
+            tone: avgWinAmount != null ? "profit" : "neutral",
           },
           {
-            label: "Closed trades",
-            value: String(closed),
-            tone: "neutral",
+            label: "Avg. Loss Amount",
+            value:
+              avgLossAmount != null
+                ? formatMoney(avgLossAmount, false, activeCurrency)
+                : "—",
+            tone: avgLossAmount != null ? "loss" : "neutral",
           },
         ]}
       />
