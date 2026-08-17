@@ -57,8 +57,8 @@ function isEntrySessionDate(
 
   const entryDay = entryDayKey(trade.entryDate, listingMarket);
   if (sessionDate < entryDay) return false;
-  // No completed session after entry — common for same-day entries.
-  return !hasPriorSessionBar;
+  // Same calendar day as entry but no EOD bar yet — not a multi-day hold.
+  return sessionDate === entryDay && !hasPriorSessionBar;
 }
 
 function resolveListingMarket(
@@ -120,16 +120,20 @@ export function quoteDailyPnlForSession(
   const entryDay = entryDayKey(trade.entryDate, listingMarket);
   if (sessionDate < entryDay) return null;
 
-  const hasPriorSessionBar = options?.hasPriorSessionBar ?? true;
-  if (
-    isEntrySessionDate(trade, sessionDate, listingMarket, hasPriorSessionBar)
-  ) {
+  if (isEnteredOnSessionDate(trade.entryDate, sessionDate, listingMarket)) {
     return entryDayDailyFromQuote(trade, quote);
   }
 
   if (quote.changePercent != null && Number.isFinite(quote.changePercent)) {
     const prevClose = quote.price / (1 + quote.changePercent / 100);
     return Math.round(dailyMove(trade, quote.price, prevClose) * 100) / 100;
+  }
+
+  const hasPriorSessionBar = options?.hasPriorSessionBar ?? true;
+  if (
+    isEntrySessionDate(trade, sessionDate, listingMarket, hasPriorSessionBar)
+  ) {
+    return entryDayDailyFromQuote(trade, quote);
   }
 
   return null;
