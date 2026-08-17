@@ -119,7 +119,7 @@ export const KpiRibbon = memo(function KpiRibbon({
             tone: avgWinAmount != null ? "profit" : "neutral",
           },
           {
-            label: "Avg. Loss Amount",
+            label: "Avg. Loss",
             value:
               avgLossAmount != null
                 ? formatMoney(avgLossAmount, false, activeCurrency)
