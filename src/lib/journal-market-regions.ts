@@ -187,6 +187,18 @@ export function collectJournalMarketRegions(
   return JOURNAL_MARKET_REGIONS.filter((region) => ids.has(region.id));
 }
 
+/** Keep the active region selectable even before its trades have loaded. */
+export function withJournalMarketRegion(
+  regions: JournalMarketRegion[],
+  regionId: JournalMarketRegionId
+): JournalMarketRegion[] {
+  if (regions.some((region) => region.id === regionId)) return regions;
+
+  const ids = new Set(regions.map((region) => region.id));
+  ids.add(regionId);
+  return JOURNAL_MARKET_REGIONS.filter((region) => ids.has(region.id));
+}
+
 export function defaultListingMarketForRegion(
   regionId: JournalMarketRegionId
 ): ListingMarketId {

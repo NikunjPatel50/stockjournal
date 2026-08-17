@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -18,6 +19,7 @@ import {
   getJournalMarketRegion,
   isJournalMarketRegionId,
   regionIdForCurrency,
+  withJournalMarketRegion,
   type JournalMarketRegion,
   type JournalMarketRegionId,
 } from "@/lib/journal-market-regions";
@@ -76,22 +78,25 @@ function saveStoredRegionId(regionId: JournalMarketRegionId) {
 }
 
 export function JournalMarketProvider({ children }: { children: ReactNode }) {
-  const { trades } = useJournalTrades();
+  const { trades, hydrated: tradesHydrated } = useJournalTrades();
   const { settings } = useSettings();
   const defaultCurrency = settings.profile.currency;
-
-  const availableRegions = useMemo(
-    () => collectJournalMarketRegions(trades, defaultCurrency),
-    [trades, defaultCurrency]
-  );
 
   const fallbackRegionId = regionIdForCurrency(defaultCurrency);
 
   const [activeRegionId, setActiveRegionIdState] =
-    useState<JournalMarketRegionId>(fallbackRegionId);
+    useState<JournalMarketRegionId>(() => {
+      const stored = loadStoredRegionId();
+      return stored ?? fallbackRegionId;
+    });
   const [marketHydrated, setMarketHydrated] = useState(false);
 
-  useEffect(() => {
+  const availableRegions = useMemo(() => {
+    const fromTrades = collectJournalMarketRegions(trades, defaultCurrency);
+    return withJournalMarketRegion(fromTrades, activeRegionId);
+  }, [trades, defaultCurrency, activeRegionId]);
+
+  useLayoutEffect(() => {
     const stored = loadStoredRegionId();
     if (stored) {
       setActiveRegionIdState(stored);
@@ -100,12 +105,19 @@ export function JournalMarketProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!marketHydrated || !tradesHydrated) return;
     if (!availableRegions.some((region) => region.id === activeRegionId)) {
       setActiveRegionIdState(
         availableRegions[0]?.id ?? regionIdForCurrency(defaultCurrency)
       );
     }
-  }, [activeRegionId, availableRegions, defaultCurrency]);
+  }, [
+    activeRegionId,
+    availableRegions,
+    defaultCurrency,
+    marketHydrated,
+    tradesHydrated,
+  ]);
 
   const setActiveRegionId = useCallback((regionId: JournalMarketRegionId) => {
     setActiveRegionIdState(regionId);
