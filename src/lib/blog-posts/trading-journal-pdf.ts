@@ -32,7 +32,7 @@ export const TRADING_JOURNAL_PDF_POST: BlogPost = {
   readMinutes: 8,
   tags: ["Journal", "Beginners", "Free"],
   coverImage: {
-    src: "/blog/how-to-start-a-swing-trading-journal.jpg",
+    src: "/blog/trading-journal-pdf-vs-free-online-journal.jpg",
     alt: "Trader comparing a printed trading journal PDF with an online trading journal on laptop",
     credit: "Photo: SwingTradingLog",
   },

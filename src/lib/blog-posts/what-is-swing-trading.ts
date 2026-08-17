@@ -37,7 +37,7 @@ export const WHAT_IS_SWING_TRADING_POST: BlogPost = {
   readMinutes: 9,
   tags: ["Beginners", "Swing trading", "Strategy"],
   coverImage: {
-    src: "/blog/how-to-start-a-swing-trading-journal.jpg",
+    src: "/blog/what-is-swing-trading.jpg",
     alt: "Swing trader reviewing multi-day charts and a trading journal on screen",
     credit: "Photo: SwingTradingLog",
   },

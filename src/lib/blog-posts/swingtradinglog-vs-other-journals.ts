@@ -53,7 +53,7 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
   readMinutes: 11,
   tags: ["Product", "Comparison", "Swing trading", "Journal"],
   coverImage: {
-    src: "/blog/weekly-swing-trade-review-without-overthinking.jpg",
+    src: "/blog/swingtradinglog-vs-other-trading-journals.jpg",
     alt: "Swing trading analytics dashboard comparing journal performance metrics",
     credit: "Photo: SwingTradingLog",
   },
