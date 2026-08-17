@@ -38,8 +38,9 @@ export function LandingFooter() {
             <BrandLogo size="sm" markSize="md" framedMark={false} priority />
           </Link>
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Free trading journal at swingtradinglog.com with dashboard
-            analytics, overnight gap exposure, goals, and shareable trade cards.{" "}
+            Free trading app and online journal for swing trading, stock trading,
+            options, and forex with dashboard analytics, gap risk, and shareable
+            trade cards.{" "}
             <Link
               href="/privacy"
               className="underline-offset-2 hover:underline"

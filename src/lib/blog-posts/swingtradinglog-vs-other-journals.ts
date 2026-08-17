@@ -66,10 +66,14 @@ export const SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST: BlogPost = {
     keywords: [
       "best trading journal",
       "free trading journal",
+      "trading journal free",
+      "online trading journal",
+      "trading journal app",
+      "stock trading journal",
+      "trading journal pdf",
       "swing trading journal comparison",
       "SwingTradingLog vs Tradervue",
       "trading journal analytics",
-      "position size calculator journal",
     ],
     featuredImagePrompt:
       "Split-screen editorial illustration: left side shows a cluttered spreadsheet with manual formulas, right side shows a clean modern trading journal dashboard with P&L charts, sector breakdown, and risk metrics. Professional fintech aesthetic, dark UI accents, no competitor logos, 16:9.",

@@ -31,6 +31,30 @@ export function LandingFaq() {
               </summary>
               <div className="pb-4 text-sm leading-relaxed text-muted-foreground">
                 {faq.answer}
+                {faq.question === "Is there a trading journal PDF I can download?" ? (
+                  <p className="mt-2">
+                    Read:{" "}
+                    <Link
+                      href="/blog/trading-journal-pdf-vs-free-online-journal"
+                      className="font-medium text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
+                    >
+                      Trading journal PDF vs free online journal
+                    </Link>
+                    .
+                  </p>
+                ) : null}
+                {faq.question === "What is swing trading?" ? (
+                  <p className="mt-2">
+                    Read the full guide:{" "}
+                    <Link
+                      href="/blog/what-is-swing-trading"
+                      className="font-medium text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
+                    >
+                      What is swing trading?
+                    </Link>
+                    .
+                  </p>
+                ) : null}
                 {faq.question === "How does overnight and weekend exposure work?" ? (
                   <p className="mt-2">
                     Learn more in our{" "}

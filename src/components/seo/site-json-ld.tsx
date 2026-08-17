@@ -35,7 +35,7 @@ export function buildSiteJsonLdSchema() {
           "swingtradinglog.com",
         ],
         description:
-          "Free trading journal with dashboard analytics, overnight gap exposure tracking, goals, and shareable trade cards.",
+          "Free online trading journal and trading journal app for stock, day, and swing traders. CSV export, dashboard analytics, gap risk, and shareable trade cards.",
         publisher: { "@id": `${url}/#organization` },
         inLanguage: "en-US",
       },
@@ -47,7 +47,7 @@ export function buildSiteJsonLdSchema() {
         operatingSystem: "Web",
         url: absoluteUrl("/"),
         description:
-          "Free trading journal with dashboard analytics, overnight gap exposure tracking, goals, and shareable trade cards.",
+          "Free online trading journal and trading journal app for stock, day, and swing traders. CSV export, dashboard analytics, gap risk, and shareable trade cards.",
         offers: {
           "@type": "Offer",
           price: "0",
