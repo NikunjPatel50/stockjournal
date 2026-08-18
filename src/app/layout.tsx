@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { MicrosoftClarity } from "@/components/microsoft-clarity";
 import { Providers } from "@/components/providers";
 import { siteJsonLdScriptHtml } from "@/components/seo/site-json-ld";
 import {
@@ -84,6 +85,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh w-full overflow-x-hidden bg-background text-foreground">
         <Providers>{children}</Providers>
+        <MicrosoftClarity />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: siteJsonLdScriptHtml() }}
