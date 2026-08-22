@@ -53,6 +53,8 @@ const BLOG_SLUG_SOURCE: Record<string, string> = {
     `${BLOG_SOURCE_PREFIX}/what-is-swing-trading.ts`,
   "trading-journal-pdf-vs-free-online-journal":
     `${BLOG_SOURCE_PREFIX}/trading-journal-pdf.ts`,
+  "weekly-breakout-swing-trading-strategy":
+    `${BLOG_SOURCE_PREFIX}/weekly-breakout-strategy.ts`,
 };
 
 function blogPostSourceFile(slug: string): string {

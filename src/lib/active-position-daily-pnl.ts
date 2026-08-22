@@ -12,6 +12,7 @@ import {
   hasExchangeSessionStartedForDate,
   isExchangeSessionClosedForDate,
   isExchangeSessionPendingForToday,
+  lastCompletedTradingSessionYmd,
   resolveDailyPnlSessionDate,
   todayYmdForListingMarket,
 } from "@/lib/listing-market-hours";
@@ -362,6 +363,48 @@ export function computeTodayDailyPnlFromQuotes(
     totalPnl: Math.round(totalPnl * 100) / 100,
     activeCount: trades.length,
     pricedCount,
+  };
+}
+
+/** Sum daily P&L from EOD history for the last completed exchange session. */
+export function priorSessionDailyPnlTotal(
+  daily: DailyPnlPoint[],
+  currency: CurrencyCode,
+  asOf = new Date()
+): number | null {
+  if (daily.length === 0) return null;
+
+  const listingMarket = defaultListingMarketForCurrency(currency);
+  const sessionDate = lastCompletedTradingSessionYmd(listingMarket, asOf);
+  if (!sessionDate) return null;
+
+  const exact = daily.find((point) => point.date === sessionDate);
+  if (exact) return exact.pnl;
+
+  const latest = [...daily]
+    .filter((point) => point.date <= sessionDate)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  return latest?.pnl ?? null;
+}
+
+/** When today's live daily P&L is unavailable (e.g. pre-market), use the prior session. */
+export function enrichTodayDailyPnlWithPriorSession(
+  quoteSummary: TodayDailyPnlSummary,
+  daily: DailyPnlPoint[],
+  currency: CurrencyCode,
+  asOf = new Date()
+): TodayDailyPnlSummary {
+  if (quoteSummary.pricedCount > 0 || quoteSummary.activeCount === 0) {
+    return quoteSummary;
+  }
+
+  const priorTotal = priorSessionDailyPnlTotal(daily, currency, asOf);
+  if (priorTotal == null) return quoteSummary;
+
+  return {
+    ...quoteSummary,
+    totalPnl: priorTotal,
+    pricedCount: quoteSummary.activeCount,
   };
 }
 

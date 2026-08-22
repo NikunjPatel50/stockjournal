@@ -3,6 +3,7 @@ import { SWING_TRADING_PSYCHOLOGY_POST } from "@/lib/blog-posts/swing-trading-ps
 import { SWING_TRADING_WATCHLIST_POST } from "@/lib/blog-posts/swing-trading-watchlist";
 import { SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST } from "@/lib/blog-posts/swingtradinglog-vs-other-journals";
 import { TRADING_JOURNAL_PDF_POST } from "@/lib/blog-posts/trading-journal-pdf";
+import { WEEKLY_BREAKOUT_STRATEGY_POST } from "@/lib/blog-posts/weekly-breakout-strategy";
 import { WHAT_IS_SWING_TRADING_POST } from "@/lib/blog-posts/what-is-swing-trading";
 
 export type BlogFaqItem = { question: string; answer: string };
@@ -15,7 +16,8 @@ export type BlogBlock =
   | { type: "checklist"; title?: string; items: string[] }
   | { type: "table"; caption?: string; headers: string[]; rows: string[][] }
   | { type: "faq"; items: BlogFaqItem[] }
-  | { type: "image"; src: string; alt: string; caption?: string };
+  | { type: "image"; src: string; alt: string; caption?: string }
+  | { type: "svg"; markup: string; alt: string; caption?: string };
 
 export type BlogCoverImage = {
   src: string;
@@ -46,6 +48,7 @@ export type BlogPost = {
 };
 
 export const BLOG_POSTS: BlogPost[] = [
+  WEEKLY_BREAKOUT_STRATEGY_POST,
   TRADING_JOURNAL_PDF_POST,
   WHAT_IS_SWING_TRADING_POST,
   SWINGTRADINGLOG_VS_OTHER_JOURNALS_POST,

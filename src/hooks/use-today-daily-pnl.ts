@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   computeTodayDailyPnlFromQuotes,
+  enrichTodayDailyPnlWithPriorSession,
   toActivePositionPnlInput,
   type ActivePositionPnlInput,
   type TodayDailyPnlSummary,
@@ -54,11 +55,13 @@ export function useTodayDailyPnl(
   const [priorSessionBarByTradeId, setPriorSessionBarByTradeId] = useState<
     Record<string, boolean>
   >({});
+  const [dailyPoints, setDailyPoints] = useState<DailyPnlPoint[]>([]);
   const [priorBarsLoading, setPriorBarsLoading] = useState(false);
 
   useEffect(() => {
     if (activeTrades.length === 0) {
       setPriorSessionBarByTradeId({});
+      setDailyPoints([]);
       setPriorBarsLoading(false);
       return;
     }
@@ -66,6 +69,7 @@ export function useTodayDailyPnl(
     const cached = readActivePositionPnlCache(pnlCacheKey);
     if (cached) {
       setPriorSessionBarByTradeId(cached.priorSessionBarByTradeId);
+      setDailyPoints(cached.daily);
       setPriorBarsLoading(false);
       return;
     }
@@ -93,15 +97,18 @@ export function useTodayDailyPnl(
         }
 
         const nextPrior = data.priorSessionBarByTradeId ?? {};
+        const nextDaily = Array.isArray(data.daily) ? data.daily : [];
         setPriorSessionBarByTradeId(nextPrior);
+        setDailyPoints(nextDaily);
         writeActivePositionPnlCache(pnlCacheKey, {
-          daily: Array.isArray(data.daily) ? data.daily : [],
+          daily: nextDaily,
           priorSessionBarByTradeId: nextPrior,
         });
       })
       .catch((err) => {
         if (err instanceof Error && err.name === "AbortError") return;
         setPriorSessionBarByTradeId({});
+        setDailyPoints([]);
       })
       .finally(() => {
         setPriorBarsLoading(false);
@@ -128,17 +135,22 @@ export function useTodayDailyPnl(
       }
     }
 
-    return computeTodayDailyPnlFromQuotes(
-      activeTrades,
-      quotesByTradeId,
-      currency,
-      new Date(),
-      priorSessionBarByTradeId
+    return enrichTodayDailyPnlWithPriorSession(
+      computeTodayDailyPnlFromQuotes(
+        activeTrades,
+        quotesByTradeId,
+        currency,
+        new Date(),
+        priorSessionBarByTradeId
+      ),
+      dailyPoints,
+      currency
     );
   }, [
     activePool,
     activeTrades,
     currency,
+    dailyPoints,
     getQuote,
     priorSessionBarByTradeId,
     quoteRevision,

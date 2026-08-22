@@ -167,6 +167,22 @@ function BlogBlockView({ block }: { block: BlogBlock }) {
           ) : null}
         </figure>
       );
+    case "svg":
+      return (
+        <figure className="mt-8 overflow-hidden rounded-2xl border border-border bg-[#131722]">
+          <div
+            className="w-full [&_svg]:block [&_svg]:h-auto [&_svg]:w-full"
+            role="img"
+            aria-label={block.alt}
+            dangerouslySetInnerHTML={{ __html: block.markup }}
+          />
+          {block.caption ? (
+            <figcaption className="border-t border-border/60 bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">
+              {block.caption}
+            </figcaption>
+          ) : null}
+        </figure>
+      );
     case "p":
     default:
       return (
