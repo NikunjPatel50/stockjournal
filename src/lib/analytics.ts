@@ -1,5 +1,6 @@
 import {
   addDays,
+  eachDayOfInterval,
   endOfDay,
   endOfMonth,
   endOfWeek,
@@ -201,6 +202,86 @@ export function getAnalyticsTimeframeRange(
   if (filters.timeframe === "3m") return { from: subDays(now, 90), to: now };
   // ytd
   return { from: new Date(now.getFullYear(), 0, 1), to: now };
+}
+
+function dailyPnlYmdBounds(
+  filters: Pick<AnalyticsFilters, "timeframe" | "customFrom" | "customTo">,
+  now = new Date()
+): { fromYmd?: string; toYmd?: string } {
+  const { from, to } = getAnalyticsTimeframeRange(filters, now);
+  return {
+    fromYmd: from ? format(startOfDay(from), "yyyy-MM-dd") : undefined,
+    toYmd: to ? format(startOfDay(to), "yyyy-MM-dd") : undefined,
+  };
+}
+
+/** Filter daily P&L session rows to the selected analytics timeframe. */
+export function filterDailyPnlByTimeframe(
+  daily: DailyPnlPoint[],
+  filters: AnalyticsFilters,
+  now = new Date()
+): DailyPnlPoint[] {
+  const { fromYmd, toYmd } = dailyPnlYmdBounds(filters, now);
+
+  return daily.filter((point) => {
+    if (fromYmd && point.date < fromYmd) return false;
+    if (toYmd && point.date > toYmd) return false;
+    return true;
+  });
+}
+
+export type DailyPnlChartPoint = DailyPnlPoint & { label: string };
+
+const DAILY_PNL_CHART_FILL_CAP = 120;
+
+/**
+ * Build a chart series for daily P&L that spans the full selected timeframe.
+ * Missing calendar days are zero-filled so the x-axis reflects the filter.
+ */
+export function buildDailyPnlChartSeries(
+  daily: DailyPnlPoint[],
+  filters: AnalyticsFilters,
+  now = new Date()
+): DailyPnlChartPoint[] {
+  const sessions = filterDailyPnlByTimeframe(daily, filters, now);
+  const byDate = new Map(sessions.map((point) => [point.date, point]));
+
+  if (
+    filters.timeframe === "all" ||
+    (filters.timeframe === "custom" && !filters.customFrom && !filters.customTo)
+  ) {
+    return sessions.map((point) => ({
+      ...point,
+      label: format(parseISO(point.date), "MMM d"),
+    }));
+  }
+
+  const { from, to } = getAnalyticsTimeframeRange(filters, now);
+  if (!from || !to) {
+    return sessions.map((point) => ({
+      ...point,
+      label: format(parseISO(point.date), "MMM d"),
+    }));
+  }
+
+  let days = eachDayOfInterval({
+    start: startOfDay(from),
+    end: startOfDay(to),
+  });
+  if (days.length > DAILY_PNL_CHART_FILL_CAP) {
+    days = days.slice(days.length - DAILY_PNL_CHART_FILL_CAP);
+  }
+
+  return days.map((day) => {
+    const date = format(day, "yyyy-MM-dd");
+    const existing = byDate.get(date);
+    return {
+      date,
+      pnl: existing?.pnl ?? 0,
+      trades: existing?.trades ?? 0,
+      label: format(day, "MMM d"),
+    };
+  });
 }
 
 export function filterAnalyticsTrades(

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import {
   Bar,
@@ -37,10 +37,11 @@ import {
   toActivePositionPnlInput,
 } from "@/lib/active-position-daily-pnl";
 import {
+  buildDailyPnlChartSeries,
   emptyAnalyticsFilters,
+  filterDailyPnlByTimeframe,
   formatChartAxisMoney,
   formatMoney,
-  getAnalyticsTimeframeRange,
   type AnalyticsFilters,
   type DailyPnlPoint,
 } from "@/lib/analytics";
@@ -70,19 +71,6 @@ function paddedDomain(values: number[]): [number, number] {
   const span = Math.max(max - min, 1);
   const pad = Math.max(span * 0.15, 1);
   return [min - pad, max + pad];
-}
-
-function filterDailyByTimeframe(
-  daily: DailyPnlPoint[],
-  filters: AnalyticsFilters
-): DailyPnlPoint[] {
-  const { from, to } = getAnalyticsTimeframeRange(filters);
-  return daily.filter((point) => {
-    const date = parseISO(point.date);
-    if (from && isBefore(date, startOfDay(from))) return false;
-    if (to && isAfter(date, endOfDay(to))) return false;
-    return true;
-  });
 }
 
 function Stat({
@@ -317,13 +305,15 @@ export const PnlChartCard = memo(function PnlChartCard({
     quotesLoading,
   ]);
 
-  const filteredDaily = useMemo(() => {
-    const points = filterDailyByTimeframe(dailyWithQuotes, filters).map((point) => ({
-      ...point,
-      label: format(parseISO(point.date), "MMM d"),
-    }));
-    return points;
-  }, [dailyWithQuotes, filters]);
+  const filteredDaily = useMemo(
+    () => filterDailyPnlByTimeframe(dailyWithQuotes, filters, now),
+    [dailyWithQuotes, filters, now]
+  );
+
+  const chartSeries = useMemo(
+    () => buildDailyPnlChartSeries(dailyWithQuotes, filters, now),
+    [dailyWithQuotes, filters, now]
+  );
 
   const netPnl = useMemo(
     () =>
@@ -403,8 +393,8 @@ export const PnlChartCard = memo(function PnlChartCard({
   }, [filteredDaily]);
 
   const yDomain = useMemo(
-    () => paddedDomain(filteredDaily.map((point) => point.pnl)),
-    [filteredDaily]
+    () => paddedDomain(chartSeries.map((point) => point.pnl)),
+    [chartSeries]
   );
 
   const customRangeLabel =
@@ -575,7 +565,8 @@ export const PnlChartCard = memo(function PnlChartCard({
 
           <ChartContainer config={chartConfig} className="h-[220px] w-full min-w-0">
             <BarChart
-              data={filteredDaily}
+              key={filters.timeframe}
+              data={chartSeries}
               margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
               barCategoryGap="28%"
             >
@@ -617,16 +608,21 @@ export const PnlChartCard = memo(function PnlChartCard({
                     }}
                     formatter={(value, _name, item) => {
                       const row = item?.payload as
-                        | { trades?: number }
+                        | { trades?: number; pnl?: number }
                         | undefined;
+                      const pnl = Number(value);
+                      const trades = row?.trades ?? 0;
+                      if (pnl === 0 && trades === 0) {
+                        return (
+                          <div className="text-muted-foreground">No session</div>
+                        );
+                      }
                       return (
                         <div className="space-y-0.5">
                           <div>
-                            P&L: {formatMoney(Number(value), true, currency)}
+                            P&L: {formatMoney(pnl, true, currency)}
                           </div>
-                          <div>
-                            Positions: {row?.trades ?? 0}
-                          </div>
+                          <div>Positions: {trades}</div>
                         </div>
                       );
                     }}
@@ -634,10 +630,16 @@ export const PnlChartCard = memo(function PnlChartCard({
                 }
               />
               <Bar dataKey="pnl" radius={[3, 3, 0, 0]} maxBarSize={40}>
-                {filteredDaily.map((entry) => (
+                {chartSeries.map((entry) => (
                   <Cell
                     key={entry.date}
-                    fill={entry.pnl >= 0 ? "#10b981" : "#f43f5e"}
+                    fill={
+                      entry.pnl === 0
+                        ? "transparent"
+                        : entry.pnl >= 0
+                          ? "#10b981"
+                          : "#f43f5e"
+                    }
                   />
                 ))}
               </Bar>
@@ -646,7 +648,8 @@ export const PnlChartCard = memo(function PnlChartCard({
 
           {bestDay && worstDay ? (
             <p className="text-[11px] text-muted-foreground">
-              Best day {formatMoney(bestDay.pnl, true, currency)} on{" "}
+              {filteredDaily.length} session{filteredDaily.length === 1 ? "" : "s"} in
+              period · Best day {formatMoney(bestDay.pnl, true, currency)} on{" "}
               {format(parseISO(bestDay.date), "MMM d")} · Worst day{" "}
               {formatMoney(worstDay.pnl, true, currency)} on{" "}
               {format(parseISO(worstDay.date), "MMM d")}.
