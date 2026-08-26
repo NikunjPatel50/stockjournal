@@ -24,6 +24,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
 import {
   Select,
   SelectContent,
@@ -519,16 +520,30 @@ function TradePnlCell({
     <p
       className={cn(
         "whitespace-nowrap text-center text-sm font-semibold",
-        NUMERIC_CLASS,
         pnl >= 0
           ? "text-emerald-700 dark:text-emerald-400"
           : "text-rose-700 dark:text-rose-400"
       )}
     >
-      {isUnrealized ? formatSignedMoney(pnl, currency) : formatCurrency(pnl)}
+      {isUnrealized ? (
+        <AnimatedNumber
+          value={pnl}
+          format={(amount) => formatSignedMoney(amount, currency)}
+        />
+      ) : (
+        formatCurrency(pnl)
+      )}
       <span className="ml-1 text-[11px] font-medium opacity-80">
-        ({roi >= 0 ? "+" : ""}
-        {roi.toFixed(2)}%)
+        (
+        {isUnrealized ? (
+          <AnimatedPercent value={roi} decimals={2} />
+        ) : (
+          <>
+            {roi >= 0 ? "+" : ""}
+            {roi.toFixed(2)}%
+          </>
+        )}
+        )
       </span>
     </p>
   );
@@ -584,13 +599,15 @@ function DailyPnlCell({
     <p
       className={cn(
         "whitespace-nowrap text-center text-sm font-semibold",
-        NUMERIC_CLASS,
         daily >= 0
           ? "text-emerald-700 dark:text-emerald-400"
           : "text-rose-700 dark:text-rose-400"
       )}
     >
-      {formatSignedMoney(daily, currency)}
+      <AnimatedNumber
+        value={daily}
+        format={(amount) => formatSignedMoney(amount, currency)}
+      />
     </p>
   );
 }
@@ -672,21 +689,23 @@ function LivePrice({
         ) : priceFlash === "down" ? (
           <ArrowDown className="size-3 shrink-0" aria-hidden />
         ) : null}
-        {formatMarketPrice(quote.price, displayCurrency)}
+        <AnimatedNumber
+          value={quote.price}
+          format={(amount) => formatMarketPrice(amount, displayCurrency)}
+        />
       </p>
       <div className="mt-0.5 flex items-center justify-center gap-1.5">
         {change !== null ? (
-          <span
+          <AnimatedPercent
+            value={change}
+            decimals={2}
             className={cn(
-              "text-[11px] font-medium tabular-nums",
+              "text-[11px] font-medium",
               changeUp && "text-emerald-700 dark:text-emerald-400",
               changeDown && "text-rose-700 dark:text-rose-400",
               !changeUp && !changeDown && "text-muted-foreground"
             )}
-          >
-            {change >= 0 ? "+" : ""}
-            {change.toFixed(2)}%
-          </span>
+          />
         ) : null}
         {change !== null && isLive ? (
           <span className="text-[10px] text-muted-foreground/60" aria-hidden>
@@ -1621,9 +1640,16 @@ function JournalTableInner({
                               : "text-rose-700 dark:text-rose-400"
                           )}
                         >
-                          {pnlDisplay.isUnrealized
-                            ? formatSignedMoney(pnlDisplay.pnl, pnlDisplay.currency)
-                            : formatCurrency(pnlDisplay.pnl)}
+                          {pnlDisplay.isUnrealized ? (
+                            <AnimatedNumber
+                              value={pnlDisplay.pnl}
+                              format={(amount) =>
+                                formatSignedMoney(amount, pnlDisplay.currency)
+                              }
+                            />
+                          ) : (
+                            formatCurrency(pnlDisplay.pnl)
+                          )}
                           {dailyPnl != null ? (
                             <p
                               className={cn(
@@ -1634,10 +1660,15 @@ function JournalTableInner({
                               )}
                             >
                               Daily{" "}
-                              {formatSignedMoney(
-                                dailyPnl,
-                                quoteDisplayCurrency(quote, displayCurrency)
-                              )}
+                              <AnimatedNumber
+                                value={dailyPnl}
+                                format={(amount) =>
+                                  formatSignedMoney(
+                                    amount,
+                                    quoteDisplayCurrency(quote, displayCurrency)
+                                  )
+                                }
+                              />
                             </p>
                           ) : null}
                         </div>

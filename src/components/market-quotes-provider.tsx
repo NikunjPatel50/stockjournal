@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
 import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import {
   MarketQuotesContext,
@@ -16,16 +15,16 @@ export function shouldPollLiveMarketData(pathname: string): boolean {
   );
 }
 
-/** Single shared quote poll for routes that display live position prices. */
+/** Single shared quote poll while the user has open positions. */
 export function MarketQuotesProvider({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const pollEnabled = shouldPollLiveMarketData(pathname);
   const { regionTrades, activeCurrency } = useJournalMarket();
 
   const activeTrades = useMemo(
     () => regionTrades.filter((trade) => (trade.status ?? "Closed") === "Active"),
     [regionTrades]
   );
+
+  const pollEnabled = activeTrades.length > 0;
 
   const value = useMarketQuotesPoller(
     activeTrades,

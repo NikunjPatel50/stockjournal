@@ -12,6 +12,14 @@ const FUNDAMENTALS_OVERRIDES: Record<string, TickerFundamentalsOverride> = {
     sector: "Healthcare",
     marketCapBucket: "Small cap",
   },
+  PRICOL: {
+    sector: "Consumer Cyclical",
+    marketCapBucket: "Mid cap",
+  },
+  PRICOLLTD: {
+    sector: "Consumer Cyclical",
+    marketCapBucket: "Mid cap",
+  },
 };
 
 export function lookupTickerSectorOverride(

@@ -288,7 +288,7 @@ export function useMarketQuotesPoller(
           };
         }
 
-        if (isScrollActive()) {
+        if (isScrollActive() && document.visibilityState === "visible") {
           pendingQuotePatchRef.current = {
             quotes: incoming,
             fetchedAt,
@@ -313,7 +313,7 @@ export function useMarketQuotesPoller(
         };
       });
 
-      if (quotesChanged && !isScrollActive()) {
+      if (quotesChanged && (!isScrollActive() || document.visibilityState === "hidden")) {
         quoteRevisionRef.current += 1;
         setQuoteRevision(quoteRevisionRef.current);
       }
@@ -337,27 +337,23 @@ export function useMarketQuotesPoller(
   const schedulePoll = useCallback(() => {
     clearPollTimers(pollTimerRef, boundaryTimerRef);
 
-    if (!enabled || document.visibilityState === "hidden") {
+    if (!enabled) {
       return;
     }
 
     const now = new Date();
     const delay = quotePollIntervalMs(symbols, now);
     pollTimerRef.current = window.setTimeout(() => {
-      if (document.visibilityState === "visible") {
-        void fetchQuotes();
-        schedulePollRef.current?.();
-      }
+      void fetchQuotes();
+      schedulePollRef.current?.();
     }, delay);
 
     const boundaryMs = msUntilNextSessionBoundaryForSymbols(symbols, now);
     if (boundaryMs != null && boundaryMs > 0) {
       boundaryTimerRef.current = window.setTimeout(() => {
-        if (document.visibilityState === "visible") {
-          setState((prev) => ({ ...prev, loading: true }));
-          void fetchQuotes();
-          schedulePollRef.current?.();
-        }
+        setState((prev) => ({ ...prev, loading: true }));
+        void fetchQuotes();
+        schedulePollRef.current?.();
       }, boundaryMs + 100);
     }
   }, [enabled, fetchQuotes, symbols]);
@@ -377,10 +373,9 @@ export function useMarketQuotesPoller(
 
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
+        flushPendingQuotes();
         void fetchQuotes();
         schedulePollRef.current?.();
-      } else {
-        clearPollTimers(pollTimerRef, boundaryTimerRef);
       }
     };
 
@@ -389,7 +384,7 @@ export function useMarketQuotesPoller(
       document.removeEventListener("visibilitychange", onVisibility);
       clearPollTimers(pollTimerRef, boundaryTimerRef);
     };
-  }, [enabled, fetchQuotes, schedulePoll, symbolsKey]);
+  }, [enabled, fetchQuotes, flushPendingQuotes, schedulePoll, symbolsKey]);
 
   const quotesRef = useRef(state.quotes);
   quotesRef.current = state.quotes;

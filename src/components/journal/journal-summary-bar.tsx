@@ -1,5 +1,6 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { MetricHint } from "@/components/ui/metric-hint";
+import { AnimatedValue } from "@/components/ui/animated-number";
 import {
   formatCurrency,
   formatMarketPrice,
@@ -8,7 +9,7 @@ import {
 import type { FilteredPnlSummary, LiveActivePnlSummary } from "@/lib/trade-pnl";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
-import { cn, NUMERIC_CLASS } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface JournalSummaryBarProps {
   summary: ReturnType<typeof computeJournalSummary>;
@@ -45,10 +46,12 @@ function Stat({
   valueClass,
   accent,
   largeValue,
+  valueTitle,
 }: {
   label: string;
   hint: string;
-  value: string;
+  value: ReactNode;
+  valueTitle?: string;
   subValue?: string;
   valueClass?: string;
   accent?: "emerald" | "rose" | "slate";
@@ -76,11 +79,14 @@ function Stat({
       <p
         className={cn(
           "mt-1.5 truncate text-center font-semibold",
-          statValueFontClass(value, largeValue),
-          NUMERIC_CLASS,
+          valueTitle
+            ? statValueFontClass(valueTitle, largeValue)
+            : largeValue
+              ? "text-xl sm:text-2xl"
+              : "text-lg sm:text-xl",
           valueClass ?? "text-foreground"
         )}
-        title={value}
+        title={valueTitle}
       >
         {value}
       </p>
@@ -121,24 +127,39 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
       : livePnlLoading && !hasLivePrice
         ? "…"
         : hasLivePrice
-          ? formatCurrency(livePnl!.totalPnl, displayCurrency)
+          ? livePnl!.totalPnl
           : "—";
 
   const filteredValue = !liveDataReady
     ? "…"
     : hasFilteredActive &&
-    filteredPnl!.activeCount === summary.count &&
-    livePnlLoading &&
-    !hasFilteredLivePrice
+        filteredPnl!.activeCount === summary.count &&
+        livePnlLoading &&
+        !hasFilteredLivePrice
       ? "…"
-      : formatCurrency(filteredTotal, displayCurrency);
+      : filteredTotal;
+
+  const liveValueTitle =
+    typeof liveValue === "number"
+      ? formatCurrency(liveValue, displayCurrency)
+      : liveValue;
+  const filteredValueTitle =
+    typeof filteredValue === "number"
+      ? formatCurrency(filteredValue, displayCurrency)
+      : filteredValue;
 
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7">
       <Stat
         label="Daily P/L"
         hint="Combined price change today across open positions vs prior close (or from entry on day one). Updates live during market hours."
-        value={liveValue}
+        value={
+          <AnimatedValue
+            value={liveValue}
+            format={(amount) => formatCurrency(amount, displayCurrency)}
+          />
+        }
+        valueTitle={liveValueTitle}
         largeValue
         accent={
           !liveDataReady || !hasActive || !hasLivePrice
@@ -162,11 +183,17 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
       <Stat
         label="Total P/L"
         hint="Net profit or loss for all trades in your current filter, including realized on closed trades plus live unrealized on open positions."
-        value={filteredValue}
+        value={
+          <AnimatedValue
+            value={filteredValue}
+            format={(amount) => formatCurrency(amount, displayCurrency)}
+          />
+        }
+        valueTitle={filteredValueTitle}
         largeValue
         accent={pnlUp ? "emerald" : pnlDown ? "rose" : "slate"}
         valueClass={
-          filteredValue === "…"
+          filteredValueTitle === "…"
             ? undefined
             : pnlUp
               ? "text-emerald-700 dark:text-emerald-400"

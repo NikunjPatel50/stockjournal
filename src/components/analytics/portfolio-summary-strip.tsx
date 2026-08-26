@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, type ReactNode } from "react";
+import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
 import { formatMoney, formatSignedPercent } from "@/lib/analytics";
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
 import { computeLivePortfolioSnapshot } from "@/lib/portfolio-timeline";
@@ -23,10 +24,12 @@ function pnlToneClass(value: number) {
 function SummaryCell({
   label,
   value,
+  valueTitle,
   valueClassName,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
+  valueTitle?: string;
   valueClassName?: string;
 }) {
   return (
@@ -35,10 +38,9 @@ function SummaryCell({
       <p
         className={cn(
           "mt-1 truncate text-base font-semibold sm:text-lg",
-          NUMERIC_DISPLAY_CLASS,
           valueClassName
         )}
-        title={value}
+        title={valueTitle}
       >
         {value}
       </p>
@@ -84,12 +86,12 @@ export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
         ? 100
         : 0;
 
-  const overallPnlLabel =
+  const overallPnlTitle =
     overallPct != null
       ? `${formatMoney(snapshot.totalPnl, true, currency)} (${formatSignedPercent(overallPct, 2)})`
       : formatMoney(snapshot.totalPnl, true, currency);
 
-  const todayPnlLabel =
+  const todayPnlTitle =
     todayPnl == null
       ? "—"
       : `${formatMoney(todayPnl, true, currency)} (${formatSignedPercent(todayPct, 2)})`;
@@ -98,20 +100,62 @@ export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
     <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border-2 border-border bg-border/70 sm:grid-cols-2 xl:grid-cols-5">
       <SummaryCell
         label="Investment"
-        value={formatMoney(snapshot.invested, false, currency)}
+        value={
+          <AnimatedNumber
+            value={snapshot.invested}
+            format={(amount) => formatMoney(amount, false, currency)}
+          />
+        }
+        valueTitle={formatMoney(snapshot.invested, false, currency)}
       />
       <SummaryCell
         label="Current Value"
-        value={formatMoney(snapshot.portfolioValue, false, currency)}
+        value={
+          <AnimatedNumber
+            value={snapshot.portfolioValue}
+            format={(amount) => formatMoney(amount, false, currency)}
+          />
+        }
+        valueTitle={formatMoney(snapshot.portfolioValue, false, currency)}
       />
       <SummaryCell
         label="Overall P&L"
-        value={overallPnlLabel}
+        value={
+          <span className={NUMERIC_DISPLAY_CLASS}>
+            <AnimatedNumber
+              value={snapshot.totalPnl}
+              format={(amount) => formatMoney(amount, true, currency)}
+            />
+            {overallPct != null ? (
+              <>
+                {" ("}
+                <AnimatedPercent value={overallPct} decimals={2} />
+                {")"}
+              </>
+            ) : null}
+          </span>
+        }
+        valueTitle={overallPnlTitle}
         valueClassName={pnlToneClass(snapshot.totalPnl)}
       />
       <SummaryCell
         label="Today's P&L"
-        value={todayPnlLabel}
+        value={
+          todayPnl == null ? (
+            "—"
+          ) : (
+            <span className={NUMERIC_DISPLAY_CLASS}>
+              <AnimatedNumber
+                value={todayPnl}
+                format={(amount) => formatMoney(amount, true, currency)}
+              />
+              {" ("}
+              <AnimatedPercent value={todayPct} decimals={2} />
+              {")"}
+            </span>
+          )
+        }
+        valueTitle={todayPnlTitle}
         valueClassName={
           todayPnl == null ? undefined : pnlToneClass(todayPnl)
         }

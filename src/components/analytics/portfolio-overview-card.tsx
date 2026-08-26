@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { PanelEmpty } from "@/components/data-panel";
+import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
 import {
   ChartContainer,
   ChartTooltip,
@@ -304,7 +305,6 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
               <p
                 className={cn(
                   "mt-1 text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl",
-                  NUMERIC_CLASS,
                   metric === "pnl" &&
                     change.current > 0 &&
                     "text-emerald-600 dark:text-emerald-400",
@@ -314,24 +314,29 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
                   metric !== "pnl" && "text-foreground"
                 )}
               >
-                {formatMoney(
-                  change.current,
-                  metric === "pnl",
-                  currency
-                )}
+                <AnimatedNumber
+                  value={change.current}
+                  format={(amount) =>
+                    formatMoney(amount, metric === "pnl", currency)
+                  }
+                />
               </p>
               <p
                 className={cn(
                   "mt-2 text-xs font-medium leading-snug sm:text-sm",
-                  NUMERIC_CLASS,
                   changeUp && "text-emerald-600 dark:text-emerald-400",
                   changeDown && "text-rose-600 dark:text-rose-400",
                   !changeUp && !changeDown && "text-muted-foreground"
                 )}
               >
                 <span className="whitespace-nowrap">
-                  {formatMoney(change.delta, true, currency)} (
-                  {formatSignedPercent(change.deltaPct, 2)})
+                  <AnimatedNumber
+                    value={change.delta}
+                    format={(amount) => formatMoney(amount, true, currency)}
+                  />
+                  {" ("}
+                  <AnimatedPercent value={change.deltaPct} decimals={2} />
+                  {")"}
                 </span>{" "}
                 <span className="text-muted-foreground">{timeframeLabel}</span>
               </p>
@@ -347,11 +352,13 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
                   </p>
                   <p
                     className={cn(
-                      "mt-1 truncate text-sm font-semibold text-foreground sm:text-base",
-                      NUMERIC_CLASS
+                      "mt-1 truncate text-sm font-semibold text-foreground sm:text-base"
                     )}
                   >
-                    {formatMoney(periodEnd.invested, false, currency)}
+                    <AnimatedNumber
+                      value={periodEnd.invested}
+                      format={(amount) => formatMoney(amount, false, currency)}
+                    />
                   </p>
                 </div>
                 <div className="min-w-0 bg-card px-3 py-3 text-center sm:px-4">
@@ -361,13 +368,15 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
                   <p
                     className={cn(
                       "mt-1 truncate text-sm font-semibold sm:text-base",
-                      NUMERIC_CLASS,
                       periodEnd.totalPnl > 0 && "text-emerald-600 dark:text-emerald-400",
                       periodEnd.totalPnl < 0 && "text-rose-600 dark:text-rose-400",
                       periodEnd.totalPnl === 0 && "text-foreground"
                     )}
                   >
-                    {formatMoney(periodEnd.totalPnl, true, currency)}
+                    <AnimatedNumber
+                      value={periodEnd.totalPnl}
+                      format={(amount) => formatMoney(amount, true, currency)}
+                    />
                   </p>
                 </div>
               </div>

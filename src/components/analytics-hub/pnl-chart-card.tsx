@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import {
@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { TimeframeSelect } from "@/components/analytics/timeframe-select";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -53,7 +54,7 @@ import { defaultListingMarketForCurrency } from "@/lib/equity-listing-markets";
 import { sessionCloseDescription } from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
 import type { JournalTrade } from "@/lib/journal-types";
-import { cn, NUMERIC_CLASS } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type PnlChartCardProps = {
   trades: JournalTrade[];
@@ -77,10 +78,12 @@ function Stat({
   label,
   value,
   tone,
+  valueTitle,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   tone?: "profit" | "loss" | "neutral";
+  valueTitle?: string;
 }) {
   return (
     <div className="flex min-w-0 flex-col items-center justify-center bg-card px-2 py-3 sm:px-4">
@@ -90,12 +93,11 @@ function Stat({
       <p
         className={cn(
           "mt-1 w-full truncate text-center text-sm font-semibold sm:text-[15px]",
-          NUMERIC_CLASS,
           tone === "profit" && "text-emerald-600 dark:text-emerald-400",
           tone === "loss" && "text-rose-600 dark:text-rose-400",
           tone === "neutral" && "text-foreground"
         )}
-        title={value}
+        title={valueTitle}
       >
         {value}
       </p>
@@ -513,15 +515,29 @@ export const PnlChartCard = memo(function PnlChartCard({
           <div className="grid w-full min-w-0 grid-cols-2 gap-px overflow-hidden rounded-lg border-2 border-border bg-border/70 md:grid-cols-4">
             <Stat
               label="Period P&L"
-              value={formatMoney(netPnl, true, currency)}
+              value={
+                <AnimatedNumber
+                  value={netPnl}
+                  format={(amount) => formatMoney(amount, true, currency)}
+                />
+              }
+              valueTitle={formatMoney(netPnl, true, currency)}
               tone={netPnl > 0 ? "profit" : netPnl < 0 ? "loss" : "neutral"}
             />
             <Stat
               label="Avg P/L"
               value={
-                avgPnl != null
-                  ? formatMoney(avgPnl, true, currency)
-                  : "—"
+                avgPnl != null ? (
+                  <AnimatedNumber
+                    value={avgPnl}
+                    format={(amount) => formatMoney(amount, true, currency)}
+                  />
+                ) : (
+                  "—"
+                )
+              }
+              valueTitle={
+                avgPnl != null ? formatMoney(avgPnl, true, currency) : "—"
               }
               tone={
                 avgPnl == null
@@ -537,6 +553,25 @@ export const PnlChartCard = memo(function PnlChartCard({
             <Stat
               label="Today's P/L"
               value={
+                activeTrades.length === 0 ? (
+                  <AnimatedNumber
+                    value={0}
+                    format={(amount) => formatMoney(amount, true, currency)}
+                  />
+                ) : (loading || quotesLoading) && todayDisplayPnl == null ? (
+                  "…"
+                ) : todayDisplayPnl != null ? (
+                  <AnimatedNumber
+                    value={todayDisplayPnl}
+                    format={(amount) => formatMoney(amount, true, currency)}
+                  />
+                ) : todayPending ? (
+                  "Pending"
+                ) : (
+                  "—"
+                )
+              }
+              valueTitle={
                 activeTrades.length === 0
                   ? formatMoney(0, true, currency)
                   : (loading || quotesLoading) && todayDisplayPnl == null

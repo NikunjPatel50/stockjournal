@@ -99,7 +99,7 @@ export function useMarketIndices(enabled = true) {
   const schedulePoll = useCallback(() => {
     clearTimers(pollTimerRef, boundaryTimerRef);
 
-    if (!enabledRef.current || document.visibilityState === "hidden") {
+    if (!enabledRef.current) {
       return;
     }
 
@@ -107,20 +107,16 @@ export function useMarketIndices(enabled = true) {
     const delay = majorMarketIndicesPollIntervalMs(now);
     pollTimerRef.current = window.setTimeout(() => {
       if (!enabledRef.current) return;
-      if (document.visibilityState === "visible") {
-        void fetchIndices();
-        schedulePollRef.current?.();
-      }
+      void fetchIndices();
+      schedulePollRef.current?.();
     }, delay);
 
     const nextBoundary = indexBoundaryMs(now);
     if (nextBoundary != null && nextBoundary > 0) {
       boundaryTimerRef.current = window.setTimeout(() => {
         if (!enabledRef.current) return;
-        if (document.visibilityState === "visible") {
-          void fetchIndices();
-          schedulePollRef.current?.();
-        }
+        void fetchIndices();
+        schedulePollRef.current?.();
       }, nextBoundary + 100);
     }
   }, [fetchIndices]);
@@ -141,13 +137,9 @@ export function useMarketIndices(enabled = true) {
     schedulePoll();
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        if (enabledRef.current) {
-          void fetchIndices();
-          schedulePollRef.current?.();
-        }
-      } else {
-        clearTimers(pollTimerRef, boundaryTimerRef);
+      if (document.visibilityState === "visible" && enabledRef.current) {
+        void fetchIndices();
+        schedulePollRef.current?.();
       }
     };
 

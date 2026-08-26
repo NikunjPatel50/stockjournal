@@ -1,6 +1,7 @@
 import type { EquityExchangeHint } from "@/lib/eodhd";
 import type { CurrencyCode } from "@/lib/settings";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
+import { resolveIndianEquityTickerAlias } from "@/lib/ticker-aliases";
 
 export const EQUITY_LISTING_MARKETS = [
   {
@@ -151,8 +152,11 @@ export function yahooSymbolForListingMarket(
   ticker: string,
   marketId: ListingMarketId
 ): string {
-  const base = normalizeEquityTicker(ticker);
+  let base = normalizeEquityTicker(ticker);
   if (!base) return "";
+  if (marketId === "IN_NSE" || marketId === "IN_BSE") {
+    base = resolveIndianEquityTickerAlias(base);
+  }
   if (base.includes(".")) return base;
   const suffix = getListingMarket(marketId).yahooSuffix;
   return `${base}${suffix}`;
