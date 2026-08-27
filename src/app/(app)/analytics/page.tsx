@@ -53,26 +53,10 @@ const EdgePanel = dynamic(
   { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
 
-const HoldTimeBreakdown = dynamic(
-  () =>
-    import("@/components/analytics-hub/hold-time-breakdown").then((mod) => ({
-      default: mod.HoldTimeBreakdown,
-    })),
-  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
-);
-
 const RMultipleSpectrum = dynamic(
   () =>
     import("@/components/analytics-hub/r-multiple-spectrum").then((mod) => ({
       default: mod.RMultipleSpectrum,
-    })),
-  { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
-);
-
-const SessionGrid = dynamic(
-  () =>
-    import("@/components/analytics-hub/session-grid").then((mod) => ({
-      default: mod.SessionGrid,
     })),
   { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
@@ -186,25 +170,12 @@ export default function AnalyticsPage() {
           <LazySection minHeight="16rem">
             <ReportSection
               index="03"
-              title="Risk and outcome sizing"
-              description="How results scale against planned risk"
+              title="Risk and results"
+              description="How wins compare to losses, and results vs planned risk"
             >
               <div className={GRID_CLASS}>
                 <RMultipleSpectrum trades={filtered} />
                 <EdgePanel trades={filtered} currency={currency} />
-              </div>
-            </ReportSection>
-          </LazySection>
-
-          <LazySection minHeight="16rem">
-            <ReportSection
-              index="04"
-              title="Timing and duration"
-              description="When you trade during the week and how long positions are held"
-            >
-              <div className={GRID_CLASS}>
-                <SessionGrid trades={filtered} currency={currency} />
-                <HoldTimeBreakdown trades={filtered} currency={currency} />
               </div>
             </ReportSection>
           </LazySection>

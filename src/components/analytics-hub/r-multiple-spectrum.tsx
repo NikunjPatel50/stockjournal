@@ -9,11 +9,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  computeRMultipleBuckets,
-  formatPercent,
-  tradeRMultiple,
-} from "@/lib/analytics";
+import { formatPercent, tradeRMultiple } from "@/lib/analytics";
 import type { JournalTrade } from "@/lib/journal-types";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
@@ -28,33 +24,27 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-/** Loss buckets read red, the 0–1R bucket reads neutral, gains read green. */
 const BAR_STYLES = [
   { fill: "var(--chart-4)", opacity: 1 },
-  { fill: "var(--chart-4)", opacity: 0.75 },
-  { fill: "var(--chart-4)", opacity: 0.5 },
-  { fill: "var(--muted-foreground)", opacity: 0.35 },
-  { fill: "var(--chart-1)", opacity: 0.5 },
-  { fill: "var(--chart-1)", opacity: 0.75 },
+  { fill: "var(--muted-foreground)", opacity: 0.45 },
   { fill: "var(--chart-1)", opacity: 1 },
 ] as const;
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="min-w-0">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        {label}
-      </p>
-      <p className={cn("mt-0.5 truncate text-base font-semibold", NUMERIC_CLASS)}>
+    <div className="min-w-0 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className={cn("mt-0.5 truncate text-lg font-semibold", NUMERIC_CLASS)}>
         {value}
       </p>
+      {hint ? (
+        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{hint}</p>
+      ) : null}
     </div>
   );
 }
 
 export function RMultipleSpectrum({ trades }: RMultipleSpectrumProps) {
-  const buckets = useMemo(() => computeRMultipleBuckets(trades), [trades]);
-
   const rValues = useMemo(
     () =>
       trades
@@ -67,36 +57,59 @@ export function RMultipleSpectrum({ trades }: RMultipleSpectrumProps) {
   const avgR = total
     ? rValues.reduce((sum, value) => sum + value, 0) / total
     : 0;
-  const atLeastOneR = rValues.filter((value) => value >= 1).length;
-  const coverage = trades.length ? (total / trades.length) * 100 : 0;
+  const targetHits = rValues.filter((value) => value >= 1).length;
+  const skipped = trades.length - total;
+
+  const buckets = useMemo(
+    () => [
+      {
+        label: "Losses",
+        count: rValues.filter((value) => value < 0).length,
+      },
+      {
+        label: "Small wins",
+        count: rValues.filter((value) => value >= 0 && value < 1).length,
+      },
+      {
+        label: "Target hit",
+        count: rValues.filter((value) => value >= 1).length,
+      },
+    ],
+    [rValues]
+  );
 
   return (
     <DataPanel
-      title="R-multiple distribution"
-      subtitle="Outcome sizing relative to the risk planned on each trade"
-      meta={`${total} of ${trades.length} priced`}
-      footer={`Risk-plan coverage ${formatPercent(coverage)} — trades without planned risk are excluded.`}
+      title="Results vs risk"
+      subtitle="How trades performed against the risk you planned"
+      meta={`${total} trades`}
+      footer={
+        skipped > 0
+          ? `${skipped} trade${skipped === 1 ? "" : "s"} skipped — add planned risk when logging to include them.`
+          : undefined
+      }
     >
       {total === 0 ? (
         <PanelEmpty
-          title="No risk-defined trades"
-          hint="Record planned risk when logging a trade to see outcomes expressed in R."
+          title="No trades with planned risk"
+          hint="Set planned risk on a trade to see whether you lost, won small, or hit your target."
         />
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <Stat label="Average" value={`${avgR.toFixed(2)}R`} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Stat
-              label="1R or better"
-              value={formatPercent((atLeastOneR / total) * 100)}
+              label="Typical result"
+              value={`${avgR >= 0 ? "+" : ""}${avgR.toFixed(2)}× risk`}
+              hint="Average return per unit of risk taken"
             />
             <Stat
-              label="Best"
-              value={`${Math.max(...rValues).toFixed(2)}R`}
+              label="Hit target"
+              value={formatPercent((targetHits / total) * 100)}
+              hint="Trades that reached 1× your planned risk or more"
             />
           </div>
 
-          <ChartContainer config={chartConfig} className="h-[200px] w-full">
+          <ChartContainer config={chartConfig} className="h-[180px] w-full">
             <BarChart
               data={buckets}
               margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
@@ -110,12 +123,8 @@ export function RMultipleSpectrum({ trades }: RMultipleSpectrumProps) {
                 dataKey="label"
                 tickLine={false}
                 axisLine={false}
-                tickMargin={8}
-                className="text-[9px]"
-                interval={0}
-                angle={-20}
-                textAnchor="end"
-                height={46}
+                tickMargin={10}
+                className="text-[11px]"
               />
               <YAxis
                 allowDecimals={false}
@@ -125,7 +134,7 @@ export function RMultipleSpectrum({ trades }: RMultipleSpectrumProps) {
                 className="text-[10px]"
               />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                 {buckets.map((bucket, index) => {
                   const style = BAR_STYLES[index] ?? BAR_STYLES.at(-1)!;
                   return (

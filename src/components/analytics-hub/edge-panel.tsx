@@ -5,6 +5,7 @@ import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import {
   computePnlBreakdown,
   formatMoney,
+  formatPercent,
   type PnlBreakdownStats,
 } from "@/lib/analytics";
 import type { CurrencyCode } from "@/lib/settings";
@@ -16,7 +17,7 @@ type EdgePanelProps = {
   currency: CurrencyCode;
 };
 
-function AsymmetryAxis({
+function WinLossBar({
   stats,
   currency,
 }: {
@@ -28,24 +29,32 @@ function AsymmetryAxis({
   const lossWidth = (Math.abs(stats.avgLoss) / maxSide) * 100;
 
   return (
-    <div>
-      <div className="flex items-baseline justify-between text-[11px]">
-        <span className={cn("font-medium text-rose-600 dark:text-rose-400", NUMERIC_CLASS)}>
-          {formatMoney(stats.avgLoss, true, currency)}
-        </span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Average outcome
-        </span>
-        <span
-          className={cn(
-            "font-medium text-emerald-600 dark:text-emerald-400",
-            NUMERIC_CLASS
-          )}
-        >
-          {formatMoney(stats.avgWin, true, currency)}
-        </span>
+    <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">Avg loss</p>
+          <p
+            className={cn(
+              "mt-0.5 truncate font-semibold text-rose-600 dark:text-rose-400",
+              NUMERIC_CLASS
+            )}
+          >
+            {formatMoney(stats.avgLoss, true, currency)}
+          </p>
+        </div>
+        <div className="min-w-0 text-right">
+          <p className="text-xs text-muted-foreground">Avg win</p>
+          <p
+            className={cn(
+              "mt-0.5 truncate font-semibold text-emerald-600 dark:text-emerald-400",
+              NUMERIC_CLASS
+            )}
+          >
+            {formatMoney(stats.avgWin, true, currency)}
+          </p>
+        </div>
       </div>
-      <div className="relative mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/60">
+      <div className="relative mt-3 flex h-3 overflow-hidden rounded-full bg-muted/60">
         <div className="flex w-1/2 justify-end">
           <div
             className="h-full rounded-l-full bg-rose-500"
@@ -74,19 +83,18 @@ function StatCell({
 }: {
   label: string;
   value: string;
-  tone?: "profit" | "loss";
+  tone?: "profit" | "loss" | "neutral";
 }) {
   return (
-    <div className="bg-card px-3 py-2.5">
-      <p className="truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        {label}
-      </p>
+    <div className="rounded-lg border border-border/70 bg-card px-3 py-2.5">
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p
         className={cn(
-          "mt-1 truncate text-sm font-semibold",
+          "mt-1 truncate text-base font-semibold",
           NUMERIC_CLASS,
           tone === "profit" && "text-emerald-600 dark:text-emerald-400",
-          tone === "loss" && "text-rose-600 dark:text-rose-400"
+          tone === "loss" && "text-rose-600 dark:text-rose-400",
+          tone === "neutral" && "text-foreground"
         )}
         title={value}
       >
@@ -99,62 +107,54 @@ function StatCell({
 export function EdgePanel({ trades, currency }: EdgePanelProps) {
   const stats = useMemo(() => computePnlBreakdown(trades), [trades]);
   const decided = stats.winCount + stats.lossCount;
+  const winRate = decided ? (stats.winCount / decided) * 100 : 0;
   const payoff =
     Math.abs(stats.avgLoss) > 0 ? stats.avgWin / Math.abs(stats.avgLoss) : null;
+  const breakEvenRate =
+    payoff != null && payoff > 0 ? (1 / (1 + payoff)) * 100 : null;
 
   return (
     <DataPanel
-      title="Win / loss asymmetry"
-      subtitle="Size of the average winner against the average loser"
-      meta={`${decided} decided`}
+      title="Wins vs losses"
+      subtitle="How big your winners are compared to your losers"
+      meta={`${decided} trades`}
       footer={
-        payoff != null
-          ? `A payoff ratio of ${payoff.toFixed(2)} needs a ${((1 / (1 + payoff)) * 100).toFixed(1)}% win rate to break even.`
+        breakEvenRate != null
+          ? `At these sizes, you need about ${breakEvenRate.toFixed(0)}% winners to break even.`
           : undefined
       }
     >
       {decided === 0 ? (
         <PanelEmpty
           title="No wins or losses yet"
-          hint="Close at least one winning and one losing trade to compare outcome sizes."
+          hint="Close trades with a profit or loss to compare average outcomes."
         />
       ) : (
         <div className="space-y-4">
-          <AsymmetryAxis stats={stats} currency={currency} />
+          <WinLossBar stats={stats} currency={currency} />
 
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border/70 bg-border/70 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3">
+            <StatCell label="Win rate" value={formatPercent(winRate)} />
             <StatCell
-              label="Payoff ratio"
-              value={payoff != null ? `${payoff.toFixed(2)}×` : "—"}
+              label="Net P&L"
+              value={formatMoney(stats.netPnl, true, currency)}
+              tone={
+                stats.netPnl > 0
+                  ? "profit"
+                  : stats.netPnl < 0
+                    ? "loss"
+                    : "neutral"
+              }
             />
             <StatCell
-              label="Largest win"
+              label="Best trade"
               value={formatMoney(stats.largestWin, true, currency)}
               tone="profit"
             />
             <StatCell
-              label="Largest loss"
+              label="Worst trade"
               value={formatMoney(stats.largestLoss, true, currency)}
               tone="loss"
-            />
-            <StatCell
-              label="Win streak"
-              value={String(stats.maxConsecutiveWins)}
-            />
-            <StatCell
-              label="Loss streak"
-              value={String(stats.maxConsecutiveLosses)}
-            />
-            <StatCell
-              label="Breakeven"
-              value={String(stats.breakevenCount)}
-            />
-            <StatCell label="Best symbol" value={stats.bestTradeTicker} />
-            <StatCell label="Worst symbol" value={stats.worstTradeTicker} />
-            <StatCell
-              label="Gross profit"
-              value={formatMoney(stats.grossProfit, false, currency)}
-              tone="profit"
             />
           </div>
         </div>
