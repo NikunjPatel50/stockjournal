@@ -319,6 +319,8 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .app-scroll-main {
+  container-type: inline-size;
+  container-name: app-main;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
 }

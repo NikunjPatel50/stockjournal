@@ -78,7 +78,7 @@ function Stat({
       </p>
       <p
         className={cn(
-          "mt-1.5 truncate text-center font-semibold",
+          "mt-1.5 text-balance text-center font-semibold",
           valueTitle
             ? statValueFontClass(valueTitle, largeValue)
             : largeValue
@@ -149,7 +149,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
       : filteredValue;
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7">
+    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr))]">
       <Stat
         label="Daily P/L"
         hint="Combined price change today across open positions vs prior close (or from entry on day one). Updates live during market hours."

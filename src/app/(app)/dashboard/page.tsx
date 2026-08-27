@@ -2,11 +2,18 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnalyticsHeader } from "@/components/analytics/analytics-header";
 import { PnlBreakdownCard } from "@/components/analytics/pnl-breakdown-card";
 import { RecentTradesCard } from "@/components/analytics/recent-trades-card";
 import { KpiRibbon } from "@/components/analytics/kpi-ribbon";
 import { PortfolioSummaryStrip } from "@/components/analytics/portfolio-summary-strip";
+import { useJournalTrades } from "@/components/journal-trades-provider";
+import {
+  useJournalMarket,
+  useRegionTrades,
+} from "@/components/journal/journal-market-provider";
+import { useSettings } from "@/components/settings/settings-provider";
 import {
   computeWeeklyPnl,
   computeEquitySeries,
@@ -15,10 +22,22 @@ import {
   filterAnalyticsTrades,
   type AnalyticsFilters,
 } from "@/lib/analytics";
-import { useRegionTrades } from "@/components/journal/journal-market-provider";
 import { computeCapitalBase, computeOvernightRisk } from "@/lib/overnight-risk";
+import {
+  isFirstTradeInMarketRegion,
+  resolveTradeRegionId,
+} from "@/lib/journal-market-regions";
+import type { JournalTrade } from "@/lib/journal-types";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import { LazySection } from "@/components/lazy-section";
+
+const AddTradeModal = dynamic(
+  () =>
+    import("@/components/journal/add-trade-modal").then((mod) => ({
+      default: mod.AddTradeModal,
+    })),
+  { ssr: false }
+);
 
 const TradePulseSection = dynamic(
   () =>
@@ -61,11 +80,17 @@ const PortfolioOverviewCard = dynamic(
 );
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { trades: allTrades, setTrades } = useJournalTrades();
+  const { setActiveRegionId } = useJournalMarket();
+  const { settings } = useSettings();
+  const defaultCurrency = settings.profile.currency;
   const { trades, currency } = useRegionTrades();
   const capitalBase = useMemo(() => computeCapitalBase(trades), [trades]);
   const [filters, setFilters] = useState<AnalyticsFilters>(
     emptyAnalyticsFilters()
   );
+  const [modalOpen, setModalOpen] = useState(false);
 
   const filtered = useMemo(
     () => filterAnalyticsTrades(trades, filters),
@@ -86,12 +111,32 @@ export default function DashboardPage() {
     [trades]
   );
 
+  function handleSave(trade: JournalTrade) {
+    const isNewTrade = !allTrades.some((t) => t.id === trade.id);
+    const opensNewMarket =
+      isNewTrade &&
+      isFirstTradeInMarketRegion(trade, allTrades, defaultCurrency);
+
+    setTrades((prev) => {
+      const exists = prev.some((t) => t.id === trade.id);
+      if (exists) return prev.map((t) => (t.id === trade.id ? trade : t));
+      return [trade, ...prev];
+    });
+
+    if (opensNewMarket) {
+      setActiveRegionId(resolveTradeRegionId(trade, defaultCurrency));
+    }
+
+    router.push("/journal");
+  }
+
   return (
     <div className={APP_PAGE_SHELL_CLASS}>
       <AnalyticsHeader
         filters={filters}
         onFiltersChange={setFilters}
         title="Dashboard"
+        onLogTrade={() => setModalOpen(true)}
       />
       <KpiRibbon kpis={kpis} capitalBase={capitalBase} />
 
@@ -127,6 +172,13 @@ export default function DashboardPage() {
       <LazySection minHeight="12rem">
         <RecentTradesCard trades={filtered} currency={currency} />
       </LazySection>
+
+      <AddTradeModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        trades={trades}
+        onSave={handleSave}
+      />
     </div>
   );
 }

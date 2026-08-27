@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Plus } from "lucide-react";
 import { TimeframeSegmentedControl } from "@/components/analytics/timeframe-segmented-control";
 import { AppPageHeader } from "@/components/app-page-header";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ interface AnalyticsHeaderProps {
   onFiltersChange: (filters: AnalyticsFilters) => void;
   title?: string;
   subtitle?: string;
+  onLogTrade?: () => void;
 }
 
 export function AnalyticsHeader({
@@ -31,6 +32,7 @@ export function AnalyticsHeader({
   onFiltersChange,
   title = "Dashboard",
   subtitle = "",
+  onLogTrade,
 }: AnalyticsHeaderProps) {
   const [dateOpen, setDateOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -94,14 +96,29 @@ export function AnalyticsHeader({
       />
 
       <div className="relative z-20 min-w-0 w-full">
-        <div className="max-w-full overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <TimeframeSegmentedControl
-            value={filters.timeframe}
-            onChange={setTimeframe}
-            trailing={datePicker}
-            compact={isMobile}
-            className="w-full"
-          />
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain pb-0.5">
+            <TimeframeSegmentedControl
+              value={filters.timeframe}
+              onChange={setTimeframe}
+              trailing={datePicker}
+              compact={isMobile}
+              className="min-w-max"
+            />
+          </div>
+          {onLogTrade ? (
+            <Button
+              size="sm"
+              className={cn(
+                "shrink-0 gap-1.5 shadow-none",
+                isMobile ? "h-9" : "h-10"
+              )}
+              onClick={onLogTrade}
+            >
+              <Plus className="size-3.5" />
+              Log trade
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>

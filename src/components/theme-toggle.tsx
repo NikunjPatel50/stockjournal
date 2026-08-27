@@ -32,9 +32,9 @@ export function ThemeToggle({ className }: { className?: string }) {
     <Button
       type="button"
       variant="ghost"
-      size="icon"
+      size="icon-lg"
       className={cn(
-        "size-9 text-muted-foreground hover:bg-muted hover:text-foreground",
+        "text-muted-foreground hover:bg-muted hover:text-foreground",
         className
       )}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}

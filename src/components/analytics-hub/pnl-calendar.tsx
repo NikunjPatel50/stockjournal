@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/chart";
 import {
   computeDailyPnl,
+  countTradesInMonth,
   formatMoney,
   type DailyPnlPoint,
 } from "@/lib/analytics";
@@ -112,13 +113,17 @@ export function PnlLineChart({ trades, currency }: PnlLineChartProps) {
   const daily = useMemo(() => computeDailyPnl(trades), [trades]);
   const lineData = useMemo(() => buildCumulativeLine(daily), [daily]);
 
+  const tradesThisMonth = useMemo(() => {
+    const now = new Date();
+    return countTradesInMonth(trades, now.getFullYear(), now.getMonth());
+  }, [trades]);
+
   const summary = useMemo(() => {
     if (daily.length === 0) return null;
     const netPnl = daily.reduce((sum, day) => sum + day.pnl, 0);
     const best = daily.reduce((a, b) => (b.pnl > a.pnl ? b : a));
     const worst = daily.reduce((a, b) => (b.pnl < a.pnl ? b : a));
     return {
-      count: daily.length,
       netPnl: Math.round(netPnl * 100) / 100,
       best,
       worst,
@@ -137,7 +142,11 @@ export function PnlLineChart({ trades, currency }: PnlLineChartProps) {
     <DataPanel
       title="P&L line chart"
       subtitle="Cumulative realized P&L from closed trades"
-      meta={summary ? `${summary.count} active days` : "No activity"}
+      meta={
+        summary
+          ? `${tradesThisMonth} trade${tradesThisMonth === 1 ? "" : "s"} this month`
+          : "No activity"
+      }
       footer={
         summary
           ? `Best day ${formatMoney(summary.best.pnl, true, currency)} on ${format(parseISO(summary.best.date), "MMM d")} · Worst day ${formatMoney(summary.worst.pnl, true, currency)} on ${format(parseISO(summary.worst.date), "MMM d")}.`
@@ -164,8 +173,8 @@ export function PnlLineChart({ trades, currency }: PnlLineChartProps) {
               }
             />
             <Stat
-              label="Active days"
-              value={String(summary.count)}
+              label="Trades this month"
+              value={String(tradesThisMonth)}
               tone="neutral"
             />
             <Stat

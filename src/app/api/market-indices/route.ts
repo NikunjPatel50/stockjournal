@@ -6,7 +6,6 @@ import {
 } from "@/lib/major-market-indices";
 import { mapWithConcurrency } from "@/lib/map-with-concurrency";
 import type { CurrencyCode } from "@/lib/settings";
-import { getCurrentUser } from "@/lib/supabase/server";
 import { fetchYahooQuoteWithOhlc } from "@/lib/yahoo-equity-quote";
 import { anyMajorIndexMarketOpen } from "@/lib/major-market-indices";
 import { isListingMarketOpen } from "@/lib/listing-market-hours";
@@ -22,11 +21,6 @@ let cache: {
 } | null = null;
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const anyOpen = anyMajorIndexMarketOpen();
   const cacheTtl = anyOpen ? CACHE_TTL_OPEN_MS : CACHE_TTL_CLOSED_MS;
 

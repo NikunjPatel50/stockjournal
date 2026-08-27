@@ -24,6 +24,14 @@ function toneClass(tone: FooterTone) {
   return "text-muted-foreground";
 }
 
+function kpiValueFontClass(value: string): string {
+  const len = value.length;
+  if (len <= 10) return "text-2xl sm:text-3xl";
+  if (len <= 14) return "text-xl sm:text-2xl";
+  if (len <= 18) return "text-lg sm:text-xl";
+  return "text-base sm:text-lg";
+}
+
 function InsightKpiCard({
   title,
   hint,
@@ -51,7 +59,8 @@ function InsightKpiCard({
 
       <p
         className={cn(
-          "mt-3 truncate text-center text-3xl font-semibold text-foreground",
+          "mt-3 text-balance text-center font-semibold text-foreground",
+          kpiValueFontClass(value),
           NUMERIC_DISPLAY_CLASS,
           valueClassName
         )}
@@ -61,7 +70,7 @@ function InsightKpiCard({
       </p>
 
       {footer && footer.length > 0 ? (
-        <div className="mt-auto space-y-2 border-t border-border/80 pt-3">
+        <div className="mt-auto space-y-2 pt-3">
           {footer.map((row) => (
             <div
               key={row.label}
@@ -97,7 +106,7 @@ export const KpiRibbon = memo(function KpiRibbon({
     kpis.losses > 0 ? kpis.totalLossAmount / kpis.losses : null;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))]">
       <InsightKpiCard
         title="Net Realized P&L"
         hint="Total profit or loss from closed trades in the selected period, before fees unless recorded per trade."

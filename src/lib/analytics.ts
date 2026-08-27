@@ -431,6 +431,23 @@ export function computeDailyPnl(trades: JournalTrade[]): DailyPnlPoint[] {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** Groups closed trades by realized date (exit date, or entry if no exit). */
+export function groupTradesByRealizedDate(
+  trades: JournalTrade[]
+): Record<string, JournalTrade[]> {
+  const map: Record<string, JournalTrade[]> = {};
+  for (const trade of trades) {
+    const key = format(tradeTime(trade), "yyyy-MM-dd");
+    (map[key] ??= []).push(trade);
+  }
+  for (const key of Object.keys(map)) {
+    map[key].sort(
+      (a, b) => tradeTime(b).getTime() - tradeTime(a).getTime()
+    );
+  }
+  return map;
+}
+
 /** Aggregates closed-trade P&L by calendar week (Monday start). */
 export function computeWeeklyPnl(trades: JournalTrade[]): DailyPnlPoint[] {
   const map = new Map<string, { pnl: number; trades: number }>();
@@ -1005,6 +1022,30 @@ export interface YearPnlSummaryData {
   months: YearMonthSummary[];
   yearPnl: number;
   activeDays: number;
+}
+
+/** Trades entered during a calendar month (0-indexed month). */
+export function countTradesInMonth(
+  trades: JournalTrade[],
+  year: number,
+  month: number
+): number {
+  return trades.filter((trade) => {
+    if (!trade.entryDate) return false;
+    const entry = parseISO(trade.entryDate);
+    return entry.getFullYear() === year && entry.getMonth() === month;
+  }).length;
+}
+
+/** Trades entered during a calendar year. */
+export function countTradesInYear(
+  trades: JournalTrade[],
+  year: number
+): number {
+  return trades.filter((trade) => {
+    if (!trade.entryDate) return false;
+    return parseISO(trade.entryDate).getFullYear() === year;
+  }).length;
 }
 
 /** Month grid (Mon–Sun weeks) with per-day and per-week realized P&L. */

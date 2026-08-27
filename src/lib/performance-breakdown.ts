@@ -69,6 +69,30 @@ function groupLabel(
   return profile?.marketCapBucket ?? "Unknown";
 }
 
+function resolveBreakdownGroupLabel(
+  trade: JournalTrade,
+  fundamentals: Map<string, TickerFundamentals | null>,
+  currency: CurrencyCode,
+  dimension: "sector" | "marketCap"
+): string {
+  return groupLabel(trade, fundamentals, currency, dimension);
+}
+
+export function filterTradesByBreakdownGroup(
+  trades: JournalTrade[],
+  fundamentals: Record<string, TickerFundamentals | null>,
+  currency: CurrencyCode,
+  dimension: "sector" | "marketCap",
+  groupLabel: string
+): JournalTrade[] {
+  const fundamentalsMap = new Map(Object.entries(fundamentals));
+  return trades.filter(
+    (trade) =>
+      resolveBreakdownGroupLabel(trade, fundamentalsMap, currency, dimension) ===
+      groupLabel
+  );
+}
+
 export function computePerformanceBreakdown(
   trades: JournalTrade[],
   fundamentals: Record<string, TickerFundamentals | null>,

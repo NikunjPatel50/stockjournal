@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Inter } from "next/font/google";
 import { MicrosoftClarity } from "@/components/microsoft-clarity";
 import { Providers } from "@/components/providers";
-import { siteJsonLdScriptHtml } from "@/components/seo/site-json-ld";
+import { SiteJsonLd } from "@/components/seo/site-json-ld";
 import {
   DEFAULT_DESCRIPTION,
   getSiteUrl,
@@ -80,17 +81,11 @@ export default function RootLayout({
       className={`${inter.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <head>
-        <script src="/theme-init.js" suppressHydrationWarning />
-      </head>
       <body className="min-h-dvh w-full overflow-x-hidden bg-background text-foreground">
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <Providers>{children}</Providers>
         <MicrosoftClarity />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: siteJsonLdScriptHtml() }}
-          suppressHydrationWarning
-        />
+        <SiteJsonLd />
       </body>
     </html>
   );

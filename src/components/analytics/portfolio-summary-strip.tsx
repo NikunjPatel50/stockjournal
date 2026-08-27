@@ -37,7 +37,7 @@ function SummaryCell({
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p
         className={cn(
-          "mt-1 truncate text-base font-semibold sm:text-lg",
+          "mt-1 text-balance text-sm font-semibold sm:text-base sm:text-lg",
           valueClassName
         )}
         title={valueTitle}
@@ -97,7 +97,7 @@ export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
       : `${formatMoney(todayPnl, true, currency)} (${formatSignedPercent(todayPct, 2)})`;
 
   return (
-    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border-2 border-border bg-border/70 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-px overflow-hidden rounded-xl border-2 border-border bg-border/70 [grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr))]">
       <SummaryCell
         label="Investment"
         value={

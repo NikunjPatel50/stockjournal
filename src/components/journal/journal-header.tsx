@@ -26,7 +26,6 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { AppPageHeader } from "@/components/app-page-header";
 import type { AnalyticsTimeframe } from "@/lib/analytics";
 import { emptyFilters, type JournalFilters } from "@/lib/journal-types";
@@ -86,7 +85,7 @@ export function JournalHeader({
             variant="outline"
             size="sm"
             className={cn(
-              "h-10 gap-1.5 rounded-lg border-border bg-background px-2.5",
+              "h-9 gap-1.5 rounded-lg border-border bg-background px-2.5",
               "text-xs font-medium shadow-none"
             )}
           />
@@ -127,126 +126,111 @@ export function JournalHeader({
 
   return (
     <div className="space-y-6">
-      <AppPageHeader
-        title="Journal"
-      />
+      <AppPageHeader title="Journal" />
 
-      <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-none">
-        <div className="flex flex-col gap-3 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="flex min-w-0 flex-1 flex-col gap-3">
-            <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center">
-              <div className="relative w-full min-w-0 xl:max-w-sm xl:shrink-0">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={filters.search}
-                  onChange={(e) => patch({ search: e.target.value })}
-                  placeholder="Search ticker, notes, tags…"
-                  className="h-9 border-border bg-background pl-9"
-                />
-              </div>
-              <Separator
-                orientation="vertical"
-                className="hidden h-8 xl:block"
-              />
-              <div className="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-2">
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <Select
-                    value={filters.status}
-                    onValueChange={(v) => v && patch({ status: v })}
-                  >
-                    <SelectTrigger
-                      className={cn(
-                        "h-9 w-full min-w-[9.5rem] gap-2 rounded-md border-border bg-background px-3 font-normal shadow-none hover:bg-muted/50 sm:w-auto",
-                        filters.status !== "all" &&
-                          "border-foreground/20 bg-muted/40"
-                      )}
-                    >
-                      <CircleDot className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="text-sm">{statusLabel}</span>
-                    </SelectTrigger>
-                    <SelectContent align="start" className="min-w-[11rem]">
-                      {STATUS_FILTER_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <span className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                "size-2 shrink-0 rounded-full",
-                                option.dotClass
-                              )}
-                              aria-hidden
-                            />
-                            {option.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {hasActiveFilters ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 shrink-0 gap-1 text-muted-foreground"
-                      onClick={() => onFiltersChange(emptyFilters())}
-                    >
-                      <X className="size-3.5" />
-                      <span className="sr-only sm:not-sr-only">Clear filters</span>
-                    </Button>
-                  ) : null}
-                </div>
-
-                <div className="relative z-20 min-w-0 w-full flex-1 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <TimeframeSegmentedControl
-                    value={filters.timeframe}
-                    onChange={(timeframe: AnalyticsTimeframe) =>
-                      patch({ timeframe })
-                    }
-                    trailing={datePicker}
-                    className="max-md:w-full"
-                  />
-                </div>
-              </div>
-            </div>
+      <div className="min-w-0 rounded-lg border border-border bg-card shadow-none">
+        <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain p-3 sm:gap-3 sm:p-4">
+          <div className="relative w-44 shrink-0 sm:w-52 lg:w-60">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={filters.search}
+              onChange={(e) => patch({ search: e.target.value })}
+              placeholder="Search ticker, notes, tags…"
+              className="h-9 w-full border-border bg-background pl-9"
+            />
           </div>
 
-          <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end xl:pt-0.5">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-full gap-1.5 sm:w-auto"
-              onClick={onExportCsv}
+          <Select
+            value={filters.status}
+            onValueChange={(v) => v && patch({ status: v })}
+          >
+            <SelectTrigger
+              className={cn(
+                "h-9 w-auto shrink-0 gap-2 rounded-md border-border bg-background px-3 font-normal shadow-none hover:bg-muted/50",
+                filters.status !== "all" && "border-foreground/20 bg-muted/40"
+              )}
             >
-              <Download className="size-3.5" />
-              Export
-            </Button>
+              <CircleDot className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="text-sm">{statusLabel}</span>
+            </SelectTrigger>
+            <SelectContent align="start" className="min-w-[11rem]">
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        option.dotClass
+                      )}
+                      aria-hidden
+                    />
+                    {option.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters ? (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="h-9 w-full gap-1.5 sm:w-auto"
-              onClick={() => fileRef.current?.click()}
+              className="h-9 shrink-0 gap-1 text-muted-foreground"
+              onClick={() => onFiltersChange(emptyFilters())}
             >
-              <Upload className="size-3.5" />
-              Import
+              <X className="size-3.5" />
+              <span className="sr-only">Clear filters</span>
             </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onImportFile(file);
-                e.target.value = "";
-              }}
+          ) : null}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 gap-1.5"
+            onClick={onExportCsv}
+          >
+            <Download className="size-3.5" />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 gap-1.5"
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload className="size-3.5" />
+            Import
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onImportFile(file);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            size="sm"
+            className="h-9 shrink-0 gap-1.5"
+            onClick={onLogTrade}
+          >
+            <Plus className="size-3.5" />
+            Log trade
+          </Button>
+
+          <div className="ml-auto shrink-0 pl-1">
+            <TimeframeSegmentedControl
+              value={filters.timeframe}
+              onChange={(timeframe: AnalyticsTimeframe) =>
+                patch({ timeframe })
+              }
+              trailing={datePicker}
+              compact
+              className="min-w-max"
             />
-            <Button
-              size="sm"
-              className="col-span-2 h-9 w-full gap-1.5 sm:col-span-1 sm:w-auto"
-              onClick={onLogTrade}
-            >
-              <Plus className="size-3.5" />
-              Log trade
-            </Button>
           </div>
         </div>
       </div>

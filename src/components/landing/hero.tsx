@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { DashboardMock } from "@/components/landing/dashboard-mock";
+import { AppScreenshot, LANDING_SCREENSHOT_DISPLAY_WIDTH } from "@/components/landing/app-screenshot";
 import { Button } from "@/components/ui/button";
 
 export function LandingHero() {
@@ -57,40 +57,21 @@ export function LandingHero() {
             </Link>
           </div>
         </motion.div>
-
-        <motion.div
-          initial={reduceMotion ? false : { opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-          className="relative mx-auto mt-14 w-full max-w-6xl"
-        >
-          <div
-            aria-hidden
-            className="absolute -inset-4 rounded-[2rem] bg-emerald-500/15 dark:hidden"
-          />
-          <DashboardMock
-            className="relative isolate"
-            previewLabel="SwingTradingLog dashboard with KPIs, overnight gap exposure, equity curve, and period filters"
-          />
-        </motion.div>
-
-        <motion.div
-          initial={reduceMotion ? false : { opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.25 }}
-          className="relative mx-auto mt-10 w-full max-w-6xl"
-        >
-          <p className="mb-4 text-center text-sm font-medium text-muted-foreground">
-            Journal snapshot
-          </p>
-          <DashboardMock
-            variant="journal"
-            compact
-            className="relative isolate"
-            previewLabel="SwingTradingLog trade journal with filters, summary stats, and active trade log"
-          />
-        </motion.div>
       </div>
+
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.15 }}
+        className="relative mx-auto mt-14 w-full px-4 sm:px-6"
+        style={{ maxWidth: LANDING_SCREENSHOT_DISPLAY_WIDTH }}
+      >
+        <div
+          aria-hidden
+          className="absolute -inset-4 rounded-[2rem] bg-emerald-500/15 dark:hidden"
+        />
+        <AppScreenshot className="relative isolate" priority />
+      </motion.div>
     </section>
   );
 }

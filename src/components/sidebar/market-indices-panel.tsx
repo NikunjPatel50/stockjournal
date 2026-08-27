@@ -3,7 +3,6 @@
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import {
   formatIndexPriceCompact,
@@ -22,7 +21,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Maximize2 } from "lucide-react";
-import { shouldPollLiveMarketData } from "@/components/market-quotes-provider";
 
 const MarketIndicesDetailDialog = dynamic(
   () =>
@@ -226,9 +224,8 @@ function OhlcCard({
 }
 
 export function MarketIndicesPanel() {
-  const pathname = usePathname();
   const isCompact = useIsCompactApp();
-  const pollEnabled = shouldPollLiveMarketData(pathname) && !isCompact;
+  const pollEnabled = !isCompact;
   const { quotes, loading, error, fetchedAt } = useMarketIndices(pollEnabled);
   const now = useSessionClock(30_000);
   const [ohlcAnchor, setOhlcAnchor] = useState<OhlcAnchor | null>(null);

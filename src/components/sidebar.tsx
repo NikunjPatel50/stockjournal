@@ -41,8 +41,9 @@ function isActiveRoute(pathname: string, href: string) {
   );
 }
 
-function NavContent() {
-  const pathname = usePathname();
+function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
+  const pathnameFromRouter = usePathname();
+  const pathname = pathnameOverride ?? pathnameFromRouter;
   const reduceMotion = useReducedMotion();
   const navSpring = reduceMotion
     ? { duration: 0 }
@@ -138,10 +139,10 @@ function NavContent() {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ pathnameOverride }: { pathnameOverride?: string }) {
   return (
     <aside className="sticky top-0 hidden h-full w-72 min-w-72 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
-      <NavContent />
+      <NavContent pathnameOverride={pathnameOverride} />
     </aside>
   );
 }

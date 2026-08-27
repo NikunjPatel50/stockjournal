@@ -30,20 +30,12 @@ export function TimeframeSegmentedControl({
           onChange(next as AnalyticsTimeframe);
         }
       }}
-      className={cn("w-auto min-w-0", className)}
+      className={cn("min-w-0", className)}
     >
-      <div
-        className={cn(
-          "flex max-w-none flex-nowrap items-center gap-2",
-          "w-full max-md:min-w-0 max-md:overflow-x-auto max-md:overscroll-x-contain",
-          "max-md:pb-0.5 max-md:[-ms-overflow-style:none] max-md:[scrollbar-width:none]",
-          "max-md:[&::-webkit-scrollbar]:hidden",
-          "md:w-max"
-        )}
-      >
+      <div className="inline-flex min-w-max flex-nowrap items-center gap-2">
         <TabsList
           className={cn(
-            "inline-flex w-max max-w-none flex-nowrap items-center gap-0.5",
+            "inline-flex w-max flex-none flex-nowrap items-center gap-0.5",
             compact ? "h-9 p-0.5" : "h-10 p-1",
             "group-data-horizontal/tabs:h-10",
             "rounded-lg border border-border bg-muted/60",
@@ -56,7 +48,9 @@ export function TimeframeSegmentedControl({
               value={tf.value}
               className={cn(
                 "flex-none rounded-md border border-transparent py-0 shadow-none transition-colors",
-                compact ? "h-7 px-2 text-[10px]" : "h-8 px-2 text-[11px] sm:px-3 sm:text-xs",
+                compact
+                  ? "h-7 px-2 text-[10px]"
+                  : "h-8 px-2 text-[11px] sm:px-3 sm:text-xs",
                 "font-medium tracking-wide text-muted-foreground",
                 "hover:bg-background/60 hover:text-foreground",
                 "focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
@@ -74,7 +68,9 @@ export function TimeframeSegmentedControl({
             </TabsTrigger>
           ))}
         </TabsList>
-        {trailing}
+        {trailing ? (
+          <div className="flex shrink-0 items-center">{trailing}</div>
+        ) : null}
       </div>
     </Tabs>
   );

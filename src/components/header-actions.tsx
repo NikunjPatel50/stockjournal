@@ -4,6 +4,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserProfileBadge } from "@/components/user-profile-badge";
 import { cn } from "@/lib/utils";
 
+const HEADER_CONTROL_HEIGHT_CLASS = "h-9";
+const HEADER_CONTROL_SQUARE_CLASS = "size-9";
+const HEADER_CONTROL_HEIGHT_COMPACT_CLASS = "h-8";
+const HEADER_CONTROL_SQUARE_COMPACT_CLASS = "size-8";
+
 export function HeaderActions({
   className,
   align = "end",
@@ -23,6 +28,13 @@ export function HeaderActions({
   /** Icon-only controls for narrow mobile headers. */
   compact?: boolean;
 }) {
+  const controlHeight = compact
+    ? HEADER_CONTROL_HEIGHT_COMPACT_CLASS
+    : HEADER_CONTROL_HEIGHT_CLASS;
+  const controlSquare = compact
+    ? HEADER_CONTROL_SQUARE_COMPACT_CLASS
+    : HEADER_CONTROL_SQUARE_CLASS;
+
   return (
     <div
       className={cn(
@@ -31,18 +43,21 @@ export function HeaderActions({
         className
       )}
     >
-      <JournalMarketSelector compact={compact} />
+      <JournalMarketSelector
+        compact={compact}
+        className={cn(controlHeight, compact && controlSquare)}
+      />
       <AdminPanelButton
         className={cn(
           "border border-border bg-card hover:bg-muted",
-          compact && "size-8",
+          controlSquare,
           themeToggleClassName
         )}
       />
       <ThemeToggle
         className={cn(
           "shrink-0 border border-border bg-card hover:bg-muted",
-          compact && "size-8",
+          controlSquare,
           themeToggleClassName
         )}
       />
@@ -51,7 +66,7 @@ export function HeaderActions({
           align={align}
           fullWidth={fullWidth}
           compact={compact}
-          className={profileClassName}
+          className={cn(controlHeight, profileClassName)}
         />
       ) : null}
     </div>

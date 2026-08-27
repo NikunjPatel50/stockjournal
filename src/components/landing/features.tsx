@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  BookOpen,
+  CalendarDays,
   LayoutDashboard,
   Moon,
   Settings,
   Share2,
-  Target,
+  BookOpen,
 } from "lucide-react";
 
 const features = [
@@ -37,10 +37,10 @@ const features = [
       "Turn closed trades into branded PNG cards or public links for social posts. Optional: turn sharing off in Display settings anytime.",
   },
   {
-    icon: Target,
-    title: "Goals & discipline",
+    icon: CalendarDays,
+    title: "Calendar & discipline",
     description:
-      "Set profit and process targets, track progress, and keep discipline checklists visible while you hold multi-day trades.",
+      "Review daily and monthly P&L on the calendar, track overnight exposure on the dashboard, and keep process notes on each trade.",
   },
   {
     icon: Settings,
@@ -60,7 +60,7 @@ export function LandingFeatures() {
             Everything you see after you sign in
           </h2>
           <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            Dashboard, Journal, Goals, Settings, and Feedback, the same screens
+            Dashboard, Journal, Analytics, Calendar, Settings, and Feedback — the same screens
             as{" "}
             <span className="font-medium text-foreground">swingtradinglog.com</span>
             , included free. What&apos;s next is on the{" "}

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import {
   CartesianGrid,
@@ -18,13 +18,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatChartAxisMoney, formatMoney, formatSignedPercent } from "@/lib/analytics";
-import type { BenchmarkHistoryPoint } from "@/lib/benchmark-return";
-import {
-  computePortfolioPeriodReturnPercent,
-  computePortfolioXirrPercent,
-  sanitizeReturnPercent,
-} from "@/lib/portfolio-xirr";
+import { formatChartAxisMoney, formatMoney } from "@/lib/analytics";
 import {
   buildPortfolioChartSeries,
   computeLivePortfolioSnapshot,
@@ -60,106 +54,16 @@ function paddedDomain(values: number[]): [number, number] {
   return [min - pad, max + pad];
 }
 
-const BENCHMARK_ID = "nifty50";
-const BENCHMARK_LABEL = "Nifty 50";
-
-function computeBenchmarkReturnPercent(
-  xirr: number | null,
-  periodReturn: number | null,
-  points: BenchmarkHistoryPoint[]
-): number | null {
-  if (periodReturn != null) return sanitizeReturnPercent(periodReturn);
-  if (xirr != null) return sanitizeReturnPercent(xirr);
-  if (points.length < 2) return null;
-
-  const start = points[0]?.value;
-  const end = points[points.length - 1]?.value;
-  if (start == null || end == null || start <= 0) return null;
-
-  return sanitizeReturnPercent(((end / start) - 1) * 100);
-}
-
-function BenchmarkStatsCard({
-  portfolioReturn,
-  benchmarkReturn,
-  benchmarkLoading,
-}: {
-  portfolioReturn: number | null;
-  benchmarkReturn: number | null;
-  benchmarkLoading: boolean;
-}) {
-  return (
-    <div className="grid min-w-0 w-full grid-cols-2 gap-px overflow-hidden rounded-xl border-2 border-border bg-border/70 sm:min-w-[12rem]">
-      <div className="min-w-0 bg-card px-3 py-3 text-center sm:px-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Portfolio XIRR
-        </p>
-        <p
-          className={cn(
-            "mt-1 truncate text-sm font-semibold sm:text-base",
-            NUMERIC_CLASS,
-            portfolioReturn != null &&
-              portfolioReturn > 0 &&
-              "text-emerald-600 dark:text-emerald-400",
-            portfolioReturn != null &&
-              portfolioReturn < 0 &&
-              "text-rose-600 dark:text-rose-400",
-            portfolioReturn == null && "text-foreground"
-          )}
-        >
-          {portfolioReturn != null
-            ? formatSignedPercent(portfolioReturn, 2)
-            : "—"}
-        </p>
-      </div>
-      <div className="min-w-0 bg-card px-3 py-3 text-center sm:px-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          {BENCHMARK_LABEL}
-        </p>
-        <p
-          className={cn(
-            "mt-1 truncate text-sm font-semibold sm:text-base",
-            NUMERIC_CLASS,
-            benchmarkReturn != null &&
-              benchmarkReturn > 0 &&
-              "text-emerald-600 dark:text-emerald-400",
-            benchmarkReturn != null &&
-              benchmarkReturn < 0 &&
-              "text-rose-600 dark:text-rose-400",
-            benchmarkLoading && "text-muted-foreground",
-            benchmarkReturn == null && !benchmarkLoading && "text-foreground"
-          )}
-        >
-          {benchmarkLoading
-            ? "…"
-            : benchmarkReturn != null
-              ? formatSignedPercent(benchmarkReturn, 2)
-              : "—"}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
   trades,
   currency,
 }: PortfolioOverviewCardProps) {
   const [timeframe, setTimeframe] = useState<PortfolioChartTimeframe>("1y");
   const [metric, setMetric] = useState<PortfolioMetric>("portfolio");
-  const [benchmarkXirr, setBenchmarkXirr] = useState<number | null>(null);
-  const [benchmarkPeriodReturn, setBenchmarkPeriodReturn] = useState<
-    number | null
-  >(null);
-  const [benchmarkPoints, setBenchmarkPoints] = useState<BenchmarkHistoryPoint[]>(
-    []
-  );
-  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
 
   const { getQuote, quoteRevision } = useMarketQuotes();
 
   const timeline = useMemo(() => computePortfolioTimeline(trades), [trades]);
-  const showBenchmark = timeline.length > 0;
 
   const liveSnapshot = useMemo(
     () => computeLivePortfolioSnapshot(trades, getQuote, currency),
@@ -169,70 +73,6 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
     () => buildPortfolioChartSeries(timeline, timeframe, new Date(), liveSnapshot),
     [timeline, timeframe, liveSnapshot]
   );
-
-  const portfolioXirr = useMemo(
-    () => computePortfolioXirrPercent(trades, chartSeries, timeframe),
-    [trades, chartSeries, timeframe]
-  );
-  const portfolioReturn = useMemo(() => {
-    if (portfolioXirr != null) return portfolioXirr;
-    const annualized = computePortfolioPeriodReturnPercent(
-      chartSeries,
-      "portfolio"
-    );
-    if (annualized != null) return annualized;
-    return sanitizeReturnPercent(
-      portfolioPeriodChange(chartSeries, "portfolio").deltaPct
-    );
-  }, [portfolioXirr, chartSeries]);
-
-  const benchmarkReturn = useMemo(
-    () =>
-      computeBenchmarkReturnPercent(
-        benchmarkXirr,
-        benchmarkPeriodReturn,
-        benchmarkPoints
-      ),
-    [benchmarkXirr, benchmarkPeriodReturn, benchmarkPoints]
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    setBenchmarkLoading(true);
-
-    fetch(
-      `/api/benchmark-return?indexId=${encodeURIComponent(BENCHMARK_ID)}&timeframe=${encodeURIComponent(timeframe)}&anchorValue=1`
-    )
-      .then(async (res) => {
-        if (!res.ok) throw new Error("benchmark fetch failed");
-        return res.json() as Promise<{
-          xirr: number | null;
-          periodReturn: number | null;
-          points: BenchmarkHistoryPoint[];
-        }>;
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setBenchmarkXirr(data.xirr);
-          setBenchmarkPeriodReturn(data.periodReturn);
-          setBenchmarkPoints(data.points ?? []);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setBenchmarkXirr(null);
-          setBenchmarkPeriodReturn(null);
-          setBenchmarkPoints([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setBenchmarkLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [timeframe]);
 
   const chartData = useMemo(
     () =>
@@ -343,7 +183,7 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
             </div>
           </div>
 
-          <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:max-w-none">
+          <div className="w-full min-w-0 lg:w-auto lg:max-w-none">
             {periodEnd ? (
               <div className="grid min-w-0 w-full grid-cols-2 gap-px overflow-hidden rounded-xl border-2 border-border bg-border/70 sm:min-w-[12rem]">
                 <div className="min-w-0 bg-card px-3 py-3 text-center sm:px-4">
@@ -380,13 +220,6 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
                   </p>
                 </div>
               </div>
-            ) : null}
-            {showBenchmark ? (
-              <BenchmarkStatsCard
-                portfolioReturn={portfolioReturn}
-                benchmarkReturn={benchmarkReturn}
-                benchmarkLoading={benchmarkLoading}
-              />
             ) : null}
           </div>
         </div>

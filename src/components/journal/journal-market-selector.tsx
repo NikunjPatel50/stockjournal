@@ -53,7 +53,7 @@ export function JournalMarketSelector({
           "rounded-lg border border-border bg-card font-normal shadow-none hover:bg-muted",
           compact
             ? "size-8 justify-center gap-0 px-0"
-            : "h-9 w-auto min-w-[9.5rem] gap-2 px-2.5",
+            : "h-9 w-auto min-w-[9.5rem] gap-2 px-2.5 py-0",
           !canSwitchRegion && "cursor-default opacity-100",
           className
         )}

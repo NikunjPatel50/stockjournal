@@ -3,6 +3,7 @@ export const PUBLIC_PATHS = [
   "/",
   "/features",
   "/preview",
+  "/landing-capture",
   "/pricing",
   "/roadmap",
   "/faq",
@@ -26,6 +27,7 @@ export function isPublicPath(pathname: string) {
     ) ||
     pathname.startsWith("/share/") ||
     pathname.startsWith("/api/trade-card/") ||
+    pathname.startsWith("/api/market-indices") ||
     pathname.startsWith("/api/auth/")
   );
 }

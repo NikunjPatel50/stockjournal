@@ -44,23 +44,23 @@ export function UserProfileBadge({
             "group inline-flex items-center outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50",
             compact
               ? "size-8 shrink-0 justify-center rounded-lg border border-border bg-card p-0"
-              : "max-w-[min(100%,11rem)] gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-left sm:max-w-[200px]",
+              : "h-9 max-w-[min(100%,11rem)] gap-2 rounded-lg border border-border bg-card px-2 py-0 text-left sm:max-w-[200px]",
             fullWidth && "flex w-full max-w-none",
             className
           )}
         >
-          <Avatar className={cn("shrink-0", compact ? "size-7" : "size-7")}>
+          <Avatar className={cn("shrink-0", compact ? "size-7" : "size-6")}>
             <AvatarFallback className="bg-emerald-500/15 text-[10px] font-semibold text-emerald-500">
               {settings.profile.initials}
             </AvatarFallback>
           </Avatar>
           {!compact ? (
             <>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium leading-tight text-foreground">
+              <div className="min-w-0 flex-1 leading-none">
+                <p className="truncate text-[11px] font-medium text-foreground">
                   {displayName}
                 </p>
-                <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
                   {displayHandle}
                 </p>
               </div>

@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { DashboardMock } from "@/components/landing/dashboard-mock";
+import {
+  AppScreenshot,
+  type LandingScreenshotVariant,
+} from "@/components/landing/app-screenshot";
 import {
   Tabs,
   TabsContent,
@@ -17,7 +20,7 @@ const DEMO_STEPS = [
     variant: "dashboard" as const,
     headline: "Dashboard performance",
     detail:
-      "Review KPI cards, Trade Pulse on open positions, overnight exposure, equity curve, and recent trades with period filters.",
+      "Review live KPIs, Trade Pulse on open positions, overnight exposure, equity curve, and period filters.",
   },
   {
     value: "journal",
@@ -33,15 +36,15 @@ const DEMO_STEPS = [
     variant: "analytics" as const,
     headline: "Analytics deep-dive",
     detail:
-      "Sector and market-cap attribution, P&L calendar, active-position P&L chart, R-multiple distribution, and tag rankings.",
+      "Sector and market-cap attribution, P&L calendar, open-position P&L chart, and simplified risk metrics.",
   },
   {
-    value: "goals",
-    label: "Goals",
-    variant: "goals" as const,
-    headline: "Goals & discipline",
+    value: "calendar",
+    label: "Calendar",
+    variant: "calendar" as const,
+    headline: "P&L calendar",
     detail:
-      "Profit targets, win-rate goals, and process checklists, the same Goals page in the app sidebar.",
+      "See daily and monthly P&L on a calendar, spot green and red streaks, and drill into session results.",
   },
 ] as const;
 
@@ -94,7 +97,7 @@ export function ShowcaseDemoPlayer({
         </motion.div>
 
         <TabsContent value={active} className="mt-6 focus-visible:outline-none">
-          <div className="relative mx-auto w-full max-w-6xl">
+          <div className="relative mx-auto w-full max-w-[1280px] px-2 sm:px-0">
             <div
               aria-hidden
               className="absolute -inset-4 rounded-3xl bg-emerald-500/10 dark:hidden"
@@ -108,7 +111,7 @@ export function ShowcaseDemoPlayer({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="relative"
             >
-              <DashboardMock variant={step.variant} />
+              <AppScreenshot variant={step.variant as LandingScreenshotVariant} />
             </motion.div>
           </div>
         </TabsContent>

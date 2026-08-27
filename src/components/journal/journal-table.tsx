@@ -1530,7 +1530,7 @@ function JournalTableInner({
   );
 
   return (
-    <section className="cv-section overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]">
+    <section className="cv-section overflow-x-auto rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]">
       <header className="flex flex-col gap-2.5 border-b border-border/80 bg-card px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -1678,7 +1678,7 @@ function JournalTableInner({
 
                   <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">
                     <div className="space-y-3 rounded-lg border border-border/70 bg-muted/25 p-3">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="min-w-0">
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                             Entry / Exit
@@ -1691,7 +1691,7 @@ function JournalTableInner({
                             />
                           </div>
                         </div>
-                        <div className="shrink-0 text-right">
+                        <div className="min-w-0 text-right">
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                             Market
                           </p>
@@ -1709,8 +1709,8 @@ function JournalTableInner({
                           </div>
                         </div>
                       </div>
-                      <div>
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <div className="flex flex-col items-center">
+                        <p className="mb-1.5 w-full max-w-[13rem] text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Target / Stop
                         </p>
                         <TargetStopProgressBar

@@ -106,11 +106,14 @@ export function DashboardMock({
   className,
   previewLabel,
   compact = false,
+  /** When false, omits browser chrome and card frame — for landing screenshot capture. */
+  framed = true,
 }: {
   variant?: MockVariant;
   className?: string;
   previewLabel?: string;
   compact?: boolean;
+  framed?: boolean;
 }) {
   const variantLabels: Record<MockVariant, string> = {
     dashboard:
@@ -121,6 +124,37 @@ export function DashboardMock({
       "Trading analytics with sector and market-cap attribution, P&L calendar, and risk metrics",
     goals: "Trading goals and discipline progress tracking",
   };
+
+  const body = (
+    <div
+      className={cn(
+        "flex bg-background",
+        compact
+          ? "min-h-[240px] sm:min-h-[260px]"
+          : variant === "analytics"
+            ? "min-h-[360px] sm:min-h-[420px]"
+            : variant === "journal"
+              ? "min-h-[420px] sm:min-h-[520px]"
+              : "min-h-[280px] sm:min-h-[340px]"
+      )}
+    >
+      <MockSidebar variant={variant} />
+      <div className="min-w-0 flex-1 space-y-3 bg-background p-3 sm:p-4">
+        {variant === "dashboard" && <DashboardPreview compact={compact} />}
+        {variant === "journal" && <JournalPreview compact={compact} />}
+        {variant === "analytics" && <AnalyticsPreview />}
+        {variant === "goals" && <GoalsPreview />}
+      </div>
+    </div>
+  );
+
+  if (!framed) {
+    return (
+      <div className={cn("min-w-0", className)} role="img" aria-label={previewLabel ?? variantLabels[variant]}>
+        {body}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -136,27 +170,7 @@ export function DashboardMock({
           swingtradinglog.com/{mockPath(variant)}
         </div>
       </div>
-
-      <div
-        className={cn(
-          "flex",
-          compact
-            ? "min-h-[240px] sm:min-h-[260px]"
-            : variant === "analytics"
-              ? "min-h-[360px] sm:min-h-[420px]"
-              : variant === "journal"
-                ? "min-h-[420px] sm:min-h-[520px]"
-                : "min-h-[280px] sm:min-h-[340px]"
-        )}
-      >
-        <MockSidebar variant={variant} />
-        <div className="min-w-0 flex-1 space-y-3 bg-background p-3 sm:p-4">
-          {variant === "dashboard" && <DashboardPreview compact={compact} />}
-          {variant === "journal" && <JournalPreview compact={compact} />}
-          {variant === "analytics" && <AnalyticsPreview />}
-          {variant === "goals" && <GoalsPreview />}
-        </div>
-      </div>
+      {body}
     </div>
   );
 }
@@ -1497,25 +1511,85 @@ function ReportSectionMock({
   );
 }
 
-function RMultipleSpectrumMock() {
+function ResultsVsRiskMock() {
   return (
     <div className={mockCard}>
-      <p className="text-[11px] font-semibold text-foreground">
-        R-multiple distribution
-      </p>
+      <p className="text-[11px] font-semibold text-foreground">Results vs risk</p>
       <p className="mt-0.5 text-[10px] text-muted-foreground">
-        Outcome sizing relative to planned risk
+        How trades performed against the risk you planned
       </p>
-      <div className="mt-3 flex h-16 items-end gap-1">
-        {[22, 18, 14, 10, 28, 34, 40].map((h, i) => (
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {[
+          { label: "Typical result", value: "+0.17× risk" },
+          { label: "Hit target", value: "21.1%" },
+        ].map((item) => (
           <div
-            key={i}
-            className={cn(
-              "flex-1 rounded-t-sm",
-              i < 3 ? "bg-rose-500/80" : i === 3 ? "bg-muted-foreground/30" : "bg-emerald-500/80"
-            )}
-            style={{ height: `${h}%` }}
-          />
+            key={item.label}
+            className="rounded-lg border border-border/70 bg-muted/20 px-2 py-2"
+          >
+            <p className="text-[9px] text-muted-foreground">{item.label}</p>
+            <p className={cn("mt-1 text-xs font-semibold", mockValue)}>
+              {item.value}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex h-16 items-end gap-2">
+        {[
+          { label: "Losses", h: 52, color: "bg-rose-500/80" },
+          { label: "Small wins", h: 28, color: "bg-muted-foreground/35" },
+          { label: "Target hit", h: 40, color: "bg-emerald-500/80" },
+        ].map((bar) => (
+          <div key={bar.label} className="flex flex-1 flex-col items-center gap-1">
+            <div
+              className={cn("w-full rounded-t-sm", bar.color)}
+              style={{ height: `${bar.h}%` }}
+            />
+            <span className="text-[8px] text-muted-foreground">{bar.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WinsVsLossesMock() {
+  return (
+    <div className={mockCard}>
+      <p className="text-[11px] font-semibold text-foreground">Wins vs losses</p>
+      <p className="mt-0.5 text-[10px] text-muted-foreground">
+        How big your winners are compared to your losers
+      </p>
+      <div className="mt-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+        <div className="flex justify-between text-[10px]">
+          <span className={mockNegative}>-₹231.91</span>
+          <span className={mockPositive}>+₹227.83</span>
+        </div>
+        <div className="relative mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/60">
+          <div className="flex w-1/2 justify-end">
+            <div className="h-full w-[52%] rounded-l-full bg-rose-500" />
+          </div>
+          <div className="flex w-1/2">
+            <div className="h-full w-[48%] rounded-r-full bg-emerald-500" />
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {[
+          { label: "Win rate", value: "64.2%" },
+          { label: "Net P&L", value: "+₹12,480", tone: mockPositive },
+          { label: "Best trade", value: "+₹483.20", tone: mockPositive },
+          { label: "Worst trade", value: "-₹1,175", tone: mockNegative },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-lg border border-border/70 bg-card px-2 py-2"
+          >
+            <p className="text-[9px] text-muted-foreground">{item.label}</p>
+            <p className={cn("mt-1 text-xs font-semibold", item.tone ?? mockValue)}>
+              {item.value}
+            </p>
+          </div>
         ))}
       </div>
     </div>
@@ -1527,7 +1601,7 @@ function AnalyticsPreview() {
     <>
       <PageTitleMock
         title="Analytics"
-        description="Deep-dive into edge, timing, risk, and strategy performance"
+        description="Attribution, performance trends, and risk metrics"
       />
       <ReportingPeriodMock />
       <p className="text-[10px] text-muted-foreground">
@@ -1602,36 +1676,12 @@ function AnalyticsPreview() {
 
       <ReportSectionMock
         index="03"
-        title="Risk and outcome sizing"
-        description="How results scale against planned risk"
+        title="Risk and results"
+        description="How wins compare to losses, and results vs planned risk"
       >
         <div className="grid gap-2 lg:grid-cols-2">
-          <RMultipleSpectrumMock />
-          <div className={mockCard}>
-            <p className="text-[11px] font-semibold text-foreground">
-              Edge &amp; payoff
-            </p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">
-              Win rate, payoff ratio, and expectancy
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              {[
-                { label: "Win rate", value: "64.2%" },
-                { label: "Payoff", value: "1.87" },
-                { label: "Expectancy", value: "+₹166" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-lg border border-border/70 bg-muted/20 px-2 py-2"
-                >
-                  <p className="text-[9px] text-muted-foreground">{item.label}</p>
-                  <p className={cn("mt-1 text-xs font-semibold", mockValue)}>
-                    {item.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <ResultsVsRiskMock />
+          <WinsVsLossesMock />
         </div>
       </ReportSectionMock>
     </>

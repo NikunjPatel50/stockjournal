@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useRegionTrades } from "@/components/journal/journal-market-provider";
 import { MacroSummaryTable } from "@/components/calendar/macro-summary-table";
+import { CalendarDayCell } from "@/components/calendar/calendar-day-cell";
 import { YearMiniCalendarGrid } from "@/components/calendar/year-mini-calendar-grid";
 import {
   WeekSummaryCell,
@@ -29,8 +30,11 @@ import {
   computeMonthPnlCalendar,
   computeYearMacroSummary,
   computeYearPnlSummary,
+  countTradesInMonth,
+  countTradesInYear,
   filterClosedTrades,
   formatMoney,
+  groupTradesByRealizedDate,
 } from "@/lib/analytics";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
@@ -49,14 +53,6 @@ function pnlToneClass(pnl: number | null) {
   return pnl > 0
     ? "text-emerald-600 dark:text-emerald-400"
     : "text-rose-600 dark:text-rose-400";
-}
-
-function pnlCellBackground(pnl: number | null, inMonth: boolean) {
-  if (!inMonth) return "bg-muted/20";
-  if (pnl == null) return "bg-card";
-  if (pnl > 0) return "bg-emerald-500/10";
-  if (pnl < 0) return "bg-rose-500/10";
-  return "bg-card";
 }
 
 function CalendarStatCard({
@@ -90,6 +86,11 @@ export function PnlCalendarView() {
   const { trades, currency } = useRegionTrades();
 
   const closedTrades = useMemo(() => filterClosedTrades(trades), [trades]);
+
+  const tradesByDate = useMemo(
+    () => groupTradesByRealizedDate(closedTrades),
+    [closedTrades]
+  );
 
   const [view, setView] = useState<ViewMode>("monthly");
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
@@ -153,8 +154,10 @@ export function PnlCalendarView() {
 
   const headerPnl =
     view === "monthly" ? monthData.monthPnl : yearData.yearPnl;
-  const headerActiveDays =
-    view === "monthly" ? monthData.activeDays : yearData.activeDays;
+  const headerTradesTaken =
+    view === "monthly"
+      ? countTradesInMonth(trades, year, month)
+      : countTradesInYear(trades, year);
 
   return (
     <div className={APP_PAGE_SHELL_CLASS}>
@@ -301,8 +304,8 @@ export function PnlCalendarView() {
               valueClassName={pnlToneClass(headerPnl)}
             />
             <CalendarStatCard
-              label="Active days"
-              value={String(headerActiveDays)}
+              label={view === "monthly" ? "Trades this month" : "Trades this year"}
+              value={String(headerTradesTaken)}
             />
           </div>
         </div>
@@ -343,40 +346,12 @@ export function PnlCalendarView() {
                 return (
                   <Fragment key={`week-row-${weekIndex}`}>
                     {week.days.map((day) => (
-                      <div
+                      <CalendarDayCell
                         key={day.date}
-                        className={cn(
-                          "flex h-full min-h-0 flex-col items-center justify-center rounded-lg border-2 border-border p-2 text-center",
-                          pnlCellBackground(day.pnl, day.inMonth)
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "text-xs font-medium",
-                            day.inMonth
-                              ? "text-foreground"
-                              : "text-muted-foreground/50"
-                          )}
-                        >
-                          {day.dayOfMonth}
-                        </span>
-                        {day.trades > 0 ? (
-                          <div className="mt-1 space-y-0.5">
-                            <p
-                              className={cn(
-                                "text-sm font-semibold leading-tight",
-                                NUMERIC_DISPLAY_CLASS,
-                                pnlToneClass(day.pnl)
-                              )}
-                            >
-                              {formatMoney(day.pnl ?? 0, true, currency)}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {day.trades} trade{day.trades === 1 ? "" : "s"}
-                            </p>
-                          </div>
-                        ) : null}
-                      </div>
+                        day={day}
+                        trades={tradesByDate[day.date] ?? []}
+                        currency={currency}
+                      />
                     ))}
                     <WeekSummaryCell
                       week={week}
