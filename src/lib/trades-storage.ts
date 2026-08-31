@@ -132,7 +132,9 @@ export function useJournalTradesState() {
     return () => window.removeEventListener(USER_STORAGE_BOUND_EVENT, syncUser);
   }, []);
 
-  useEffect(() => {
+  // Layout effect so the stored trades are on screen in the first painted
+  // frame rather than after a placeholder flash.
+  useLayoutEffect(() => {
     if (!userId) {
       setTradesState([]);
       setHydrated(true);

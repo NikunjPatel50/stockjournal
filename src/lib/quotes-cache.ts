@@ -9,8 +9,10 @@ export type CachedMarketQuote = {
 };
 
 const STORAGE_KEY = "stl-quotes-v1";
+/** Past this age a cached price is still shown, but no longer counted as live. */
 const LIVE_TTL_MS = 10_000;
-const STALE_TTL_MS = 10 * 60 * 1000;
+/** How long a cached price is worth painting on load while a refetch runs. */
+const DISPLAY_TTL_MS = 24 * 60 * 60 * 1000;
 
 type CacheEntry = {
   data: CachedMarketQuote;
@@ -40,10 +42,11 @@ function writeStore(store: CacheStore) {
   }
 }
 
-function entryTtl(entry: CacheEntry): number {
-  return entry.data.isLive === true ? LIVE_TTL_MS : STALE_TTL_MS;
-}
-
+/**
+ * Stale-while-revalidate: a reload paints the last known price immediately
+ * instead of a placeholder, and the poller corrects it a moment later. Prices
+ * older than the live window are downgraded so nothing claims to be live.
+ */
 export function readQuotesCache(
   keys: string[]
 ): Record<string, CachedMarketQuote> {
@@ -53,8 +56,13 @@ export function readQuotesCache(
 
   for (const key of keys) {
     const entry = store[key];
-    if (!entry || now - entry.fetchedAt > entryTtl(entry)) continue;
-    out[key] = entry.data;
+    if (!entry) continue;
+
+    const age = now - entry.fetchedAt;
+    if (age > DISPLAY_TTL_MS) continue;
+
+    out[key] =
+      age > LIVE_TTL_MS ? { ...entry.data, isLive: false } : entry.data;
   }
 
   return out;

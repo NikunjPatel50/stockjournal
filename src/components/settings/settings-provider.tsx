@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -20,6 +21,9 @@ import {
   type ThemeMode,
 } from "@/lib/settings";
 import { getActiveStorageUserId } from "@/lib/user-storage";
+
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 interface SettingsContextValue {
   settings: AppSettings;
@@ -78,7 +82,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
+  // Layout effect so currency and display prefs are applied before the first
+  // paint, avoiding a flash of default-formatted values.
+  useIsomorphicLayoutEffect(() => {
     const userId = getActiveStorageUserId();
     const loaded = loadSettings(userId);
     const storedTheme = readStoredThemePreference();

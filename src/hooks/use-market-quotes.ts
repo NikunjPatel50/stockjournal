@@ -160,6 +160,9 @@ export function useMarketQuotesPoller(
     sessionOpen: false,
   });
 
+  const quotesRef = useRef(state.quotes);
+  quotesRef.current = state.quotes;
+
   const pollGenerationRef = useRef(0);
   const pollTimerRef = useRef<number | null>(null);
   const boundaryTimerRef = useRef<number | null>(null);
@@ -195,21 +198,25 @@ export function useMarketQuotesPoller(
 
   useLayoutEffect(() => {
     if (symbols.length === 0) return;
-    const cached = readQuotesCache(
-      symbols.map((s) => quoteLookupKey(s.ticker, s.assetClass))
-    );
+
+    const keys = symbols.map((s) => quoteLookupKey(s.ticker, s.assetClass));
+    const cached = readQuotesCache(keys);
     if (Object.keys(cached).length === 0) return;
-    setState((prev) => {
-      const merged = { ...cached, ...prev.quotes };
-      const hasMissing = symbols.some(
-        (s) => merged[quoteLookupKey(s.ticker, s.assetClass)] == null
-      );
-      return {
-        ...prev,
-        quotes: merged,
-        loading: hasMissing,
-      };
-    });
+
+    const merged = { ...cached, ...quotesRef.current };
+    if (!quotesPayloadChanged(quotesRef.current, merged)) return;
+
+    const hasMissing = keys.some((key) => merged[key] == null);
+    setState((prev) => ({
+      ...prev,
+      quotes: { ...cached, ...prev.quotes },
+      loading: hasMissing,
+    }));
+
+    // Consumers memoize on quoteRevision, so seeding from cache has to bump it
+    // too — otherwise a reload that needs no refetch never recomputes.
+    quoteRevisionRef.current += 1;
+    setQuoteRevision(quoteRevisionRef.current);
   }, [symbols, symbolsKey]);
 
   const fetchQuotes = useCallback(async () => {
@@ -385,9 +392,6 @@ export function useMarketQuotesPoller(
       clearPollTimers(pollTimerRef, boundaryTimerRef);
     };
   }, [enabled, fetchQuotes, flushPendingQuotes, schedulePoll, symbolsKey]);
-
-  const quotesRef = useRef(state.quotes);
-  quotesRef.current = state.quotes;
 
   const getQuote = useCallback(
     (trade: JournalTrade) => {
