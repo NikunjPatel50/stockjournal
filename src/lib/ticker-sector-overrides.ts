@@ -20,6 +20,10 @@ const FUNDAMENTALS_OVERRIDES: Record<string, TickerFundamentalsOverride> = {
     sector: "Consumer Cyclical",
     marketCapBucket: "Mid cap",
   },
+  TVS: {
+    sector: "Consumer Cyclical",
+    marketCapBucket: "Large cap",
+  },
 };
 
 export function lookupTickerSectorOverride(
