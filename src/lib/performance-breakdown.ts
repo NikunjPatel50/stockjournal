@@ -57,7 +57,7 @@ function groupLabel(
   if (dimension === "sector") {
     const override = lookupTickerSectorOverride(trade.ticker, trade.assetClass);
     if (override) return override;
-    return profile?.sector?.trim() || "Unknown sector";
+    return trade.sector?.trim() || profile?.sector?.trim() || "Unknown sector";
   }
 
   const marketCapOverride = lookupTickerMarketCapBucketOverride(
@@ -65,6 +65,7 @@ function groupLabel(
     trade.assetClass
   );
   if (marketCapOverride) return marketCapOverride;
+  if (trade.marketCapBucket?.trim()) return trade.marketCapBucket.trim();
 
   return profile?.marketCapBucket ?? "Unknown";
 }

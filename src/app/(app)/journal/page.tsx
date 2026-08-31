@@ -30,6 +30,7 @@ import {
 } from "@/lib/journal-types";
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
 import { computeFilteredPnl, computeOpenPositionsNetPnl } from "@/lib/trade-pnl";
+import { enrichSavedTradeFundamentals } from "@/lib/trade-fundamentals";
 import { useJournalTrades } from "@/components/journal-trades-provider";
 import {
   useJournalMarket,
@@ -179,6 +180,8 @@ export default function JournalPage() {
       setActiveRegionId(regionId);
       router.push("/dashboard");
     }
+
+    void enrichSavedTradeFundamentals(trade, activeCurrency, setTrades);
   }
 
   function handleDelete(ids: string[]) {

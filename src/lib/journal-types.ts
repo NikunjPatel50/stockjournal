@@ -53,6 +53,10 @@ export interface JournalTrade {
   screenshots: string[];
   /** Exchange used for live quotes (equities). */
   listingMarket?: ListingMarketId;
+  /** Snapshot for analytics — survives after the trade is closed. */
+  sector?: string;
+  /** Snapshot for analytics — survives after the trade is closed. */
+  marketCapBucket?: string;
 }
 
 export interface JournalFilters {

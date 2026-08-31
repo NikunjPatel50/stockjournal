@@ -538,6 +538,8 @@ export function AddTradeModal({
       mindset: tradeMeta.mindset,
       notes: values.notes ?? "",
       psychology: tradeMeta.psychology,
+      sector: initialTrade?.sector,
+      marketCapBucket: initialTrade?.marketCapBucket,
       executions:
         values.status === "Active"
           ? [

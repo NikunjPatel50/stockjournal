@@ -28,6 +28,7 @@ import {
   resolveTradeRegionId,
 } from "@/lib/journal-market-regions";
 import type { JournalTrade } from "@/lib/journal-types";
+import { enrichSavedTradeFundamentals } from "@/lib/trade-fundamentals";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import { LazySection } from "@/components/lazy-section";
 
@@ -127,6 +128,7 @@ export default function DashboardPage() {
       setActiveRegionId(resolveTradeRegionId(trade, defaultCurrency));
     }
 
+    void enrichSavedTradeFundamentals(trade, currency, setTrades);
     router.push("/journal");
   }
 

@@ -26,8 +26,10 @@ import {
   type PerformanceBreakdownRow,
 } from "@/lib/performance-breakdown";
 import { BreakdownGroupTradesSheet } from "@/components/analytics-hub/breakdown-group-trades-sheet";
+import { useJournalTrades } from "@/components/journal-trades-provider";
 import {
   fundamentalsCacheKeysForSymbols,
+  missingFundamentalsCacheKeys,
   readFundamentalsCache,
   writeFundamentalsCache,
 } from "@/lib/fundamentals-cache";
@@ -37,6 +39,7 @@ import {
 } from "@/lib/equity-listing-markets";
 import type { CurrencyCode } from "@/lib/settings";
 import type { TickerFundamentals } from "@/lib/yahoo-fundamentals";
+import { backfillTradeFundamentals } from "@/lib/trade-fundamentals";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 type PerformanceBreakdownCardsProps = {
@@ -792,6 +795,7 @@ export function PerformanceBreakdownCards({
   trades,
   currency,
 }: PerformanceBreakdownCardsProps) {
+  const { trades: allTrades, setTrades } = useJournalTrades();
   const [fundamentals, setFundamentals] = useState<
     Record<string, TickerFundamentals | null>
   >({});
@@ -852,13 +856,22 @@ export function PerformanceBreakdownCards({
     }
 
     const cached = readFundamentalsCache(cacheKeys);
-    const hasFullCache = cacheKeys.every((key) => key in cached);
+    const missingKeys = missingFundamentalsCacheKeys(cacheKeys, cached);
+    const symbolsToFetch = equitySymbols.filter((symbol) => {
+      const key = fundamentalsCacheKeysForSymbols([symbol])[0];
+      return missingKeys.includes(key);
+    });
 
-    if (hasFullCache) {
+    if (symbolsToFetch.length === 0) {
       setFundamentals(cached);
       setLoading(false);
       setRefreshing(false);
       setError(null);
+
+      const backfilled = backfillTradeFundamentals(allTrades, cached, currency);
+      if (backfilled !== allTrades) {
+        setTrades(backfilled);
+      }
       return;
     }
 
@@ -878,7 +891,7 @@ export function PerformanceBreakdownCards({
     void fetch("/api/market-data/fundamentals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbols: equitySymbols }),
+      body: JSON.stringify({ symbols: symbolsToFetch }),
       signal: controller.signal,
     })
       .then(async (res) => {
@@ -889,9 +902,15 @@ export function PerformanceBreakdownCards({
         if (!res.ok) {
           throw new Error(data.error ?? "Could not load fundamentals");
         }
-        const next = data.fundamentals ?? {};
-        setFundamentals(next);
-        writeFundamentalsCache(next);
+        const fetched = data.fundamentals ?? {};
+        const merged = { ...cached, ...fetched };
+        setFundamentals(merged);
+        writeFundamentalsCache(fetched);
+
+        const backfilled = backfillTradeFundamentals(allTrades, merged, currency);
+        if (backfilled !== allTrades) {
+          setTrades(backfilled);
+        }
       })
       .catch((err) => {
         if (err instanceof Error && err.name === "AbortError") return;
@@ -908,7 +927,7 @@ export function PerformanceBreakdownCards({
       });
 
     return () => controller.abort();
-  }, [cacheKeys, equitySymbols, symbolsKey]);
+  }, [allTrades, cacheKeys, currency, equitySymbols, setTrades, symbolsKey]);
 
   const sectorRows = useMemo(
     () => computePerformanceBreakdown(trades, fundamentals, currency, "sector"),

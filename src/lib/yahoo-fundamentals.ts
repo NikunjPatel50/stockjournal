@@ -17,6 +17,15 @@ export type TickerFundamentals = {
   currency: CurrencyCode | null;
 };
 
+export function isUsableFundamentals(
+  data: TickerFundamentals | null | undefined
+): boolean {
+  if (!data) return false;
+  const sector = data.sector?.trim();
+  const bucket = data.marketCapBucket?.trim();
+  return Boolean(sector || (bucket && bucket !== "Unknown"));
+}
+
 export function fundamentalsLookupKey(
   ticker: string,
   assetClass: AssetClass,
@@ -228,7 +237,9 @@ export async function fetchFundamentalsBatch(
     const data = await fetchYahooFundamentals(request, auth);
     serverFundamentalsCache.set(key, {
       data,
-      expiresAt: Date.now() + SERVER_CACHE_TTL_MS,
+      expiresAt:
+        Date.now() +
+        (isUsableFundamentals(data) ? SERVER_CACHE_TTL_MS : 5 * 60 * 1000),
     });
     result[key] = data;
   });
