@@ -146,6 +146,17 @@ function hasStopAboveEntry(trade: JournalTrade): boolean {
   return hasDistinctLevel(stopLoss, entryPrice) && stopLoss > entryPrice;
 }
 
+function resolveRowAccentCategory(
+  trade: JournalTrade,
+  livePnl?: number
+): "profit" | "loss" | "stopAboveEntry" | null {
+  if (hasStopAboveEntry(trade)) return "stopAboveEntry";
+  const pnl = livePnl ?? trade.pnl;
+  if (pnl > 0) return "profit";
+  if (pnl < 0) return "loss";
+  return null;
+}
+
 function rowAccentBorderColor(trade: JournalTrade, livePnl?: number) {
   if (hasStopAboveEntry(trade)) {
     return "border-l-sky-600 dark:border-l-sky-400";
@@ -171,19 +182,29 @@ function compactRowAccentClass(trade: JournalTrade, livePnl?: number) {
   );
 }
 
-function RowColorLegend() {
+function RowColorLegend({
+  counts,
+}: {
+  counts: { profit: number; loss: number; stopAboveEntry: number };
+}) {
   const items = [
     {
+      key: "profit" as const,
       label: "In profit",
+      count: counts.profit,
       swatch:
         "border-l-[3px] border-l-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/30",
     },
     {
+      key: "loss" as const,
       label: "In loss",
+      count: counts.loss,
       swatch: "border-l-[3px] border-l-rose-500 bg-rose-500/20 dark:bg-rose-500/30",
     },
     {
+      key: "stopAboveEntry" as const,
       label: "Stoploss above entry",
+      count: counts.stopAboveEntry,
       swatch: "border-l-[3px] border-l-sky-600 bg-sky-500/25 dark:border-l-sky-400 dark:bg-sky-500/35",
     },
   ] as const;
@@ -192,7 +213,7 @@ function RowColorLegend() {
     <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 sm:flex">
       {items.map((item) => (
         <span
-          key={item.label}
+          key={item.key}
           className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
         >
           <span
@@ -200,6 +221,9 @@ function RowColorLegend() {
             aria-hidden
           />
           {item.label}
+          <span className={cn("font-medium tabular-nums text-foreground", NUMERIC_CLASS)}>
+            ({item.count})
+          </span>
         </span>
       ))}
     </div>
@@ -1560,6 +1584,18 @@ function JournalTableInner({
   const hasActiveTrades = trades.some(
     (trade) => (trade.status ?? "Closed") === "Active"
   );
+  const rowLegendCounts = useMemo(() => {
+    const counts = { profit: 0, loss: 0, stopAboveEntry: 0 };
+    for (const trade of trades) {
+      const isActive = (trade.status ?? "Closed") === "Active";
+      const livePnl = isActive
+        ? resolveTradePnlDisplay(trade, getQuote(trade), displayCurrency).pnl
+        : undefined;
+      const category = resolveRowAccentCategory(trade, livePnl);
+      if (category) counts[category] += 1;
+    }
+    return counts;
+  }, [trades, getQuote, quoteRevision, displayCurrency]);
   const rangeStart = totalRows === 0 ? 0 : pageIndex * pageSize + 1;
   const rangeEnd = Math.min((pageIndex + 1) * pageSize, totalRows);
   const pageRows = table.getRowModel().rows;
@@ -1660,7 +1696,7 @@ function JournalTableInner({
               <MarketSessionTimer trades={trades} currency={displayCurrency} />
             ) : null}
           </div>
-          {totalRows > 0 ? <RowColorLegend /> : null}
+          {totalRows > 0 ? <RowColorLegend counts={rowLegendCounts} /> : null}
           {quotesError ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
           ) : null}
