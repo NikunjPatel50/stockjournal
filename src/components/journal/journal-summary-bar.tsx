@@ -302,12 +302,11 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
                   value={openPnlValue}
                   format={(amount) => formatCurrency(amount, displayCurrency)}
                 />
-                {openPnlRoi != null ? (
-                  <span className="text-xs font-medium text-muted-foreground">
-                    ({openPnlRoi >= 0 ? "+" : ""}
-                    {openPnlRoi.toFixed(2)}%)
-                  </span>
-                ) : null}
+              {openPnlRoi != null ? (
+                <span className="text-xs font-medium text-muted-foreground">
+                  (<AnimatedPercent value={openPnlRoi} decimals={2} />)
+                </span>
+              ) : null}
               </>
             ) : (
               openPnlValue

@@ -35,7 +35,6 @@ import { Button } from "@/components/ui/button";
 import { useJournalMarket } from "@/components/journal/journal-market-provider";
 import {
   displayTradeOutcome,
-  formatCurrency,
   formatHoldTime,
   formatMarketPrice,
   formatSignedMoney,
@@ -630,7 +629,7 @@ function TradePnlCell({
   quote: ClientMarketQuote | null;
   displayCurrency: CurrencyCode;
 }) {
-  const { pnl, roi, isUnrealized, currency } = resolveTradePnlDisplay(
+  const { pnl, roi, currency } = resolveTradePnlDisplay(
     trade,
     quote,
     displayCurrency
@@ -639,31 +638,18 @@ function TradePnlCell({
   return (
     <p
       className={cn(
-        "whitespace-nowrap text-center text-sm font-semibold",
+        "whitespace-nowrap text-center text-sm font-semibold leading-none",
         pnl >= 0
           ? "text-emerald-700 dark:text-emerald-400"
           : "text-rose-700 dark:text-rose-400"
       )}
     >
-      {isUnrealized ? (
-        <AnimatedNumber
-          value={pnl}
-          format={(amount) => formatSignedMoney(amount, currency)}
-        />
-      ) : (
-        formatCurrency(pnl)
-      )}
-      <span className="ml-1 text-[11px] font-medium opacity-80">
-        (
-        {isUnrealized ? (
-          <AnimatedPercent value={roi} decimals={2} />
-        ) : (
-          <>
-            {roi >= 0 ? "+" : ""}
-            {roi.toFixed(2)}%
-          </>
-        )}
-        )
+      <AnimatedNumber
+        value={pnl}
+        format={(amount) => formatSignedMoney(amount, currency)}
+      />
+      <span className="ml-1 text-[11px] font-medium leading-none opacity-80">
+        (<AnimatedPercent value={roi} decimals={2} />)
       </span>
     </p>
   );
@@ -718,7 +704,7 @@ function DailyPnlCell({
   return (
     <p
       className={cn(
-        "whitespace-nowrap text-center text-sm font-semibold",
+        "whitespace-nowrap text-center text-sm font-semibold leading-none",
         daily >= 0
           ? "text-emerald-700 dark:text-emerald-400"
           : "text-rose-700 dark:text-rose-400"
@@ -883,22 +869,24 @@ function LivePriceInline({
   const changeDown = change !== null && change < 0;
 
   return (
-    <div className={cn("w-full text-center", NUMERIC_CLASS)}>
-      <span className="inline-block whitespace-nowrap text-sm font-semibold">
-      {formatMarketPrice(quote.price, displayCurrency)}
-      {change !== null ? (
-        <span
-          className={cn(
-            "ml-1 text-[11px] font-medium",
-            changeUp && "text-emerald-700 dark:text-emerald-400",
-            changeDown && "text-rose-700 dark:text-rose-400",
-            !changeUp && !changeDown && "text-muted-foreground"
-          )}
-        >
-          ({change >= 0 ? "+" : ""}
-          {change.toFixed(2)}%)
-        </span>
-      ) : null}
+    <div className={cn("w-full text-center leading-none", NUMERIC_CLASS)}>
+      <span className="inline-flex items-baseline justify-center whitespace-nowrap text-sm font-semibold">
+        <AnimatedNumber
+          value={quote.price}
+          format={(amount) => formatMarketPrice(amount, displayCurrency)}
+        />
+        {change !== null ? (
+          <span
+            className={cn(
+              "ml-1 text-[11px] font-medium",
+              changeUp && "text-emerald-700 dark:text-emerald-400",
+              changeDown && "text-rose-700 dark:text-rose-400",
+              !changeUp && !changeDown && "text-muted-foreground"
+            )}
+          >
+            (<AnimatedPercent value={change} decimals={2} />)
+          </span>
+        ) : null}
       </span>
     </div>
   );
@@ -1760,20 +1748,16 @@ function JournalTableInner({
                               : "text-rose-700 dark:text-rose-400"
                           )}
                         >
-                          {pnlDisplay.isUnrealized ? (
-                            <AnimatedNumber
-                              value={pnlDisplay.pnl}
-                              format={(amount) =>
-                                formatSignedMoney(amount, pnlDisplay.currency)
-                              }
-                            />
-                          ) : (
-                            formatCurrency(pnlDisplay.pnl)
-                          )}
+                          <AnimatedNumber
+                            value={pnlDisplay.pnl}
+                            format={(amount) =>
+                              formatSignedMoney(amount, pnlDisplay.currency)
+                            }
+                          />
                           {dailyPnl != null ? (
                             <p
                               className={cn(
-                                "mt-0.5 text-[10px] font-semibold sm:text-[11px]",
+                                "mt-0.5 text-[10px] font-semibold leading-none sm:text-[11px]",
                                 dailyPnl >= 0
                                   ? "text-emerald-700 dark:text-emerald-400"
                                   : "text-rose-700 dark:text-rose-400"
