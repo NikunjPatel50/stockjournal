@@ -1,6 +1,10 @@
 import { memo, type ReactNode } from "react";
 import { MetricHint } from "@/components/ui/metric-hint";
-import { AnimatedNumber, AnimatedValue } from "@/components/ui/animated-number";
+import {
+  AnimatedNumber,
+  AnimatedPercent,
+  AnimatedValue,
+} from "@/components/ui/animated-number";
 import {
   formatCurrency,
   formatMarketPrice,
@@ -249,14 +253,26 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
         <Metric
           label="Win rate"
           hint="Share of trades marked as wins out of all trades in your current filter."
-          value={`${summary.winRate.toFixed(1)}%`}
+          value={
+            <AnimatedPercent
+              value={summary.winRate}
+              decimals={1}
+              signed={false}
+            />
+          }
           valueTitle={`${summary.winRate.toFixed(1)}%`}
           tone="neutral"
         />
         <Metric
           label="Accuracy %"
           hint="Win rate among decided outcomes only: wins divided by wins plus losses, excluding open and breakeven trades."
-          value={`${summary.accuracyPercent.toFixed(1)}%`}
+          value={
+            <AnimatedPercent
+              value={summary.accuracyPercent}
+              decimals={1}
+              signed={false}
+            />
+          }
           valueTitle={`${summary.accuracyPercent.toFixed(1)}%`}
           tone={accuracyTone}
         />
@@ -266,7 +282,12 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
         <Metric
           label="Total invested"
           hint="Total capital deployed in open positions (entry price × quantity)."
-          value={formatMarketPrice(summary.totalInvested, displayCurrency)}
+          value={
+            <AnimatedNumber
+              value={summary.totalInvested}
+              format={(amount) => formatMarketPrice(amount, displayCurrency)}
+            />
+          }
           valueTitle={formatMarketPrice(summary.totalInvested, displayCurrency)}
           tone="neutral"
         />
@@ -298,14 +319,24 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
         <Metric
           label="Total win"
           hint="Sum of all positive P&L from winning trades in your current filter."
-          value={formatCurrency(summary.totalWin, displayCurrency)}
+          value={
+            <AnimatedNumber
+              value={summary.totalWin}
+              format={(amount) => formatCurrency(amount, displayCurrency)}
+            />
+          }
           valueTitle={formatCurrency(summary.totalWin, displayCurrency)}
           tone={summary.totalWin > 0 ? "profit" : "neutral"}
         />
         <Metric
           label="Total loss"
           hint="Sum of all losses from losing trades in your current filter, shown as a negative amount."
-          value={formatCurrency(-summary.totalLoss, displayCurrency)}
+          value={
+            <AnimatedNumber
+              value={-summary.totalLoss}
+              format={(amount) => formatCurrency(amount, displayCurrency)}
+            />
+          }
           valueTitle={formatCurrency(-summary.totalLoss, displayCurrency)}
           tone={summary.totalLoss > 0 ? "loss" : "neutral"}
         />

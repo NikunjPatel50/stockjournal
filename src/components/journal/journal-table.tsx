@@ -382,14 +382,131 @@ function AccordionDetailCell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 border-border/50 px-4 py-3 text-center sm:border-r sm:last:border-r-0">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+    <div className="min-w-0 text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
         {label}
-      </span>
-      <div className="flex min-h-[1.375rem] w-full items-center justify-center text-center text-sm leading-none">
+      </p>
+      <div className="mt-1.5 flex min-h-[1.5rem] w-full items-center justify-center text-sm leading-snug">
         {children}
       </div>
     </div>
+  );
+}
+
+function AccordionLevelPair({
+  topLabel,
+  topValue,
+  topClass,
+  bottomLabel,
+  bottomValue,
+  bottomClass,
+}: {
+  topLabel: string;
+  topValue: ReactNode;
+  topClass?: string;
+  bottomLabel: string;
+  bottomValue: ReactNode;
+  bottomClass?: string;
+}) {
+  return (
+    <div className="flex w-full flex-col items-center gap-1">
+      <div className="flex items-baseline justify-center gap-1.5">
+        <span className="text-[10px] font-medium text-muted-foreground">
+          {topLabel}
+        </span>
+        <span className={cn("text-sm font-medium", NUMERIC_CLASS, topClass)}>
+          {topValue}
+        </span>
+      </div>
+      <div className="flex items-baseline justify-center gap-1.5">
+        <span className="text-[10px] font-medium text-muted-foreground">
+          {bottomLabel}
+        </span>
+        <span className={cn("text-sm font-medium", NUMERIC_CLASS, bottomClass)}>
+          {bottomValue}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function AccordionProfitTargetStopLoss({ trade }: { trade: JournalTrade }) {
+  const { profitTarget, stopLoss, entryPrice } = trade;
+  const hasTarget = hasDistinctLevel(profitTarget, entryPrice);
+  const hasStop = hasDistinctLevel(stopLoss, entryPrice);
+
+  if (!hasTarget && !hasStop) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
+
+  return (
+    <AccordionLevelPair
+      topLabel="Target"
+      topValue={
+        hasTarget ? (
+          <>
+            {formatCompactPrice(profitTarget)}
+            <span className="ml-0.5 text-[11px] font-medium opacity-80">
+              {pctChangeFromEntry(entryPrice, profitTarget)}
+            </span>
+          </>
+        ) : (
+          "—"
+        )
+      }
+      topClass="text-emerald-700 dark:text-emerald-400"
+      bottomLabel="Stop"
+      bottomValue={
+        hasStop ? (
+          <>
+            {formatCompactPrice(stopLoss)}
+            <span className="ml-0.5 text-[11px] font-medium opacity-80">
+              {pctChangeFromEntry(entryPrice, stopLoss)}
+            </span>
+          </>
+        ) : (
+          "—"
+        )
+      }
+      bottomClass="text-rose-700 dark:text-rose-400"
+    />
+  );
+}
+
+function AccordionMaxProfitLoss({
+  trade,
+  displayCurrency,
+}: {
+  trade: JournalTrade;
+  displayCurrency: CurrencyCode;
+}) {
+  const { maxProfit, maxLoss, currency } = resolveMaxProfitLossDisplay(
+    trade,
+    null,
+    displayCurrency
+  );
+
+  if (maxProfit == null && maxLoss == null) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
+
+  return (
+    <AccordionLevelPair
+      topLabel="Max win"
+      topValue={
+        maxProfit != null ? formatSignedMoney(maxProfit, currency) : "—"
+      }
+      topClass="text-emerald-700 dark:text-emerald-400"
+      bottomLabel="Max loss"
+      bottomValue={
+        maxLoss != null ? formatSignedMoney(maxLoss, currency) : "—"
+      }
+      bottomClass={
+        maxLoss != null && maxLoss >= 0
+          ? "text-emerald-700 dark:text-emerald-400"
+          : "text-rose-700 dark:text-rose-400"
+      }
+    />
   );
 }
 
@@ -466,10 +583,10 @@ function RowAccordionDetails({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-lg border border-border/80 bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]"
+      className="min-w-0"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="grid grid-cols-1 divide-y divide-border/50 sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-6">
         <AccordionDetailCell label="Status">
           <TradeStatusBadge trade={trade} />
         </AccordionDetailCell>
@@ -480,16 +597,19 @@ function RowAccordionDetails({
             displayCurrency={displayCurrency}
           />
         </AccordionDetailCell>
-        <AccordionDetailCell label="Profit target / Stop loss">
-          <ProfitTargetStopLossValue trade={trade} />
+        <AccordionDetailCell label="Levels">
+          <AccordionProfitTargetStopLoss trade={trade} />
         </AccordionDetailCell>
-        <AccordionDetailCell label="Max profit / Max loss">
-          <MaxProfitLossValue trade={trade} displayCurrency={displayCurrency} />
+        <AccordionDetailCell label="Risk">
+          <AccordionMaxProfitLoss
+            trade={trade}
+            displayCurrency={displayCurrency}
+          />
         </AccordionDetailCell>
         <AccordionDetailCell label="% of portfolio">
           <PortfolioWeightValue trade={trade} portfolioPct={portfolioPct} />
         </AccordionDetailCell>
-        <AccordionDetailCell label="Next earnings date">
+        <AccordionDetailCell label="Next earnings">
           <NextEarningsDateValue
             trade={trade}
             earnings={earnings}
@@ -1751,7 +1871,7 @@ function JournalTableInner({
 
                   <JournalRowAccordionPanel
                     open={expanded}
-                    className="border-t border-border/50 bg-muted/15 px-3 py-2.5"
+                    className="px-3 py-3 sm:px-4"
                   >
                     <RowAccordionDetails
                       trade={trade}
@@ -1878,7 +1998,7 @@ function JournalTableInner({
                       <td colSpan={visibleCellCount} className="p-0 align-top">
                         <JournalRowAccordionPanel
                           open={expanded}
-                          className="border-b border-border/60 bg-muted/15 px-4 pb-3 pt-1"
+                          className="px-4 py-3"
                         >
                           <RowAccordionDetails
                             trade={row.original}

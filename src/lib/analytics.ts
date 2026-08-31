@@ -234,9 +234,35 @@ export type DailyPnlChartPoint = DailyPnlPoint & { label: string };
 
 const DAILY_PNL_CHART_FILL_CAP = 120;
 
+function isWeekendYmd(ymd: string): boolean {
+  const dow = new Date(`${ymd}T12:00:00Z`).getUTCDay();
+  return dow === 0 || dow === 6;
+}
+
+/**
+ * Exchange holidays are inferred rather than hardcoded: a weekday with no
+ * session row that sits inside the span of known sessions never traded.
+ * Weekdays outside that span (before the first position, or today before
+ * close) stay on the axis so the timeframe still reads correctly.
+ */
+function makeNonTradingDayTest(daily: DailyPnlPoint[]) {
+  const sessionDates = daily.map((point) => point.date).sort();
+  const firstSession = sessionDates[0];
+  const lastSession = sessionDates[sessionDates.length - 1];
+  const sessionSet = new Set(sessionDates);
+
+  return (ymd: string): boolean => {
+    if (isWeekendYmd(ymd)) return true;
+    if (sessionSet.has(ymd)) return false;
+    if (!firstSession || !lastSession) return false;
+    return ymd > firstSession && ymd < lastSession;
+  };
+}
+
 /**
  * Build a chart series for daily P&L that spans the full selected timeframe.
- * Missing calendar days are zero-filled so the x-axis reflects the filter.
+ * Missing trading days are zero-filled so the x-axis reflects the filter;
+ * weekends and exchange holidays are left out entirely.
  */
 export function buildDailyPnlChartSeries(
   daily: DailyPnlPoint[],
@@ -264,10 +290,13 @@ export function buildDailyPnlChartSeries(
     }));
   }
 
+  const isNonTradingDay = makeNonTradingDayTest(daily);
+
   let days = eachDayOfInterval({
     start: startOfDay(from),
     end: startOfDay(to),
-  });
+  }).filter((day) => !isNonTradingDay(format(day, "yyyy-MM-dd")));
+
   if (days.length > DAILY_PNL_CHART_FILL_CAP) {
     days = days.slice(days.length - DAILY_PNL_CHART_FILL_CAP);
   }
