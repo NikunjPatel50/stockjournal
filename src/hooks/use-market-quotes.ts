@@ -160,8 +160,9 @@ export function useMarketQuotesPoller(
     sessionOpen: false,
   });
 
+  // Source of truth for getQuote: updated in the same tick we accept quotes so
+  // a reader never sees a value older than the revision it re-rendered for.
   const quotesRef = useRef(state.quotes);
-  quotesRef.current = state.quotes;
 
   const pollGenerationRef = useRef(0);
   const pollTimerRef = useRef<number | null>(null);
@@ -181,9 +182,11 @@ export function useMarketQuotesPoller(
     const pending = pendingQuotePatchRef.current;
     if (!pending) return;
     pendingQuotePatchRef.current = null;
+    const merged = { ...quotesRef.current, ...pending.quotes };
+    quotesRef.current = merged;
     setState((prev) => ({
       ...prev,
-      quotes: { ...prev.quotes, ...pending.quotes },
+      quotes: merged,
       loading: false,
       error: null,
       fetchedAt: pending.fetchedAt,
@@ -207,9 +210,10 @@ export function useMarketQuotesPoller(
     if (!quotesPayloadChanged(quotesRef.current, merged)) return;
 
     const hasMissing = keys.some((key) => merged[key] == null);
+    quotesRef.current = merged;
     setState((prev) => ({
       ...prev,
-      quotes: { ...cached, ...prev.quotes },
+      quotes: merged,
       loading: hasMissing,
     }));
 
@@ -221,6 +225,8 @@ export function useMarketQuotesPoller(
 
   const fetchQuotes = useCallback(async () => {
     if (symbols.length === 0) {
+      pendingQuotePatchRef.current = null;
+      quotesRef.current = {};
       setState((prev) => ({
         ...prev,
         quotes: {},
@@ -229,6 +235,8 @@ export function useMarketQuotesPoller(
         fetchedAt: null,
         sessionOpen: false,
       }));
+      quoteRevisionRef.current += 1;
+      setQuoteRevision(quoteRevisionRef.current);
       return;
     }
 
@@ -236,18 +244,18 @@ export function useMarketQuotesPoller(
     const sessionOpen = anySymbolSessionOpen(symbols, now);
     const generation = ++pollGenerationRef.current;
 
-    setState((prev) => {
-      const requestedKeys = symbols.map((s) =>
-        quoteLookupKey(s.ticker, normalizeQuoteAssetClass(s.assetClass))
-      );
-      const hasMissing = requestedKeys.some((k) => prev.quotes[k] == null);
-      return {
-        ...prev,
-        loading: hasMissing,
-        error: null,
-        sessionOpen,
-      };
-    });
+    const hasMissing = symbols.some(
+      (s) =>
+        quotesRef.current[
+          quoteLookupKey(s.ticker, normalizeQuoteAssetClass(s.assetClass))
+        ] == null
+    );
+    setState((prev) => ({
+      ...prev,
+      loading: hasMissing,
+      error: null,
+      sessionOpen,
+    }));
 
     try {
       const res = await fetch("/api/market-quotes", {
@@ -282,45 +290,48 @@ export function useMarketQuotesPoller(
 
       writeQuotesCache(incoming);
 
-      let quotesChanged = false;
-      setState((prev) => {
-        quotesChanged = quotesPayloadChanged(prev.quotes, incoming);
-        if (!quotesChanged) {
-          return {
-            ...prev,
-            loading: false,
-            error: null,
-            delayed: data.delayed !== false,
-            sessionOpen: sessionOpenAtFetch,
-          };
-        }
+      // React may run the updater long after setState returns, so the decision
+      // to bump quoteRevision has to be made here against the ref, not inside
+      // it — otherwise consumers memoized on the revision never recompute.
+      const quotesChanged = quotesPayloadChanged(quotesRef.current, incoming);
+      const defer =
+        isScrollActive() && document.visibilityState === "visible";
 
-        if (isScrollActive() && document.visibilityState === "visible") {
-          pendingQuotePatchRef.current = {
-            quotes: incoming,
-            fetchedAt,
-            delayed: data.delayed !== false,
-            sessionOpen: sessionOpenAtFetch,
-          };
-          return {
-            ...prev,
-            loading: false,
-            error: null,
-            sessionOpen: sessionOpenAtFetch,
-          };
-        }
-
-        return {
-          quotes: { ...prev.quotes, ...incoming },
+      if (!quotesChanged) {
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: null,
+          delayed: data.delayed !== false,
+          sessionOpen: sessionOpenAtFetch,
+        }));
+      } else if (defer) {
+        pendingQuotePatchRef.current = {
+          quotes: {
+            ...(pendingQuotePatchRef.current?.quotes ?? {}),
+            ...incoming,
+          },
+          fetchedAt,
+          delayed: data.delayed !== false,
+          sessionOpen: sessionOpenAtFetch,
+        };
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: null,
+          sessionOpen: sessionOpenAtFetch,
+        }));
+      } else {
+        const merged = { ...quotesRef.current, ...incoming };
+        quotesRef.current = merged;
+        setState(() => ({
+          quotes: merged,
           loading: false,
           error: null,
           fetchedAt,
           delayed: data.delayed !== false,
           sessionOpen: sessionOpenAtFetch,
-        };
-      });
-
-      if (quotesChanged && (!isScrollActive() || document.visibilityState === "hidden")) {
+        }));
         quoteRevisionRef.current += 1;
         setQuoteRevision(quoteRevisionRef.current);
       }
