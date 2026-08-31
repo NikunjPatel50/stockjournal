@@ -13,7 +13,7 @@ import type {
 } from "@/lib/trade-pnl";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
-import { cn } from "@/lib/utils";
+import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 
 interface JournalSummaryBarProps {
   summary: ReturnType<typeof computeJournalSummary>;
@@ -26,63 +26,51 @@ interface JournalSummaryBarProps {
   displayCurrency?: CurrencyCode;
 }
 
-function statValueFontClass(value: string, largeValue?: boolean): string {
+type MetricTone = "profit" | "loss" | "neutral";
+
+function toneValueClass(tone: MetricTone) {
+  if (tone === "profit") return "text-emerald-600 dark:text-emerald-400";
+  if (tone === "loss") return "text-rose-600 dark:text-rose-400";
+  return "text-foreground";
+}
+
+function valueFontClass(value: string, featured?: boolean): string {
   const len = value.length;
-
-  if (largeValue) {
-    if (len <= 9) return "text-xl sm:text-2xl";
-    if (len <= 12) return "text-lg sm:text-xl";
-    if (len <= 15) return "text-base sm:text-lg";
-    if (len <= 18) return "text-sm sm:text-base";
-    return "text-xs sm:text-sm";
+  if (featured) {
+    if (len <= 10) return "text-2xl sm:text-3xl";
+    if (len <= 14) return "text-xl sm:text-2xl";
+    if (len <= 18) return "text-lg sm:text-xl";
+    return "text-base sm:text-lg";
   }
-
   if (len <= 10) return "text-lg sm:text-xl";
   if (len <= 14) return "text-base sm:text-lg";
   if (len <= 18) return "text-sm sm:text-base";
   return "text-xs sm:text-sm";
 }
 
-function Stat({
+function Metric({
   label,
   labelShort,
   hint,
   value,
-  subValue,
-  valueClass,
-  accent,
-  largeValue,
   valueTitle,
+  tone = "neutral",
+  featured,
 }: {
   label: string;
   labelShort?: string;
   hint: string;
   value: ReactNode;
   valueTitle?: string;
-  subValue?: string;
-  valueClass?: string;
-  accent?: "emerald" | "rose" | "slate";
-  largeValue?: boolean;
+  tone?: MetricTone;
+  featured?: boolean;
 }) {
-  const topBorder =
-    accent === "emerald"
-      ? "border-t-emerald-500"
-      : accent === "rose"
-        ? "border-t-rose-500"
-        : "border-t-border";
-
   const displayLabel = labelShort ?? label;
 
   return (
-    <div
-      className={cn(
-        "flex h-full min-h-[4.5rem] min-w-0 flex-col rounded-lg border border-border bg-card px-3 py-2.5 shadow-none sm:min-h-[4.75rem] sm:px-4 sm:py-3",
-        "border-t-2",
-        topBorder
-      )}
-    >
-      <p className="flex min-w-0 items-start justify-center gap-1 px-0.5 text-[10px] font-medium leading-snug text-muted-foreground sm:items-center sm:text-xs">
-        <span className="text-center text-balance">
+    <div className="min-w-0 text-center">
+      <div className="flex items-center justify-center gap-1">
+        <p className="truncate text-[11px] font-medium tracking-wide text-muted-foreground sm:text-xs">
           {labelShort ? (
             <>
               <span className="sm:hidden">{labelShort}</span>
@@ -91,27 +79,40 @@ function Stat({
           ) : (
             label
           )}
-        </span>
+        </p>
         <MetricHint title={displayLabel} hint={hint} />
-      </p>
+      </div>
       <div
         className={cn(
-          "mt-1.5 flex min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-balance text-center font-semibold",
-          valueTitle
-            ? statValueFontClass(valueTitle, largeValue)
-            : largeValue
-              ? "text-xl sm:text-2xl"
-              : "text-lg sm:text-xl",
-          valueClass ?? "text-foreground"
+          "mt-1.5 flex min-w-0 flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5 font-semibold tracking-tight",
+          NUMERIC_DISPLAY_CLASS,
+          valueTitle ? valueFontClass(valueTitle, featured) : featured ? "text-2xl sm:text-3xl" : "text-lg sm:text-xl",
+          toneValueClass(tone)
         )}
         title={valueTitle}
       >
         {value}
       </div>
-      {subValue ? (
-        <p className="mt-0.5 text-center text-xs text-muted-foreground">{subValue}</p>
-      ) : null}
     </div>
+  );
+}
+
+function MetricGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="min-w-0">
+      <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+        {title}
+      </p>
+      <div className="grid min-w-0 grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4 sm:gap-x-8">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -182,156 +183,133 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
         : formatCurrency(openPnlValue, displayCurrency)
       : openPnlValue;
 
+  const dailyTone: MetricTone =
+    !liveDataReady || !hasActive || !hasLivePrice
+      ? "neutral"
+      : liveUp
+        ? "profit"
+        : liveDown
+          ? "loss"
+          : "neutral";
+
+  const totalTone: MetricTone =
+    filteredValueTitle === "…"
+      ? "neutral"
+      : pnlUp
+        ? "profit"
+        : pnlDown
+          ? "loss"
+          : "neutral";
+
+  const accuracyTone: MetricTone =
+    summary.accuracyPercent >= 50
+      ? "profit"
+      : summary.accuracyPercent > 0
+        ? "loss"
+        : "neutral";
+
+  const openTone: MetricTone =
+    !liveDataReady || !hasOpenPositions
+      ? "neutral"
+      : openPnlUp
+        ? "profit"
+        : openPnlDown
+          ? "loss"
+          : "neutral";
+
   return (
-    <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-      <Stat
-        label="Daily P/L"
-        hint="Combined price change today across open positions vs prior close (or from entry on day one). Updates live during market hours."
-        value={
-          <AnimatedValue
-            value={liveValue}
-            format={(amount) => formatCurrency(amount, displayCurrency)}
-          />
-        }
-        valueTitle={liveValueTitle}
-        largeValue
-        accent={
-          !liveDataReady || !hasActive || !hasLivePrice
-            ? "slate"
-            : liveUp
-              ? "emerald"
-              : liveDown
-                ? "rose"
-                : "slate"
-        }
-        valueClass={
-          !liveDataReady || !hasActive || !hasLivePrice
-            ? undefined
-            : liveUp
-              ? "text-emerald-700 dark:text-emerald-400"
-              : liveDown
-                ? "text-rose-700 dark:text-rose-400"
-                : undefined
-        }
-      />
-      <Stat
-        label="Total P/L"
-        hint="Net profit or loss for all trades in your current filter, including realized on closed trades plus live unrealized on open positions."
-        value={
-          <AnimatedValue
-            value={filteredValue}
-            format={(amount) => formatCurrency(amount, displayCurrency)}
-          />
-        }
-        valueTitle={filteredValueTitle}
-        largeValue
-        accent={pnlUp ? "emerald" : pnlDown ? "rose" : "slate"}
-        valueClass={
-          filteredValueTitle === "…"
-            ? undefined
-            : pnlUp
-              ? "text-emerald-700 dark:text-emerald-400"
-              : pnlDown
-                ? "text-rose-700 dark:text-rose-400"
-                : undefined
-        }
-      />
-      <Stat
-        label="Win rate"
-        hint="Share of trades marked as wins out of all trades in your current filter."
-        value={`${summary.winRate.toFixed(1)}%`}
-        largeValue
-      />
-      <Stat
-        label="Accuracy %"
-        hint="Win rate among decided outcomes only: wins divided by wins plus losses, excluding open and breakeven trades."
-        value={`${summary.accuracyPercent.toFixed(1)}%`}
-        largeValue
-        accent={
-          summary.accuracyPercent >= 50
-            ? "emerald"
-            : summary.accuracyPercent > 0
-              ? "rose"
-              : "slate"
-        }
-        valueClass={
-          summary.accuracyPercent >= 50
-            ? "text-emerald-700 dark:text-emerald-400"
-            : summary.accuracyPercent > 0
-              ? "text-rose-700 dark:text-rose-400"
-              : undefined
-        }
-      />
-      <Stat
-        label="Total invested"
-        hint="Total capital deployed in open positions (entry price × quantity)."
-        value={formatMarketPrice(summary.totalInvested, displayCurrency)}
-      />
-      <Stat
-        label="Net P/L across open positions"
-        labelShort="Open net P&L"
-        hint="Sum of the Net P&L values shown for each row in the active trade log."
-        value={
-          typeof openPnlValue === "number" ? (
-            <>
-              <AnimatedNumber
-                value={openPnlValue}
-                format={(amount) => formatCurrency(amount, displayCurrency)}
-              />
-              {openPnlRoi != null ? (
-                <span className="text-[11px] font-medium opacity-80 sm:text-xs">
-                  ({openPnlRoi >= 0 ? "+" : ""}
-                  {openPnlRoi.toFixed(2)}%)
-                </span>
-              ) : null}
-            </>
-          ) : (
-            openPnlValue
-          )
-        }
-        valueTitle={openPnlValueTitle}
-        largeValue
-        accent={
-          !liveDataReady || !hasOpenPositions
-            ? "slate"
-            : openPnlUp
-              ? "emerald"
-              : openPnlDown
-                ? "rose"
-                : "slate"
-        }
-        valueClass={
-          !liveDataReady || !hasOpenPositions
-            ? undefined
-            : openPnlUp
-              ? "text-emerald-700 dark:text-emerald-400"
-              : openPnlDown
-                ? "text-rose-700 dark:text-rose-400"
-                : undefined
-        }
-      />
-      <Stat
-        label="Total win"
-        hint="Sum of all positive P&L from winning trades in your current filter."
-        value={formatCurrency(summary.totalWin, displayCurrency)}
-        accent={summary.totalWin > 0 ? "emerald" : "slate"}
-        valueClass={
-          summary.totalWin > 0
-            ? "text-emerald-700 dark:text-emerald-400"
-            : undefined
-        }
-      />
-      <Stat
-        label="Total loss"
-        hint="Sum of all losses from losing trades in your current filter, shown as a negative amount."
-        value={formatCurrency(-summary.totalLoss, displayCurrency)}
-        accent={summary.totalLoss > 0 ? "rose" : "slate"}
-        valueClass={
-          summary.totalLoss > 0
-            ? "text-rose-700 dark:text-rose-400"
-            : undefined
-        }
-      />
+    <div className="space-y-6">
+      <MetricGroup title="Performance">
+        <Metric
+          label="Daily P/L"
+          hint="Combined price change today across open positions vs prior close (or from entry on day one). Updates live during market hours."
+          value={
+            <AnimatedValue
+              value={liveValue}
+              format={(amount) => formatCurrency(amount, displayCurrency)}
+            />
+          }
+          valueTitle={liveValueTitle}
+          tone={dailyTone}
+          featured
+        />
+        <Metric
+          label="Total P/L"
+          hint="Net profit or loss for all trades in your current filter, including realized on closed trades plus live unrealized on open positions."
+          value={
+            <AnimatedValue
+              value={filteredValue}
+              format={(amount) => formatCurrency(amount, displayCurrency)}
+            />
+          }
+          valueTitle={filteredValueTitle}
+          tone={totalTone}
+          featured
+        />
+        <Metric
+          label="Win rate"
+          hint="Share of trades marked as wins out of all trades in your current filter."
+          value={`${summary.winRate.toFixed(1)}%`}
+          valueTitle={`${summary.winRate.toFixed(1)}%`}
+          tone="neutral"
+        />
+        <Metric
+          label="Accuracy %"
+          hint="Win rate among decided outcomes only: wins divided by wins plus losses, excluding open and breakeven trades."
+          value={`${summary.accuracyPercent.toFixed(1)}%`}
+          valueTitle={`${summary.accuracyPercent.toFixed(1)}%`}
+          tone={accuracyTone}
+        />
+      </MetricGroup>
+
+      <MetricGroup title="Positions & outcomes">
+        <Metric
+          label="Total invested"
+          hint="Total capital deployed in open positions (entry price × quantity)."
+          value={formatMarketPrice(summary.totalInvested, displayCurrency)}
+          valueTitle={formatMarketPrice(summary.totalInvested, displayCurrency)}
+          tone="neutral"
+        />
+        <Metric
+          label="Net P/L across open positions"
+          labelShort="Open net P&L"
+          hint="Sum of the Net P&L values shown for each row in the active trade log."
+          value={
+            typeof openPnlValue === "number" ? (
+              <>
+                <AnimatedNumber
+                  value={openPnlValue}
+                  format={(amount) => formatCurrency(amount, displayCurrency)}
+                />
+                {openPnlRoi != null ? (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    ({openPnlRoi >= 0 ? "+" : ""}
+                    {openPnlRoi.toFixed(2)}%)
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              openPnlValue
+            )
+          }
+          valueTitle={openPnlValueTitle}
+          tone={openTone}
+        />
+        <Metric
+          label="Total win"
+          hint="Sum of all positive P&L from winning trades in your current filter."
+          value={formatCurrency(summary.totalWin, displayCurrency)}
+          valueTitle={formatCurrency(summary.totalWin, displayCurrency)}
+          tone={summary.totalWin > 0 ? "profit" : "neutral"}
+        />
+        <Metric
+          label="Total loss"
+          hint="Sum of all losses from losing trades in your current filter, shown as a negative amount."
+          value={formatCurrency(-summary.totalLoss, displayCurrency)}
+          valueTitle={formatCurrency(-summary.totalLoss, displayCurrency)}
+          tone={summary.totalLoss > 0 ? "loss" : "neutral"}
+        />
+      </MetricGroup>
     </div>
   );
 });

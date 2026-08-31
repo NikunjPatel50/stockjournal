@@ -38,8 +38,8 @@ export function TimeframeSegmentedControl({
             "inline-flex w-max flex-none flex-nowrap items-center gap-0.5",
             compact ? "h-9 p-0.5" : "h-10 p-1",
             "group-data-horizontal/tabs:h-10",
-            "rounded-lg border border-border bg-muted/60",
-            "shadow-none dark:bg-muted/40"
+            "rounded-lg border border-border/70 bg-background/70",
+            "shadow-none dark:bg-background/40"
           )}
         >
           {DASHBOARD_TIMEFRAME_OPTIONS.map((tf) => (

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { HeaderActions } from "@/components/header-actions";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,8 @@ type AppPageHeaderProps = {
   overlineEyebrow?: boolean;
   title: string;
   description?: string;
+  /** Page-level actions (e.g. primary CTA) shown before global header actions. */
+  pageActions?: ReactNode;
   className?: string;
   actionsClassName?: string;
 };
@@ -20,6 +23,7 @@ export function AppPageHeader({
   overlineEyebrow = true,
   title,
   description,
+  pageActions,
   className,
   actionsClassName,
 }: AppPageHeaderProps) {
@@ -27,21 +31,36 @@ export function AppPageHeader({
 
   if (isMobile) {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-between gap-2 border-b border-border/60 pb-3",
-          className
-        )}
-      >
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">
-            {title}
-          </h1>
+      <div className={cn("space-y-3 border-b border-border/60 pb-3", className)}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {eyebrow ? (
+              <p
+                className={cn(
+                  "text-[10px] font-medium text-muted-foreground",
+                  overlineEyebrow && "uppercase tracking-wider"
+                )}
+              >
+                {eyebrow}
+              </p>
+            ) : null}
+            <h1
+              className={cn(
+                "truncate font-semibold tracking-tight text-foreground",
+                eyebrow ? "mt-0.5 text-lg" : "text-lg"
+              )}
+            >
+              {title}
+            </h1>
+          </div>
+          <HeaderActions
+            compact
+            className={cn("shrink-0 flex-nowrap", actionsClassName)}
+          />
         </div>
-        <HeaderActions
-          compact
-          className={cn("shrink-0 flex-nowrap", actionsClassName)}
-        />
+        {pageActions ? (
+          <div className="flex w-full items-center gap-2">{pageActions}</div>
+        ) : null}
       </div>
     );
   }
@@ -78,12 +97,15 @@ export function AppPageHeader({
           </p>
         ) : null}
       </div>
-      <HeaderActions
-        className={cn(
-          "w-full max-w-full shrink-0 justify-end self-stretch sm:w-auto sm:self-auto",
-          actionsClassName
-        )}
-      />
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        {pageActions}
+        <HeaderActions
+          className={cn(
+            "w-full max-w-full shrink-0 justify-end self-stretch sm:w-auto sm:self-auto",
+            actionsClassName
+          )}
+        />
+      </div>
     </div>
   );
 }

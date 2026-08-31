@@ -1,17 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { format } from "date-fns";
 import {
   CalendarIcon,
-  CircleDot,
   Download,
   Plus,
+  RotateCcw,
   Search,
   Upload,
-  X,
 } from "lucide-react";
 import { TimeframeSegmentedControl } from "@/components/analytics/timeframe-segmented-control";
+import { AppPageHeader } from "@/components/app-page-header";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -20,27 +20,47 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
-import { AppPageHeader } from "@/components/app-page-header";
 import type { AnalyticsTimeframe } from "@/lib/analytics";
 import { emptyFilters, type JournalFilters } from "@/lib/journal-types";
 import { useIsCompactApp } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
-const STATUS_FILTER_OPTIONS = [
-  { value: "all", label: "All statuses", dotClass: "bg-muted-foreground/50" },
-  { value: "Closed", label: "Closed", dotClass: "bg-muted-foreground" },
-  { value: "Active", label: "Active", dotClass: "bg-emerald-500" },
-] as const;
+const TOOLBAR_FIELD_CLASS =
+  "h-9 rounded-lg border-0 bg-muted/40 shadow-none ring-1 ring-inset ring-border/60 transition-[box-shadow] focus-within:ring-2 focus-within:ring-primary/25 dark:bg-muted/25";
 
-function statusFilterLabel(value: string) {
+function ToolbarLabel({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    STATUS_FILTER_OPTIONS.find((o) => o.value === value)?.label ?? "Status"
+    <span
+      className={cn(
+        "hidden shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80 lg:inline",
+        className
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ToolbarSection({
+  label,
+  children,
+  className,
+}: {
+  label?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex min-w-0 items-center gap-2 sm:gap-2.5", className)}>
+      {label ? <ToolbarLabel>{label}</ToolbarLabel> : null}
+      {children}
+    </div>
   );
 }
 
@@ -66,9 +86,6 @@ export function JournalHeader({
   const patch = (partial: Partial<JournalFilters>) =>
     onFiltersChange({ ...filters, ...partial });
 
-  const statusLabel =
-    filters.status === "all" ? "Status" : statusFilterLabel(filters.status);
-
   const isCustom = filters.timeframe === "custom";
   const customRangeLabel =
     filters.customFrom || filters.customTo
@@ -85,7 +102,7 @@ export function JournalHeader({
             variant="outline"
             size="sm"
             className={cn(
-              "h-9 gap-1.5 rounded-lg border-border bg-background px-2.5",
+              "h-8 gap-1.5 rounded-md border-border/70 bg-background/80 px-2.5",
               "text-xs font-medium shadow-none"
             )}
           />
@@ -121,89 +138,91 @@ export function JournalHeader({
   const hasActiveFilters =
     filters.search ||
     filters.timeframe !== "all" ||
-    filters.outcome !== "all" ||
-    filters.status !== "all";
+    filters.outcome !== "all";
 
   return (
-    <div className="space-y-6">
-      <AppPageHeader title="Journal" />
+    <div className="space-y-4">
+      <AppPageHeader eyebrow="Trade log" title="Journal" />
 
-      <div className="min-w-0 rounded-lg border border-border bg-card shadow-none">
-        <div className="flex flex-col gap-3 p-3 sm:p-4 xl:flex-row xl:items-center xl:gap-3">
-          <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain sm:gap-3">
-            <div className="relative w-40 shrink-0 sm:w-52 lg:w-60">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={filters.search}
-              onChange={(e) => patch({ search: e.target.value })}
-              placeholder="Search ticker, notes, tags…"
-              className="h-9 w-full border-border bg-background pl-9"
-            />
-          </div>
-
-          <Select
-            value={filters.status}
-            onValueChange={(v) => v && patch({ status: v })}
-          >
-            <SelectTrigger
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <ToolbarSection className="min-w-0 flex-1">
+            <div
               className={cn(
-                "h-9 w-auto shrink-0 gap-2 rounded-md border-border bg-background px-3 font-normal shadow-none hover:bg-muted/50",
-                filters.status !== "all" && "border-foreground/20 bg-muted/40"
+                "relative min-w-0 flex-1 sm:min-w-[14rem] sm:max-w-md lg:max-w-lg xl:max-w-xl",
+                TOOLBAR_FIELD_CLASS,
+                "h-9 sm:h-10"
               )}
             >
-              <CircleDot className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="text-sm">{statusLabel}</span>
-            </SelectTrigger>
-            <SelectContent align="start" className="min-w-[11rem]">
-              {STATUS_FILTER_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "size-2 shrink-0 rounded-full",
-                        option.dotClass
-                      )}
-                      aria-hidden
-                    />
-                    {option.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground/70" />
+              <Input
+                value={filters.search}
+                onChange={(e) => patch({ search: e.target.value })}
+                placeholder="Ticker, notes, tags…"
+                className="h-9 w-full border-0 bg-transparent pl-10 text-sm shadow-none focus-visible:ring-0 sm:h-10"
+              />
+            </div>
+          </ToolbarSection>
 
-          {hasActiveFilters ? (
+          <ToolbarSection label="Period" className="min-w-0">
+            <div className="min-w-0 overflow-x-auto overscroll-x-contain">
+              <TimeframeSegmentedControl
+                value={filters.timeframe}
+                onChange={(timeframe: AnalyticsTimeframe) =>
+                  patch({ timeframe })
+                }
+                trailing={datePicker}
+                compact
+                className="min-w-max"
+              />
+            </div>
+
+            {hasActiveFilters ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 shrink-0 gap-1.5 px-2.5 text-muted-foreground hover:text-foreground"
+                onClick={() => onFiltersChange(emptyFilters())}
+              >
+                <RotateCcw className="size-3.5" />
+                <span className="hidden sm:inline">Reset</span>
+              </Button>
+            ) : null}
+          </ToolbarSection>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
+          <ToolbarLabel className="lg:hidden">Data</ToolbarLabel>
+          <div className="inline-flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
-              className="h-9 shrink-0 gap-1 text-muted-foreground"
-              onClick={() => onFiltersChange(emptyFilters())}
+              className="h-8 gap-1.5 rounded-md px-2.5 text-muted-foreground hover:text-foreground"
+              onClick={onExportCsv}
+              aria-label="Export CSV"
             >
-              <X className="size-3.5" />
-              <span className="sr-only">Clear filters</span>
+              <Download className="size-3.5" />
+              <span className="hidden sm:inline">Export</span>
             </Button>
-          ) : null}
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0 gap-1.5"
-            onClick={onExportCsv}
-            aria-label="Export CSV"
-          >
-            <Download className="size-3.5" />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0 gap-1.5"
-            onClick={() => fileRef.current?.click()}
-            aria-label="Import CSV"
-          >
-            <Upload className="size-3.5" />
-            <span className="hidden sm:inline">Import</span>
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 rounded-md px-2.5 text-muted-foreground hover:text-foreground"
+              onClick={() => fileRef.current?.click()}
+              aria-label="Import CSV"
+            >
+              <Upload className="size-3.5" />
+              <span className="hidden sm:inline">Import</span>
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 rounded-md px-2.5 shadow-none"
+              onClick={onLogTrade}
+            >
+              <Plus className="size-3.5" />
+              Log trade
+            </Button>
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -215,28 +234,6 @@ export function JournalHeader({
               e.target.value = "";
             }}
           />
-          <Button
-            size="sm"
-            className="h-9 shrink-0 gap-1.5"
-            onClick={onLogTrade}
-            aria-label="Log trade"
-          >
-            <Plus className="size-3.5" />
-            <span className="hidden sm:inline">Log trade</span>
-          </Button>
-          </div>
-
-          <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain xl:w-auto xl:shrink-0">
-            <TimeframeSegmentedControl
-              value={filters.timeframe}
-              onChange={(timeframe: AnalyticsTimeframe) =>
-                patch({ timeframe })
-              }
-              trailing={datePicker}
-              compact
-              className="min-w-max"
-            />
-          </div>
         </div>
       </div>
     </div>
