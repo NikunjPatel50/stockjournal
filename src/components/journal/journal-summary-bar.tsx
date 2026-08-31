@@ -1,12 +1,16 @@
 import { memo, type ReactNode } from "react";
 import { MetricHint } from "@/components/ui/metric-hint";
-import { AnimatedValue } from "@/components/ui/animated-number";
+import { AnimatedNumber, AnimatedValue } from "@/components/ui/animated-number";
 import {
   formatCurrency,
   formatMarketPrice,
   type computeJournalSummary,
 } from "@/lib/journal-types";
-import type { FilteredPnlSummary, LiveActivePnlSummary } from "@/lib/trade-pnl";
+import type {
+  FilteredPnlSummary,
+  LiveActivePnlSummary,
+  OpenPositionsNetPnlSummary,
+} from "@/lib/trade-pnl";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
 import { cn } from "@/lib/utils";
@@ -15,6 +19,7 @@ interface JournalSummaryBarProps {
   summary: ReturnType<typeof computeJournalSummary>;
   livePnl?: LiveActivePnlSummary | null;
   filteredPnl?: FilteredPnlSummary | null;
+  openPositionsNetPnl?: OpenPositionsNetPnlSummary | null;
   livePnlLoading?: boolean;
   /** Wait until client storage/quotes are ready to avoid hydration mismatch. */
   liveDataReady?: boolean;
@@ -40,6 +45,7 @@ function statValueFontClass(value: string, largeValue?: boolean): string {
 
 function Stat({
   label,
+  labelShort,
   hint,
   value,
   subValue,
@@ -49,6 +55,7 @@ function Stat({
   valueTitle,
 }: {
   label: string;
+  labelShort?: string;
   hint: string;
   value: ReactNode;
   valueTitle?: string;
@@ -64,21 +71,32 @@ function Stat({
         ? "border-t-rose-500"
         : "border-t-border";
 
+  const displayLabel = labelShort ?? label;
+
   return (
     <div
       className={cn(
-        "flex h-full min-h-[4.75rem] min-w-0 flex-col rounded-lg border border-border bg-card px-4 py-3 shadow-none",
+        "flex h-full min-h-[4.5rem] min-w-0 flex-col rounded-lg border border-border bg-card px-3 py-2.5 shadow-none sm:min-h-[4.75rem] sm:px-4 sm:py-3",
         "border-t-2",
         topBorder
       )}
     >
-      <p className="flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground">
-        <span>{label}</span>
-        <MetricHint title={label} hint={hint} />
+      <p className="flex min-w-0 items-start justify-center gap-1 px-0.5 text-[10px] font-medium leading-snug text-muted-foreground sm:items-center sm:text-xs">
+        <span className="text-center text-balance">
+          {labelShort ? (
+            <>
+              <span className="sm:hidden">{labelShort}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </>
+          ) : (
+            label
+          )}
+        </span>
+        <MetricHint title={displayLabel} hint={hint} />
       </p>
-      <p
+      <div
         className={cn(
-          "mt-1.5 text-balance text-center font-semibold",
+          "mt-1.5 flex min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-balance text-center font-semibold",
           valueTitle
             ? statValueFontClass(valueTitle, largeValue)
             : largeValue
@@ -89,7 +107,7 @@ function Stat({
         title={valueTitle}
       >
         {value}
-      </p>
+      </div>
       {subValue ? (
         <p className="mt-0.5 text-center text-xs text-muted-foreground">{subValue}</p>
       ) : null}
@@ -97,14 +115,11 @@ function Stat({
   );
 }
 
-function tradeCountLabel(count: number) {
-  return `${count} ${count === 1 ? "trade" : "trades"}`;
-}
-
 export const JournalSummaryBar = memo(function JournalSummaryBar({
   summary,
   livePnl,
   filteredPnl,
+  openPositionsNetPnl,
   livePnlLoading,
   liveDataReady = true,
   displayCurrency = DEFAULT_CURRENCY,
@@ -148,8 +163,27 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
       ? formatCurrency(filteredValue, displayCurrency)
       : filteredValue;
 
+  const openPnlNumeric = openPositionsNetPnl?.totalPnl ?? 0;
+  const openActiveCount = openPositionsNetPnl?.activeCount ?? 0;
+  const hasOpenPositions = openActiveCount > 0;
+  const openPnlValue = !liveDataReady
+    ? "…"
+    : !hasOpenPositions
+      ? formatCurrency(0, displayCurrency)
+      : openPnlNumeric;
+
+  const openPnlUp = openPnlNumeric > 0;
+  const openPnlDown = openPnlNumeric < 0;
+  const openPnlRoi = openPositionsNetPnl?.totalRoi ?? null;
+  const openPnlValueTitle =
+    typeof openPnlValue === "number"
+      ? openPnlRoi != null
+        ? `${formatCurrency(openPnlValue, displayCurrency)} (${openPnlRoi >= 0 ? "+" : ""}${openPnlRoi.toFixed(2)}%)`
+        : formatCurrency(openPnlValue, displayCurrency)
+      : openPnlValue;
+
   return (
-    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr))]">
+    <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
       <Stat
         label="Daily P/L"
         hint="Combined price change today across open positions vs prior close (or from entry on day one). Updates live during market hours."
@@ -232,13 +266,54 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
         label="Total invested"
         hint="Total capital deployed in open positions (entry price × quantity)."
         value={formatMarketPrice(summary.totalInvested, displayCurrency)}
-        subValue={tradeCountLabel(summary.activeCount)}
+      />
+      <Stat
+        label="Net P/L across open positions"
+        labelShort="Open net P&L"
+        hint="Sum of the Net P&L values shown for each row in the active trade log."
+        value={
+          typeof openPnlValue === "number" ? (
+            <>
+              <AnimatedNumber
+                value={openPnlValue}
+                format={(amount) => formatCurrency(amount, displayCurrency)}
+              />
+              {openPnlRoi != null ? (
+                <span className="text-[11px] font-medium opacity-80 sm:text-xs">
+                  ({openPnlRoi >= 0 ? "+" : ""}
+                  {openPnlRoi.toFixed(2)}%)
+                </span>
+              ) : null}
+            </>
+          ) : (
+            openPnlValue
+          )
+        }
+        valueTitle={openPnlValueTitle}
+        largeValue
+        accent={
+          !liveDataReady || !hasOpenPositions
+            ? "slate"
+            : openPnlUp
+              ? "emerald"
+              : openPnlDown
+                ? "rose"
+                : "slate"
+        }
+        valueClass={
+          !liveDataReady || !hasOpenPositions
+            ? undefined
+            : openPnlUp
+              ? "text-emerald-700 dark:text-emerald-400"
+              : openPnlDown
+                ? "text-rose-700 dark:text-rose-400"
+                : undefined
+        }
       />
       <Stat
         label="Total win"
         hint="Sum of all positive P&L from winning trades in your current filter."
         value={formatCurrency(summary.totalWin, displayCurrency)}
-        subValue={tradeCountLabel(summary.winningTrades)}
         accent={summary.totalWin > 0 ? "emerald" : "slate"}
         valueClass={
           summary.totalWin > 0
@@ -250,7 +325,6 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
         label="Total loss"
         hint="Sum of all losses from losing trades in your current filter, shown as a negative amount."
         value={formatCurrency(-summary.totalLoss, displayCurrency)}
-        subValue={tradeCountLabel(summary.losingTrades)}
         accent={summary.totalLoss > 0 ? "rose" : "slate"}
         valueClass={
           summary.totalLoss > 0

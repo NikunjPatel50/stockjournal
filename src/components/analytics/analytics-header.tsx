@@ -96,8 +96,8 @@ export function AnalyticsHeader({
       />
 
       <div className="relative z-20 min-w-0 w-full">
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain pb-0.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain pb-0.5 sm:flex-1">
             <TimeframeSegmentedControl
               value={filters.timeframe}
               onChange={setTimeframe}
@@ -110,7 +110,7 @@ export function AnalyticsHeader({
             <Button
               size="sm"
               className={cn(
-                "shrink-0 gap-1.5 shadow-none",
+                "w-full shrink-0 gap-1.5 shadow-none sm:w-auto",
                 isMobile ? "h-9" : "h-10"
               )}
               onClick={onLogTrade}

@@ -129,8 +129,9 @@ export function JournalHeader({
       <AppPageHeader title="Journal" />
 
       <div className="min-w-0 rounded-lg border border-border bg-card shadow-none">
-        <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain p-3 sm:gap-3 sm:p-4">
-          <div className="relative w-44 shrink-0 sm:w-52 lg:w-60">
+        <div className="flex flex-col gap-3 p-3 sm:p-4 xl:flex-row xl:items-center xl:gap-3">
+          <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain sm:gap-3">
+            <div className="relative w-40 shrink-0 sm:w-52 lg:w-60">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={filters.search}
@@ -188,18 +189,20 @@ export function JournalHeader({
             size="sm"
             className="h-9 shrink-0 gap-1.5"
             onClick={onExportCsv}
+            aria-label="Export CSV"
           >
             <Download className="size-3.5" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             className="h-9 shrink-0 gap-1.5"
             onClick={() => fileRef.current?.click()}
+            aria-label="Import CSV"
           >
             <Upload className="size-3.5" />
-            Import
+            <span className="hidden sm:inline">Import</span>
           </Button>
           <input
             ref={fileRef}
@@ -216,12 +219,14 @@ export function JournalHeader({
             size="sm"
             className="h-9 shrink-0 gap-1.5"
             onClick={onLogTrade}
+            aria-label="Log trade"
           >
             <Plus className="size-3.5" />
-            Log trade
+            <span className="hidden sm:inline">Log trade</span>
           </Button>
+          </div>
 
-          <div className="ml-auto shrink-0 pl-1">
+          <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain xl:w-auto xl:shrink-0">
             <TimeframeSegmentedControl
               value={filters.timeframe}
               onChange={(timeframe: AnalyticsTimeframe) =>

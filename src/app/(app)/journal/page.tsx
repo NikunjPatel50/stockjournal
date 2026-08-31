@@ -29,7 +29,7 @@ import {
   type JournalTrade,
 } from "@/lib/journal-types";
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
-import { computeFilteredPnl } from "@/lib/trade-pnl";
+import { computeFilteredPnl, computeOpenPositionsNetPnl } from "@/lib/trade-pnl";
 import { useJournalTrades } from "@/components/journal-trades-provider";
 import {
   useJournalMarket,
@@ -156,6 +156,10 @@ export default function JournalPage() {
     () =>
       computeFilteredPnl(filtered, getQuote, activeCurrency),
     [filtered, getQuote, quoteRevision, activeCurrency]
+  );
+  const openPositionsNetPnl = useMemo(
+    () => computeOpenPositionsNetPnl(activeTrades, getQuote, activeCurrency),
+    [activeTrades, getQuote, quoteRevision, activeCurrency]
   );
 
   function handleSave(trade: JournalTrade) {
@@ -354,6 +358,7 @@ export default function JournalPage() {
         summary={summary}
         livePnl={livePnl}
         filteredPnl={filteredPnl}
+        openPositionsNetPnl={openPositionsNetPnl}
         livePnlLoading={livePnl.loading || livePnl.quotesLoading}
         liveDataReady={tradesHydrated}
         displayCurrency={activeCurrency}

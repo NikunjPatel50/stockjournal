@@ -216,6 +216,52 @@ export function computeFilteredPnl(
   };
 }
 
+export type OpenPositionsNetPnlSummary = {
+  totalPnl: number;
+  totalRoi: number | null;
+  activeCount: number;
+  pricedCount: number;
+};
+
+/** Sum of Net P&L column values for open positions (matches journal table rows). */
+export function computeOpenPositionsNetPnl(
+  trades: JournalTrade[],
+  getQuote: (trade: JournalTrade) => QuoteForPnl | null,
+  defaultCurrency: CurrencyCode
+): OpenPositionsNetPnlSummary {
+  let totalPnl = 0;
+  let totalInvested = 0;
+  let activeCount = 0;
+  let pricedCount = 0;
+
+  for (const trade of trades) {
+    if ((trade.status ?? "Closed") !== "Active") continue;
+    activeCount += 1;
+    const invested = trade.entryPrice * trade.quantity;
+    if (invested > 0) totalInvested += invested;
+
+    const display = resolveTradePnlDisplay(
+      trade,
+      getQuote(trade),
+      defaultCurrency
+    );
+    totalPnl += display.pnl;
+    if (display.isUnrealized) pricedCount += 1;
+  }
+
+  const roundedPnl = Math.round(totalPnl * 100) / 100;
+
+  return {
+    totalPnl: roundedPnl,
+    totalRoi:
+      totalInvested > 0
+        ? Math.round((roundedPnl / totalInvested) * 10000) / 100
+        : null,
+    activeCount,
+    pricedCount,
+  };
+}
+
 /** Entry notional as a share of total capital deployed in open positions. */
 export function computePositionPortfolioPct(
   trade: JournalTrade,
