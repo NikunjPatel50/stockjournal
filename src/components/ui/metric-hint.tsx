@@ -24,9 +24,10 @@ type MetricHintProps = {
   title: string;
   hint: string;
   size?: "sm" | "md";
+  className?: string;
 };
 
-export function MetricHint({ title, hint, size = "sm" }: MetricHintProps) {
+export function MetricHint({ title, hint, size = "sm", className }: MetricHintProps) {
   const hintText = normalizeHintText(hint);
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: TOOLTIP_MAX_WIDTH });
@@ -82,13 +83,16 @@ export function MetricHint({ title, hint, size = "sm" }: MetricHintProps) {
     };
   }, [open, updatePosition]);
 
-  const buttonSize = size === "md" ? "size-5" : "size-4";
-  const iconSize = size === "md" ? "size-3.5" : "size-3";
+  const buttonSize = size === "md" ? "size-5" : "size-3.5";
+  const iconSize = size === "md" ? "size-3.5" : "size-2.5";
 
   return (
     <>
       <span
-        className="relative inline-flex align-middle"
+        className={cn(
+          "relative inline-flex shrink-0 items-center justify-center leading-none",
+          className
+        )}
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}

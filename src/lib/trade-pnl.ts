@@ -318,3 +318,33 @@ export function computeActivePortfolioWeights(
 
   return new Map(floored.map((r) => [r.id, r.tenths / 10]));
 }
+
+export type OpenPositionsPlannedProfitLossSummary = {
+  totalPlannedProfit: number;
+  /** Signed sum of P&L if each open position hits its stop. */
+  totalPlannedLoss: number;
+  activeCount: number;
+};
+
+/** Static planned reward/risk totals from entry, target, and stop on open positions. */
+export function computeOpenPositionsPlannedProfitLoss(
+  trades: JournalTrade[]
+): OpenPositionsPlannedProfitLossSummary {
+  let totalPlannedProfit = 0;
+  let totalPlannedLoss = 0;
+  let activeCount = 0;
+
+  for (const trade of trades) {
+    if ((trade.status ?? "Closed") !== "Active") continue;
+    activeCount += 1;
+    const { maxProfit, maxLoss } = plannedMaxProfitLoss(trade);
+    if (maxProfit != null) totalPlannedProfit += maxProfit;
+    if (maxLoss != null) totalPlannedLoss += maxLoss;
+  }
+
+  return {
+    totalPlannedProfit: Math.round(totalPlannedProfit * 100) / 100,
+    totalPlannedLoss: Math.round(totalPlannedLoss * 100) / 100,
+    activeCount,
+  };
+}
