@@ -21,13 +21,46 @@ export function setLocalTradesSyncTime(userId: string, ms: number) {
   localStorage.setItem(`${LOCAL_SYNC_META_PREFIX}${userId}`, String(ms));
 }
 
-function effectiveLocalSyncTime(
-  localTrades: JournalTrade[],
-  localTime: number
-): number {
-  if (localTrades.length === 0) return localTime;
-  if (localTime > 0) return localTime;
-  return Date.now();
+function effectiveLocalSyncTime(localTime: number): number {
+  return localTime;
+}
+
+function isActiveTrade(trade: JournalTrade): boolean {
+  return (trade.status ?? "Closed") === "Active";
+}
+
+function isClosedTradeWithExit(trade: JournalTrade): boolean {
+  return (trade.status ?? "Closed") === "Closed" && trade.exitPrice > 0;
+}
+
+/** Prefer a real closed exit over a stale active copy when snapshots disagree. */
+export function mergeJournalTradePair(
+  local: JournalTrade,
+  remote: JournalTrade,
+  localTime: number,
+  remoteTime: number
+): JournalTrade {
+  const localClosed = isClosedTradeWithExit(local);
+  const remoteClosed = isClosedTradeWithExit(remote);
+  const localActive = isActiveTrade(local);
+  const remoteActive = isActiveTrade(remote);
+
+  if (remoteClosed && localActive) return remote;
+  if (localClosed && remoteActive) return local;
+
+  if (localClosed && remoteClosed) {
+    const localExitMs = Date.parse(local.exitDate);
+    const remoteExitMs = Date.parse(remote.exitDate);
+    if (
+      Number.isFinite(localExitMs) &&
+      Number.isFinite(remoteExitMs) &&
+      localExitMs !== remoteExitMs
+    ) {
+      return localExitMs >= remoteExitMs ? local : remote;
+    }
+  }
+
+  return localTime >= remoteTime ? local : remote;
 }
 
 function mergeTradesByRecency(
@@ -43,14 +76,25 @@ function mergeTradesByRecency(
     return localTime >= remoteTime ? local : remote;
   }
 
-  const [older, newer] =
-    localTime <= remoteTime ? [local, remote] : [remote, local];
+  const localById = new Map(local.map((trade) => [trade.id, trade]));
+  const remoteById = new Map(remote.map((trade) => [trade.id, trade]));
+  const merged: JournalTrade[] = [];
 
-  const map = new Map<string, JournalTrade>();
-  for (const t of older) map.set(t.id, t);
-  for (const t of newer) map.set(t.id, t);
+  for (const id of new Set([...localById.keys(), ...remoteById.keys()])) {
+    const localTrade = localById.get(id);
+    const remoteTrade = remoteById.get(id);
 
-  return Array.from(map.values());
+    if (localTrade && remoteTrade) {
+      merged.push(
+        mergeJournalTradePair(localTrade, remoteTrade, localTime, remoteTime)
+      );
+      continue;
+    }
+
+    merged.push(localTrade ?? remoteTrade!);
+  }
+
+  return merged;
 }
 
 export async function pullTradesFromCloud(): Promise<{
@@ -83,7 +127,7 @@ export async function syncJournalTradesWithCloud(
   localTrades: JournalTrade[]
 ): Promise<JournalTrade[]> {
   const localTime = getLocalTradesSyncTime(userId);
-  const localEffective = effectiveLocalSyncTime(localTrades, localTime);
+  const localEffective = effectiveLocalSyncTime(localTime);
   const cloud = await pullTradesFromCloud();
 
   if (!cloud) return localTrades;

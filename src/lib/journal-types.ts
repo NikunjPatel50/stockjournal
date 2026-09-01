@@ -112,11 +112,45 @@ function normalizeAssetClass(value: unknown): AssetClass {
   return "Equities";
 }
 
+function inferClosedFieldsFromExecutions(
+  trade: JournalTrade
+): { exitPrice: number; exitDate: string } | null {
+  const exits =
+    trade.executions?.filter((fill) => fill.side === "Exit" && fill.price > 0) ??
+    [];
+  if (exits.length === 0) return null;
+
+  const lastExit = exits[exits.length - 1];
+  return {
+    exitPrice: lastExit.price,
+    exitDate: lastExit.time || trade.exitDate,
+  };
+}
+
 export function normalizeJournalTrade(
   trade: JournalTrade,
   defaultCurrency: CurrencyCode = DEFAULT_CURRENCY
 ): JournalTrade {
-  const status = trade.status === "Active" ? "Active" : "Closed";
+  let status: JournalTradeStatus =
+    trade.status === "Active" ? "Active" : "Closed";
+  let exitPrice = trade.exitPrice;
+  let exitDate = trade.exitDate;
+
+  if (status === "Active") {
+    if (trade.exitPrice > 0) {
+      status = "Closed";
+    } else {
+      const inferred = inferClosedFieldsFromExecutions(trade);
+      if (inferred) {
+        status = "Closed";
+        exitPrice = inferred.exitPrice;
+        exitDate = inferred.exitDate;
+      } else {
+        exitPrice = 0;
+      }
+    }
+  }
+
   return {
     ...trade,
     ticker: String(trade.ticker ?? "").trim(),
@@ -126,7 +160,8 @@ export function normalizeJournalTrade(
         ? normalizeListingMarket(trade.listingMarket)
         : defaultListingMarketForCurrency(defaultCurrency),
     status,
-    exitPrice: status === "Active" ? 0 : trade.exitPrice,
+    exitDate,
+    exitPrice: status === "Active" ? 0 : exitPrice,
   };
 }
 
