@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { MetricHint } from "@/components/ui/metric-hint";
 import {
+  AnimatedCurrency,
   AnimatedNumber,
   AnimatedPercent,
   AnimatedValue,
@@ -347,16 +348,18 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
               {typeof openPnlValue === "number" ? (
                 <span
                   className={cn(
-                    "shrink-0 text-sm font-semibold tabular-nums sm:text-base",
+                    "shrink-0 text-sm font-semibold sm:text-base",
                     NUMERIC_DISPLAY_CLASS,
                     toneValueClass(openTone)
                   )}
                 >
-                  {formatCurrency(openPnlValue, displayCurrency)}
+                  <AnimatedCurrency
+                    value={openPnlValue}
+                    currency={displayCurrency}
+                  />
                   {openPnlRoi != null ? (
                     <span className="ml-1 font-medium text-muted-foreground">
-                      ({openPnlRoi >= 0 ? "+" : ""}
-                      {openPnlRoi.toFixed(2)}%)
+                      (<AnimatedPercent value={openPnlRoi} decimals={2} />)
                     </span>
                   ) : null}
                 </span>
@@ -384,9 +387,9 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             value={
               typeof openPnlValue === "number" ? (
                 <>
-                  <AnimatedNumber
+                  <AnimatedCurrency
                     value={openPnlValue}
-                    format={(amount) => formatCurrency(amount, displayCurrency)}
+                    currency={displayCurrency}
                   />
                   {openPnlRoi != null ? (
                     <span className="text-sm font-medium text-muted-foreground sm:text-base">

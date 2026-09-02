@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { isScrollActive, onScrollEnd } from "@/lib/scroll-activity";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
@@ -51,6 +52,8 @@ type QuotesState = {
 
 export type MarketQuotesValue = {
   getQuote: (trade: JournalTrade) => ClientMarketQuote | null;
+  /** Subscribe to updates for a single symbol key (ticker + asset class). */
+  subscribeQuoteKey: (key: string, listener: () => void) => () => void;
   loading: boolean;
   error: string | null;
   fetchedAt: number | null;
@@ -115,6 +118,45 @@ function quotesPayloadChanged(
   return false;
 }
 
+function quotesEqual(
+  a: ClientMarketQuote | null | undefined,
+  b: ClientMarketQuote | null | undefined
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  return (
+    a.price === b.price &&
+    a.changePercent === b.changePercent &&
+    a.isLive === b.isLive &&
+    a.timestamp === b.timestamp &&
+    a.currency === b.currency
+  );
+}
+
+/** Merge incoming quotes while preserving object identity for unchanged symbols. */
+function mergeQuotesPreservingRefs(
+  prev: Record<string, ClientMarketQuote | null>,
+  incoming: Record<string, ClientMarketQuote | null>
+): {
+  merged: Record<string, ClientMarketQuote | null>;
+  changedKeys: string[];
+} {
+  const merged = { ...prev };
+  const changedKeys: string[] = [];
+
+  for (const [key, next] of Object.entries(incoming)) {
+    const prevQuote = prev[key];
+    if (quotesEqual(prevQuote, next)) {
+      if (prevQuote != null) merged[key] = prevQuote;
+      continue;
+    }
+    merged[key] = next ?? null;
+    changedKeys.push(key);
+  }
+
+  return { merged, changedKeys };
+}
+
 function clearPollTimers(
   pollTimerRef: { current: number | null },
   boundaryTimerRef: { current: number | null }
@@ -171,6 +213,8 @@ export function useMarketQuotesPoller(
   const schedulePollRef = useRef<(() => void) | null>(null);
   const quoteRevisionRef = useRef(0);
   const [quoteRevision, setQuoteRevision] = useState(0);
+  const keyListenersRef = useRef(new Map<string, Set<() => void>>());
+  const sessionAdjustedRef = useRef(new Map<string, ClientMarketQuote>());
   const pendingQuotePatchRef = useRef<{
     quotes: Record<string, ClientMarketQuote | null>;
     fetchedAt: number;
@@ -178,24 +222,76 @@ export function useMarketQuotesPoller(
     sessionOpen: boolean;
   } | null>(null);
 
+  const notifyQuoteKeys = useCallback((keys: string[]) => {
+    for (const key of keys) {
+      const listeners = keyListenersRef.current.get(key);
+      if (!listeners) continue;
+      for (const listener of listeners) listener();
+    }
+  }, []);
+
+  const subscribeQuoteKey = useCallback((key: string, listener: () => void) => {
+    let listeners = keyListenersRef.current.get(key);
+    if (!listeners) {
+      listeners = new Set();
+      keyListenersRef.current.set(key, listeners);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners?.delete(listener);
+      if (listeners && listeners.size === 0) {
+        keyListenersRef.current.delete(key);
+      }
+    };
+  }, []);
+
+  const applyQuoteUpdates = useCallback(
+    (
+      incoming: Record<string, ClientMarketQuote | null>,
+      meta: {
+        fetchedAt: number;
+        delayed: boolean;
+        sessionOpen: boolean;
+      }
+    ) => {
+      const { merged, changedKeys } = mergeQuotesPreservingRefs(
+        quotesRef.current,
+        incoming
+      );
+      if (changedKeys.length === 0) return false;
+
+      for (const key of changedKeys) {
+        sessionAdjustedRef.current.delete(`${key}:closed`);
+      }
+
+      quotesRef.current = merged;
+      setState((prev) => ({
+        ...prev,
+        quotes: merged,
+        loading: false,
+        error: null,
+        fetchedAt: meta.fetchedAt,
+        delayed: meta.delayed,
+        sessionOpen: meta.sessionOpen,
+      }));
+      quoteRevisionRef.current += 1;
+      setQuoteRevision(quoteRevisionRef.current);
+      notifyQuoteKeys(changedKeys);
+      return true;
+    },
+    [notifyQuoteKeys]
+  );
+
   const flushPendingQuotes = useCallback(() => {
     const pending = pendingQuotePatchRef.current;
     if (!pending) return;
     pendingQuotePatchRef.current = null;
-    const merged = { ...quotesRef.current, ...pending.quotes };
-    quotesRef.current = merged;
-    setState((prev) => ({
-      ...prev,
-      quotes: merged,
-      loading: false,
-      error: null,
+    applyQuoteUpdates(pending.quotes, {
       fetchedAt: pending.fetchedAt,
       delayed: pending.delayed,
       sessionOpen: pending.sessionOpen,
-    }));
-    quoteRevisionRef.current += 1;
-    setQuoteRevision(quoteRevisionRef.current);
-  }, []);
+    });
+  }, [applyQuoteUpdates]);
 
   useEffect(() => onScrollEnd(flushPendingQuotes), [flushPendingQuotes]);
 
@@ -322,18 +418,11 @@ export function useMarketQuotesPoller(
           sessionOpen: sessionOpenAtFetch,
         }));
       } else {
-        const merged = { ...quotesRef.current, ...incoming };
-        quotesRef.current = merged;
-        setState(() => ({
-          quotes: merged,
-          loading: false,
-          error: null,
+        applyQuoteUpdates(incoming, {
           fetchedAt,
           delayed: data.delayed !== false,
           sessionOpen: sessionOpenAtFetch,
-        }));
-        quoteRevisionRef.current += 1;
-        setQuoteRevision(quoteRevisionRef.current);
+        });
       }
 
       const nowOpen = sessionOpenAtFetch;
@@ -422,10 +511,21 @@ export function useMarketQuotesPoller(
 
       if (sessionOpen) return quote;
 
-      return {
-        ...quote,
-        isLive: false,
-      };
+      const cacheKey = `${key}:closed`;
+      const cached = sessionAdjustedRef.current.get(cacheKey);
+      if (
+        cached &&
+        cached.price === quote.price &&
+        cached.changePercent === quote.changePercent &&
+        cached.timestamp === quote.timestamp &&
+        cached.isLive === false
+      ) {
+        return cached;
+      }
+
+      const adjusted = { ...quote, isLive: false };
+      sessionAdjustedRef.current.set(cacheKey, adjusted);
+      return adjusted;
     },
     [currency]
   );
@@ -433,6 +533,7 @@ export function useMarketQuotesPoller(
   return useMemo(
     () => ({
       getQuote,
+      subscribeQuoteKey,
       loading: enabled ? state.loading : false,
       error: enabled ? state.error : null,
       fetchedAt: state.fetchedAt,
@@ -451,7 +552,36 @@ export function useMarketQuotesPoller(
       state.fetchedAt,
       state.loading,
       state.sessionOpen,
+      subscribeQuoteKey,
     ]
+  );
+}
+
+/** Re-render only when this trade's quote changes — not on every market tick. */
+export function useTradeQuote(
+  trade: JournalTrade,
+  currency: CurrencyCode = DEFAULT_CURRENCY
+): ClientMarketQuote | null {
+  const context = useContext(MarketQuotesContext);
+  if (!context) {
+    throw new Error(
+      "useTradeQuote must be used within MarketQuotesProvider"
+    );
+  }
+
+  const key = useMemo(
+    () =>
+      quoteLookupKey(
+        trade.ticker,
+        normalizeQuoteAssetClass(trade.assetClass)
+      ),
+    [trade.ticker, trade.assetClass]
+  );
+
+  return useSyncExternalStore(
+    (onStoreChange) => context.subscribeQuoteKey(key, onStoreChange),
+    () => context.getQuote(trade),
+    () => null
   );
 }
 

@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
 import {
   computeIndexPriceChange,
   formatIndexPrice,
@@ -55,17 +56,16 @@ function ChangeCell({ value }: { value: number | null | undefined }) {
   const down = value < 0;
 
   return (
-    <span
+    <AnimatedPercent
+      value={value}
+      decimals={2}
       className={cn(
-        "font-medium tabular-nums",
+        "font-medium",
         up && "text-emerald-700 dark:text-emerald-400",
         down && "text-rose-700 dark:text-rose-400",
         !up && !down && "text-muted-foreground"
       )}
-    >
-      {value >= 0 ? "+" : ""}
-      {value.toFixed(2)}%
-    </span>
+    />
   );
 }
 
@@ -87,16 +87,50 @@ function PriceChangeCell({
   const down = change < 0;
 
   return (
-    <span
+    <AnimatedNumber
+      value={change}
+      format={(latest) => formatIndexPriceChange(latest, currency)}
       className={cn(
-        "font-medium tabular-nums",
+        "font-medium",
         up && "text-emerald-700 dark:text-emerald-400",
         down && "text-rose-700 dark:text-rose-400",
         !up && !down && "text-muted-foreground"
       )}
-    >
-      {formatIndexPriceChange(change, currency)}
-    </span>
+    />
+  );
+}
+
+function IndexPrice({
+  price,
+  currency,
+  className,
+}: {
+  price: number;
+  currency: string;
+  className?: string;
+}) {
+  return (
+    <AnimatedNumber
+      value={price}
+      format={(amount) => formatIndexPrice(amount, currency)}
+      className={className}
+    />
+  );
+}
+
+function OhlcValue({
+  value,
+  currency,
+}: {
+  value: number;
+  currency: string;
+}) {
+  return (
+    <AnimatedNumber
+      value={value}
+      format={(amount) => formatIndexPrice(amount, currency)}
+      className="truncate font-medium"
+    />
   );
 }
 
@@ -201,8 +235,10 @@ export function MarketIndicesDetailDialog({
                         {pending ? (
                           <span className="inline-block h-4 w-24 animate-pulse rounded bg-muted" />
                         ) : quote ? (
-                          quote.formattedPrice ||
-                          formatIndexPrice(quote.price, quote.currency)
+                          <IndexPrice
+                            price={quote.price}
+                            currency={quote.currency}
+                          />
                         ) : (
                           "—"
                         )}
@@ -222,18 +258,21 @@ export function MarketIndicesDetailDialog({
                       <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/30 p-2.5 text-xs">
                         {(
                           [
-                            ["Open", quote.ohlc.formatted.open],
-                            ["High", quote.ohlc.formatted.high],
-                            ["Low", quote.ohlc.formatted.low],
-                            ["Close", quote.ohlc.formatted.close],
+                            ["Open", quote.ohlc.open],
+                            ["High", quote.ohlc.high],
+                            ["Low", quote.ohlc.low],
+                            ["Close", quote.ohlc.close],
                           ] as const
                         ).map(([label, value]) => (
                           <div key={label} className="min-w-0 text-center">
                             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                               {label}
                             </p>
-                            <p className="mt-0.5 truncate font-medium tabular-nums">
-                              {value}
+                            <p className="mt-0.5 truncate tabular-nums">
+                              <OhlcValue
+                                value={value}
+                                currency={quote.currency}
+                              />
                             </p>
                           </div>
                         ))}
@@ -315,8 +354,10 @@ export function MarketIndicesDetailDialog({
                         {pending ? (
                           <span className="mx-auto block h-4 w-20 animate-pulse rounded bg-muted" />
                         ) : quote ? (
-                          quote.formattedPrice ||
-                          formatIndexPrice(quote.price, quote.currency)
+                          <IndexPrice
+                            price={quote.price}
+                            currency={quote.currency}
+                          />
                         ) : (
                           "—"
                         )}
@@ -342,16 +383,44 @@ export function MarketIndicesDetailDialog({
                         )}
                       </TableCell>
                       <TableCell className={numericCellClass}>
-                        {quote?.ohlc?.formatted.open ?? "—"}
+                        {quote?.ohlc ? (
+                          <OhlcValue
+                            value={quote.ohlc.open}
+                            currency={quote.currency}
+                          />
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className={numericCellClass}>
-                        {quote?.ohlc?.formatted.high ?? "—"}
+                        {quote?.ohlc ? (
+                          <OhlcValue
+                            value={quote.ohlc.high}
+                            currency={quote.currency}
+                          />
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className={numericCellClass}>
-                        {quote?.ohlc?.formatted.low ?? "—"}
+                        {quote?.ohlc ? (
+                          <OhlcValue
+                            value={quote.ohlc.low}
+                            currency={quote.currency}
+                          />
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className={numericCellClass}>
-                        {quote?.ohlc?.formatted.close ?? "—"}
+                        {quote?.ohlc ? (
+                          <OhlcValue
+                            value={quote.ohlc.close}
+                            currency={quote.currency}
+                          />
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell
                         className={cn(cellClass, "font-mono text-xs text-muted-foreground")}

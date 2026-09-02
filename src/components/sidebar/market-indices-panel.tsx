@@ -19,6 +19,7 @@ import {
   type MarketSessionCountdown,
 } from "@/lib/listing-market-hours";
 import { cn } from "@/lib/utils";
+import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
 import { Button } from "@/components/ui/button";
 import { Maximize2 } from "lucide-react";
 
@@ -103,17 +104,16 @@ function ChangeText({ value }: { value: number | null | undefined }) {
   const down = value < 0;
 
   return (
-    <span
+    <AnimatedPercent
+      value={value}
+      decimals={2}
       className={cn(
-        "font-medium tabular-nums",
+        "font-medium",
         up && "text-emerald-700 dark:text-emerald-400",
         down && "text-rose-700 dark:text-rose-400",
         !up && !down && "text-muted-foreground"
       )}
-    >
-      {value >= 0 ? "+" : ""}
-      {value.toFixed(2)}%
-    </span>
+    />
   );
 }
 
@@ -356,19 +356,18 @@ export function MarketIndicesPanel() {
                             <span className="inline-block h-3 w-12 animate-pulse rounded bg-muted" />
                           ) : quote ? (
                             <>
-                              <span
+                              <AnimatedNumber
+                                value={quote.price}
+                                format={(amount) =>
+                                  formatIndexPriceCompact(amount, quote.currency)
+                                }
                                 className={cn(
                                   "font-semibold",
                                   marketOpen
                                     ? "text-foreground"
                                     : "text-muted-foreground"
                                 )}
-                              >
-                                {formatIndexPriceCompact(
-                                  quote.price,
-                                  quote.currency
-                                )}
-                              </span>
+                              />
                               <ChangeText value={quote.changePercent} />
                             </>
                           ) : (

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -24,7 +24,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
+import {
+  AnimatedCurrency,
+  AnimatedNumber,
+  AnimatedPercent,
+} from "@/components/ui/animated-number";
 import {
   Select,
   SelectContent,
@@ -58,7 +62,7 @@ import { JournalColumnsMenu } from "@/components/journal/journal-columns-menu";
 import { MarketSessionTimer } from "@/components/journal/market-session-timer";
 import { TargetStopProgressBar } from "@/components/journal/target-stop-progress-bar";
 import { useEarningsDates } from "@/hooks/use-earnings-dates";
-import { useMarketQuotes, type ClientMarketQuote } from "@/hooks/use-market-quotes";
+import { useMarketQuotes, useTradeQuote, type ClientMarketQuote } from "@/hooks/use-market-quotes";
 import { useIsJournalCompact, useIsMobile } from "@/hooks/use-media-query";
 import type { CurrencyCode } from "@/lib/settings";
 import { parseEarningsDisplayDate, type EarningsDateInfo } from "@/lib/yahoo-earnings";
@@ -181,6 +185,330 @@ function compactRowAccentClass(trade: JournalTrade, livePnl?: number) {
     rowAccentBorderColor(trade, livePnl)
   );
 }
+
+function LiveRowColorLegend({
+  trades,
+  displayCurrency,
+}: {
+  trades: JournalTrade[];
+  displayCurrency: CurrencyCode;
+}) {
+  const { getQuote, quoteRevision } = useMarketQuotes();
+  const counts = useMemo(() => {
+    const result = { profit: 0, loss: 0, stopAboveEntry: 0 };
+    for (const trade of trades) {
+      const isActive = (trade.status ?? "Closed") === "Active";
+      const livePnl = isActive
+        ? resolveTradePnlDisplay(trade, getQuote(trade), displayCurrency).pnl
+        : undefined;
+      const category = resolveRowAccentCategory(trade, livePnl);
+      if (category) result[category] += 1;
+    }
+    return result;
+  }, [trades, getQuote, quoteRevision, displayCurrency]);
+
+  return <RowColorLegend counts={counts} />;
+}
+
+function LiveTargetStopCell({
+  trade,
+  displayCurrency,
+  quotesLoading,
+}: {
+  trade: JournalTrade;
+  displayCurrency: CurrencyCode;
+  quotesLoading: boolean;
+}) {
+  const quote = useTradeQuote(trade, displayCurrency);
+  const isActive = (trade.status ?? "Closed") === "Active";
+  const currentPrice = isActive
+    ? (quote?.price ?? null)
+    : trade.exitPrice > 0
+      ? trade.exitPrice
+      : null;
+
+  return (
+    <TargetStopProgressBar
+      trade={trade}
+      currentPrice={currentPrice}
+      loading={isActive && quotesLoading && currentPrice == null}
+    />
+  );
+}
+
+const MemoLiveTargetStopCell = memo(LiveTargetStopCell);
+
+function LiveCompactTradeCard({
+  trade,
+  displayCurrency,
+  expanded,
+  quotesLoading,
+  earnings,
+  earningsLoading,
+  portfolioPct,
+  onToggleExpand,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  onPartialExit,
+  holdNow,
+  touchFriendly,
+}: {
+  trade: JournalTrade;
+  displayCurrency: CurrencyCode;
+  expanded: boolean;
+  quotesLoading: boolean;
+  earnings: EarningsDateInfo | null;
+  earningsLoading: boolean;
+  portfolioPct: number | null;
+  onToggleExpand: () => void;
+  onEdit: (t: JournalTrade) => void;
+  onDuplicate: (t: JournalTrade) => void;
+  onDelete: (ids: string[]) => void;
+  onPartialExit?: (t: JournalTrade) => void;
+  holdNow: number;
+  touchFriendly: boolean;
+}) {
+  const quote = useTradeQuote(trade, displayCurrency);
+  const pnlDisplay = resolveTradePnlDisplay(trade, quote, displayCurrency);
+  const dailyInput = toActivePositionPnlInput(trade);
+  const dailyPnl =
+    dailyInput && quote?.price
+      ? computeTradeDailyPnlFromQuote(
+          dailyInput,
+          {
+            price: quote.price,
+            changePercent: quote.changePercent,
+          },
+          displayCurrency
+        )
+      : null;
+  const isActive = (trade.status ?? "Closed") === "Active";
+
+  return (
+    <li>
+      <div className={compactRowAccentClass(trade, pnlDisplay.pnl)}>
+        <div className="flex items-start gap-2 px-3 py-3 sm:px-4 sm:py-4">
+          <button
+            type="button"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground sm:mt-0.5"
+            aria-expanded={expanded}
+            aria-label={expanded ? "Hide row details" : "Show row details"}
+            onClick={onToggleExpand}
+          >
+            <ChevronRight
+              className={cn(
+                "size-3.5 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
+                expanded && "rotate-90"
+              )}
+            />
+          </button>
+          <button
+            type="button"
+            className="min-w-0 flex-1 text-left"
+            onClick={onToggleExpand}
+          >
+            <div className="flex items-start justify-between gap-2 sm:gap-3">
+              <div className="min-w-0">
+                <span
+                  className={cn(
+                    "text-[15px] font-bold tracking-tight sm:text-base",
+                    NUMERIC_CLASS
+                  )}
+                >
+                  {trade.ticker}
+                </span>
+                <p className="mt-0.5 text-[11px] text-muted-foreground sm:mt-1 sm:text-xs">
+                  {format(new Date(trade.entryDate), "MMM d, yyyy")} · Qty{" "}
+                  {trade.quantity}
+                </p>
+              </div>
+              <div
+                className={cn(
+                  "shrink-0 text-right text-sm font-bold leading-tight",
+                  NUMERIC_CLASS,
+                  pnlDisplay.pnl >= 0
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-rose-700 dark:text-rose-400"
+                )}
+              >
+                <AnimatedCurrency
+                  value={pnlDisplay.pnl}
+                  currency={pnlDisplay.currency}
+                />
+                {dailyPnl != null ? (
+                  <p
+                    className={cn(
+                      "mt-0.5 text-[10px] font-semibold leading-none sm:text-[11px]",
+                      dailyPnl >= 0
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-rose-700 dark:text-rose-400"
+                    )}
+                  >
+                    Daily{" "}
+                    <AnimatedCurrency
+                      value={dailyPnl}
+                      currency={quoteDisplayCurrency(quote, displayCurrency)}
+                    />
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">
+          <div className="space-y-3 rounded-lg border border-border/70 bg-muted/25 p-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Entry / Exit
+                </p>
+                <div className="mt-1 text-left [&_span]:text-left">
+                  <EntryExitValue
+                    entry={trade.entryPrice}
+                    exit={trade.exitPrice}
+                    isActive={isActive}
+                  />
+                </div>
+              </div>
+              <div className="min-w-0 text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Market
+                </p>
+                <div className="mt-1 flex justify-end">
+                  <LivePrice
+                    trade={trade}
+                    loading={isActive && quotesLoading && quote == null}
+                    currency={quoteDisplayCurrency(quote, displayCurrency)}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col items-center">
+              <p className="mb-1.5 w-full max-w-[13rem] text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Target / Stop
+              </p>
+              <TargetStopProgressBar
+                trade={trade}
+                currentPrice={
+                  isActive
+                    ? (quote?.price ?? null)
+                    : trade.exitPrice > 0
+                      ? trade.exitPrice
+                      : null
+                }
+                loading={isActive && quotesLoading && quote?.price == null}
+                compact
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground sm:text-xs">
+              Hold {formatHoldTime(resolveTradeHoldHours(trade, holdNow))}
+              {isActive ? " · live" : ""}
+            </span>
+            <TradeActions
+              trade={trade}
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onPartialExit={onPartialExit}
+              compact
+              touchFriendly={touchFriendly}
+            />
+          </div>
+        </div>
+
+        <JournalRowAccordionPanel open={expanded} className="px-3 py-3 sm:px-4">
+          <RowAccordionDetails
+            trade={trade}
+            quote={quote}
+            displayCurrency={displayCurrency}
+            earnings={earnings}
+            earningsLoading={earningsLoading}
+            portfolioPct={portfolioPct}
+          />
+        </JournalRowAccordionPanel>
+      </div>
+    </li>
+  );
+}
+
+const MemoLiveCompactTradeCard = memo(LiveCompactTradeCard);
+
+function LiveDesktopTradeRow({
+  row,
+  expanded,
+  displayCurrency,
+  onToggleExpand,
+  earnings,
+  earningsLoading,
+  portfolioPct,
+}: {
+  row: ReturnType<
+    ReturnType<typeof useReactTable<JournalTrade>>["getRowModel"]
+  >["rows"][number];
+  expanded: boolean;
+  displayCurrency: CurrencyCode;
+  onToggleExpand: () => void;
+  earnings: EarningsDateInfo | null;
+  earningsLoading: boolean;
+  portfolioPct: number | null;
+}) {
+  const quote = useTradeQuote(row.original, displayCurrency);
+  const livePnl = resolveTradePnlDisplay(
+    row.original,
+    quote,
+    displayCurrency
+  ).pnl;
+  const visibleCellCount = row.getVisibleCells().length;
+
+  return (
+    <Fragment>
+      <tr
+        className={cn(
+          "group cursor-pointer border-b text-center transition-colors",
+          expanded
+            ? "border-border/40 border-l-[3px]"
+            : "border-border/60 border-l-[3px] last:border-b-0",
+          rowAccentClass(row.original, livePnl)
+        )}
+        onClick={onToggleExpand}
+      >
+        {row.getVisibleCells().map((cell) => (
+          <td key={cell.id} className={journalCellClass(cell.column.id)}>
+            <div
+              className={cn(
+                CELL_CENTER,
+                cell.column.id === "expand" && "w-7"
+              )}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </div>
+          </td>
+        ))}
+      </tr>
+      <tr className="border-0">
+        <td colSpan={visibleCellCount} className="p-0 align-top">
+          <JournalRowAccordionPanel open={expanded} className="px-4 py-3">
+            <RowAccordionDetails
+              trade={row.original}
+              quote={quote}
+              displayCurrency={displayCurrency}
+              earnings={earnings}
+              earningsLoading={earningsLoading}
+              portfolioPct={portfolioPct}
+            />
+          </JournalRowAccordionPanel>
+        </td>
+      </tr>
+    </Fragment>
+  );
+}
+
+const MemoLiveDesktopTradeRow = memo(LiveDesktopTradeRow);
 
 function RowColorLegend({
   counts,
@@ -375,13 +703,12 @@ function TradeStatusBadge({ trade }: { trade: JournalTrade }) {
 
 function TradeOutcomeBadge({
   trade,
-  quote,
   displayCurrency,
 }: {
   trade: JournalTrade;
-  quote: ClientMarketQuote | null;
   displayCurrency: CurrencyCode;
 }) {
+  const quote = useTradeQuote(trade, displayCurrency);
   const { pnl: livePnl } = resolveTradePnlDisplay(trade, quote, displayCurrency);
   const isActive = (trade.status ?? "Closed") === "Active";
   const outcome = isActive ? outcomeFromPnl(livePnl) : trade.outcome;
@@ -396,6 +723,8 @@ function TradeOutcomeBadge({
     </Badge>
   );
 }
+
+const MemoTradeOutcomeBadge = memo(TradeOutcomeBadge);
 
 function AccordionDetailCell({
   label,
@@ -584,7 +913,7 @@ function PortfolioWeightValue({
 
   return (
     <span className={cn("text-sm font-medium", NUMERIC_CLASS)}>
-      {portfolioPct.toFixed(1)}%
+      <AnimatedPercent value={portfolioPct} decimals={1} signed={false} />
     </span>
   );
 }
@@ -616,7 +945,6 @@ function RowAccordionDetails({
         <AccordionDetailCell label="Outcome">
           <TradeOutcomeBadge
             trade={trade}
-            quote={quote}
             displayCurrency={displayCurrency}
           />
         </AccordionDetailCell>
@@ -646,13 +974,12 @@ function RowAccordionDetails({
 
 function TradePnlCell({
   trade,
-  quote,
   displayCurrency,
 }: {
   trade: JournalTrade;
-  quote: ClientMarketQuote | null;
   displayCurrency: CurrencyCode;
 }) {
+  const quote = useTradeQuote(trade, displayCurrency);
   const { pnl, roi, currency } = resolveTradePnlDisplay(
     trade,
     quote,
@@ -660,37 +987,35 @@ function TradePnlCell({
   );
 
   return (
-    <p
+    <div
       className={cn(
-        "whitespace-nowrap text-center text-sm font-semibold leading-none",
+        "inline-flex items-baseline justify-center gap-x-1 whitespace-nowrap text-sm font-semibold leading-none",
         pnl >= 0
           ? "text-emerald-700 dark:text-emerald-400"
           : "text-rose-700 dark:text-rose-400"
       )}
     >
-      <AnimatedNumber
-        value={pnl}
-        format={(amount) => formatSignedMoney(amount, currency)}
-      />
-      <span className="ml-1 text-[11px] font-medium leading-none opacity-80">
-        (<AnimatedPercent value={roi} decimals={2} />)
+      <AnimatedCurrency value={pnl} currency={currency} />
+      <span className="text-[11px] font-medium leading-none opacity-80">
+        (<AnimatedPercent value={roi} decimals={2} className="text-[11px]" />)
       </span>
-    </p>
+    </div>
   );
 }
 
+const MemoTradePnlCell = memo(TradePnlCell);
+
 function DailyPnlCell({
   trade,
-  quote,
   displayCurrency,
   loading,
 }: {
   trade: JournalTrade;
-  quote: ClientMarketQuote | null;
   displayCurrency: CurrencyCode;
   loading: boolean;
 }) {
   const isActive = (trade.status ?? "Closed") === "Active";
+  const quote = useTradeQuote(trade, displayCurrency);
 
   if (!isActive) {
     return (
@@ -711,7 +1036,7 @@ function DailyPnlCell({
       : null;
 
   if (daily == null) {
-    if (loading) {
+    if (loading && quote == null) {
       return (
         <span className="mx-auto inline-block h-4 w-14 animate-pulse rounded bg-muted" />
       );
@@ -728,19 +1053,18 @@ function DailyPnlCell({
   return (
     <p
       className={cn(
-        "whitespace-nowrap text-center text-sm font-semibold leading-none",
+        "inline-flex items-baseline justify-center whitespace-nowrap text-center text-sm font-semibold leading-none",
         daily >= 0
           ? "text-emerald-700 dark:text-emerald-400"
           : "text-rose-700 dark:text-rose-400"
       )}
     >
-      <AnimatedNumber
-        value={daily}
-        format={(amount) => formatSignedMoney(amount, currency)}
-      />
+      <AnimatedCurrency value={daily} currency={currency} />
     </p>
   );
 }
+
+const MemoDailyPnlCell = memo(DailyPnlCell);
 
 function quoteDisplayCurrency(
   quote: ClientMarketQuote | null,
@@ -751,15 +1075,14 @@ function quoteDisplayCurrency(
 
 function LivePrice({
   trade,
-  quote,
   loading,
   currency,
 }: {
   trade: JournalTrade;
-  quote: ClientMarketQuote | null;
   loading: boolean;
   currency: CurrencyCode;
 }) {
+  const quote = useTradeQuote(trade, currency);
   const prevPriceRef = useRef<number | null>(null);
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
 
@@ -860,15 +1183,14 @@ function LivePrice({
 
 function LivePriceInline({
   trade,
-  quote,
   loading,
   currency,
 }: {
   trade: JournalTrade;
-  quote: ClientMarketQuote | null;
   loading: boolean;
   currency: CurrencyCode;
 }) {
+  const quote = useTradeQuote(trade, currency);
   if (trade.assetClass === "Options") {
     return (
       <span className="block w-full text-center text-sm text-muted-foreground">—</span>
@@ -1053,7 +1375,6 @@ interface JournalTableProps {
 
 type QuoteSlice = {
   getQuote: (trade: JournalTrade) => ClientMarketQuote | null;
-  quoteRevision: number;
   quotesLoading: boolean;
   quotesError: string | null;
   quotesDelayed: boolean;
@@ -1062,7 +1383,6 @@ type QuoteSlice = {
 
 const STATIC_QUOTE_SLICE: QuoteSlice = {
   getQuote: () => null,
-  quoteRevision: 0,
   quotesLoading: false,
   quotesError: null,
   quotesDelayed: true,
@@ -1072,7 +1392,7 @@ const STATIC_QUOTE_SLICE: QuoteSlice = {
 export function JournalTable(props: JournalTableProps) {
   if (props.enableLiveQuotes === false) {
     return (
-      <JournalTableInner
+      <MemoJournalTableInner
         {...props}
         enableLiveQuotes={false}
         quoteSlice={STATIC_QUOTE_SLICE}
@@ -1084,33 +1404,50 @@ export function JournalTable(props: JournalTableProps) {
 
 function JournalTableLive(props: JournalTableProps) {
   const sharedQuotes = useMarketQuotes();
-  const quoteSlice = useMemo(
+  const sliceRef = useRef({
+    getQuote: sharedQuotes.getQuote,
+    quotesLoading: sharedQuotes.loading,
+    quotesError: sharedQuotes.error,
+    quotesDelayed: sharedQuotes.delayed,
+    quotesSessionOpen: sharedQuotes.sessionOpen,
+  });
+  sliceRef.current = {
+    getQuote: sharedQuotes.getQuote,
+    quotesLoading: sharedQuotes.loading,
+    quotesError: sharedQuotes.error,
+    quotesDelayed: sharedQuotes.delayed,
+    quotesSessionOpen: sharedQuotes.sessionOpen,
+  };
+
+  const quoteSlice = useMemo<QuoteSlice>(
     () => ({
-      getQuote: sharedQuotes.getQuote,
-      quoteRevision: sharedQuotes.quoteRevision,
-      quotesLoading: sharedQuotes.loading,
-      quotesError: sharedQuotes.error,
-      quotesDelayed: sharedQuotes.delayed,
-      quotesSessionOpen: sharedQuotes.sessionOpen,
+      getQuote: (trade) => sliceRef.current.getQuote(trade),
+      get quotesLoading() {
+        return sliceRef.current.quotesLoading;
+      },
+      get quotesError() {
+        return sliceRef.current.quotesError;
+      },
+      get quotesDelayed() {
+        return sliceRef.current.quotesDelayed;
+      },
+      get quotesSessionOpen() {
+        return sliceRef.current.quotesSessionOpen;
+      },
     }),
-    [
-      sharedQuotes.getQuote,
-      sharedQuotes.quoteRevision,
-      sharedQuotes.loading,
-      sharedQuotes.error,
-      sharedQuotes.delayed,
-      sharedQuotes.sessionOpen,
-    ]
+    []
   );
 
   return (
-    <JournalTableInner
+    <MemoJournalTableInner
       {...props}
       enableLiveQuotes
       quoteSlice={quoteSlice}
     />
   );
 }
+
+const MemoJournalTableInner = memo(JournalTableInner);
 
 function JournalTableInner({
   trades,
@@ -1146,7 +1483,6 @@ function JournalTableInner({
 
   const {
     getQuote,
-    quoteRevision,
     quotesLoading,
     quotesError,
     quotesDelayed,
@@ -1167,6 +1503,30 @@ function JournalTableInner({
     () => computeActivePortfolioWeights(trades),
     [trades]
   );
+
+  const onEditRef = useRef(onEdit);
+  const onDuplicateRef = useRef(onDuplicate);
+  const onDeleteRef = useRef(onDelete);
+  const onPartialExitRef = useRef(onPartialExit);
+  const holdNowRef = useRef(holdNow);
+  const displayCurrencyRef = useRef(displayCurrency);
+  const getQuoteRef = useRef(getQuote);
+  const quotesLoadingRef = useRef(quotesLoading);
+  const expandedRowIdsRef = useRef(expandedRowIds);
+  const portfolioWeightsRef = useRef(portfolioWeights);
+  const enableLiveQuotesRef = useRef(enableLiveQuotes);
+
+  onEditRef.current = onEdit;
+  onDuplicateRef.current = onDuplicate;
+  onDeleteRef.current = onDelete;
+  onPartialExitRef.current = onPartialExit;
+  holdNowRef.current = holdNow;
+  displayCurrencyRef.current = displayCurrency;
+  getQuoteRef.current = getQuote;
+  quotesLoadingRef.current = quotesLoading;
+  expandedRowIdsRef.current = expandedRowIds;
+  portfolioWeightsRef.current = portfolioWeights;
+  enableLiveQuotesRef.current = enableLiveQuotes;
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -1221,7 +1581,7 @@ function JournalTableInner({
         enableSorting: false,
         enableHiding: false,
         cell: ({ row }) => {
-          const expanded = expandedRowIds.has(row.id);
+          const expanded = expandedRowIdsRef.current.has(row.id);
           return (
             <button
               type="button"
@@ -1285,10 +1645,9 @@ function JournalTableInner({
         header: () => <StaticHeader label="Outcome" />,
         cell: ({ row }) => (
           <div className="flex justify-center">
-            <TradeOutcomeBadge
+            <MemoTradeOutcomeBadge
               trade={row.original}
-              quote={getQuote(row.original)}
-              displayCurrency={displayCurrency}
+              displayCurrency={displayCurrencyRef.current}
             />
           </div>
         ),
@@ -1309,14 +1668,12 @@ function JournalTableInner({
         header: () => <StaticHeader label="Market" />,
         enableSorting: false,
         cell: ({ row }) => {
-          const quote = getQuote(row.original);
           const isActive = (row.original.status ?? "Closed") === "Active";
           return (
             <LivePriceInline
               trade={row.original}
-              quote={quote}
-              loading={isActive && quotesLoading && quote == null}
-              currency={displayCurrency}
+              loading={isActive && quotesLoadingRef.current}
+              currency={displayCurrencyRef.current}
             />
           );
         },
@@ -1342,7 +1699,7 @@ function JournalTableInner({
         ),
         cell: ({ row }) => {
           const invested = row.original.entryPrice * row.original.quantity;
-          const sharePct = portfolioWeights.get(row.original.id) ?? null;
+          const sharePct = portfolioWeightsRef.current.get(row.original.id) ?? null;
 
           return (
             <span
@@ -1351,10 +1708,10 @@ function JournalTableInner({
                 NUMERIC_CLASS
               )}
             >
-              {formatMarketPrice(invested, displayCurrency)}
+              {formatMarketPrice(invested, displayCurrencyRef.current)}
               {sharePct != null ? (
                 <span className="ml-1 text-[11px] font-medium text-muted-foreground">
-                  ({sharePct.toFixed(1)}%)
+                  (<AnimatedPercent value={sharePct} decimals={1} signed={false} />)
                 </span>
               ) : null}
             </span>
@@ -1364,16 +1721,19 @@ function JournalTableInner({
       {
         id: "pnl",
         accessorFn: (row) =>
-          resolveTradePnlDisplay(row, getQuote(row), displayCurrency).pnl,
+          resolveTradePnlDisplay(
+            row,
+            getQuoteRef.current(row),
+            displayCurrencyRef.current
+          ).pnl,
         sortDescFirst: true,
         header: ({ column }) => (
           <SortHeader label="Net P&L" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => (
-          <TradePnlCell
+          <MemoTradePnlCell
             trade={row.original}
-            quote={getQuote(row.original)}
-            displayCurrency={displayCurrency}
+            displayCurrency={displayCurrencyRef.current}
           />
         ),
       },
@@ -1382,13 +1742,13 @@ function JournalTableInner({
         accessorFn: (row) => {
           const input = toActivePositionPnlInput(row);
           if (!input) return Number.NEGATIVE_INFINITY;
-          const quote = getQuote(row);
+          const quote = getQuoteRef.current(row);
           const daily = computeTradeDailyPnlFromQuote(
             input,
             quote?.price
               ? { price: quote.price, changePercent: quote.changePercent }
               : null,
-            displayCurrency
+            displayCurrencyRef.current
           );
           return daily ?? Number.NEGATIVE_INFINITY;
         },
@@ -1397,14 +1757,16 @@ function JournalTableInner({
           <SortHeader label="Daily P/L" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => {
-          const quote = getQuote(row.original);
           const isActive = (row.original.status ?? "Closed") === "Active";
           return (
-            <DailyPnlCell
+            <MemoDailyPnlCell
               trade={row.original}
-              quote={quote}
-              displayCurrency={displayCurrency}
-              loading={enableLiveQuotes && isActive && quotesLoading && quote == null}
+              displayCurrency={displayCurrencyRef.current}
+              loading={
+                enableLiveQuotesRef.current &&
+                isActive &&
+                quotesLoadingRef.current
+              }
             />
           );
         },
@@ -1412,14 +1774,14 @@ function JournalTableInner({
       {
         id: "targetStop",
         accessorFn: (row) =>
-          resolveMaxProfitLossDisplay(row, null, displayCurrency).maxProfit ??
+          resolveMaxProfitLossDisplay(row, null, displayCurrencyRef.current).maxProfit ??
           Number.NEGATIVE_INFINITY,
         header: () => <StaticHeader label="Max profit / Max loss" />,
         enableSorting: false,
         cell: ({ row }) => (
           <MaxProfitLossValue
             trade={row.original}
-            displayCurrency={displayCurrency}
+            displayCurrency={displayCurrencyRef.current}
           />
         ),
       },
@@ -1457,34 +1819,23 @@ function JournalTableInner({
         id: "targetStopProgress",
         header: () => <StaticHeader label="Target / Stop" />,
         enableSorting: false,
-        cell: ({ row }) => {
-          const trade = row.original;
-          const quote = getQuote(trade);
-          const isActive = (trade.status ?? "Closed") === "Active";
-          const currentPrice = isActive
-            ? (quote?.price ?? null)
-            : trade.exitPrice > 0
-              ? trade.exitPrice
-              : null;
-
-          return (
-            <TargetStopProgressBar
-              trade={trade}
-              currentPrice={currentPrice}
-              loading={isActive && quotesLoading && currentPrice == null}
-            />
-          );
-        },
+        cell: ({ row }) => (
+          <MemoLiveTargetStopCell
+            trade={row.original}
+            displayCurrency={displayCurrencyRef.current}
+            quotesLoading={quotesLoadingRef.current}
+          />
+        ),
       },
       {
         id: "holdTimeHours",
-        accessorFn: (row) => resolveTradeHoldHours(row, holdNow),
+        accessorFn: (row) => resolveTradeHoldHours(row, holdNowRef.current),
         sortDescFirst: true,
         header: ({ column }) => (
           <SortHeader label="Hold" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => {
-          const hours = resolveTradeHoldHours(row.original, holdNow);
+          const hours = resolveTradeHoldHours(row.original, holdNowRef.current);
           const isActive = (row.original.status ?? "Closed") === "Active";
           return (
             <span
@@ -1506,28 +1857,15 @@ function JournalTableInner({
         cell: ({ row }) => (
           <TradeActions
             trade={row.original}
-            onEdit={onEdit}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-            onPartialExit={onPartialExit}
+            onEdit={onEditRef.current}
+            onDuplicate={onDuplicateRef.current}
+            onDelete={onDeleteRef.current}
+            onPartialExit={onPartialExitRef.current}
           />
         ),
       },
     ],
-    [
-      displayCurrency,
-      enableLiveQuotes,
-      expandedRowIds,
-      getQuote,
-      holdNow,
-      onDelete,
-      onDuplicate,
-      onEdit,
-      onPartialExit,
-      quoteRevision,
-      quotesLoading,
-      portfolioWeights,
-    ]
+    []
   );
 
   const table = useReactTable({
@@ -1584,18 +1922,15 @@ function JournalTableInner({
   const hasActiveTrades = trades.some(
     (trade) => (trade.status ?? "Closed") === "Active"
   );
-  const rowLegendCounts = useMemo(() => {
+  const staticRowLegendCounts = useMemo(() => {
+    if (enableLiveQuotes) return null;
     const counts = { profit: 0, loss: 0, stopAboveEntry: 0 };
     for (const trade of trades) {
-      const isActive = (trade.status ?? "Closed") === "Active";
-      const livePnl = isActive
-        ? resolveTradePnlDisplay(trade, getQuote(trade), displayCurrency).pnl
-        : undefined;
-      const category = resolveRowAccentCategory(trade, livePnl);
+      const category = resolveRowAccentCategory(trade);
       if (category) counts[category] += 1;
     }
     return counts;
-  }, [trades, getQuote, quoteRevision, displayCurrency]);
+  }, [enableLiveQuotes, trades]);
   const rangeStart = totalRows === 0 ? 0 : pageIndex * pageSize + 1;
   const rangeEnd = Math.min((pageIndex + 1) * pageSize, totalRows);
   const pageRows = table.getRowModel().rows;
@@ -1696,7 +2031,11 @@ function JournalTableInner({
               <MarketSessionTimer trades={trades} currency={displayCurrency} />
             ) : null}
           </div>
-          {totalRows > 0 ? <RowColorLegend counts={rowLegendCounts} /> : null}
+          {totalRows > 0 && enableLiveQuotes ? (
+            <LiveRowColorLegend trades={trades} displayCurrency={displayCurrency} />
+          ) : totalRows > 0 && staticRowLegendCounts ? (
+            <RowColorLegend counts={staticRowLegendCounts} />
+          ) : null}
           {quotesError ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
           ) : null}
@@ -1716,196 +2055,25 @@ function JournalTableInner({
         </div>
       ) : isCompact ? (
         <ul className="divide-y divide-border/80">
-          {pageRows.map((row) => {
-            const trade = row.original;
-            const quote = getQuote(trade);
-            const expanded = expandedRowIds.has(row.id);
-            const pnlDisplay = resolveTradePnlDisplay(
-              trade,
-              quote,
-              displayCurrency
-            );
-            const dailyInput = toActivePositionPnlInput(trade);
-            const dailyPnl =
-              dailyInput && quote?.price
-                ? computeTradeDailyPnlFromQuote(
-                    dailyInput,
-                    {
-                      price: quote.price,
-                      changePercent: quote.changePercent,
-                    },
-                    displayCurrency
-                  )
-                : null;
-            return (
-              <li key={row.id}>
-                <div className={compactRowAccentClass(trade, pnlDisplay.pnl)}>
-                  <div className="flex items-start gap-2 px-3 py-3 sm:px-4 sm:py-4">
-                    <button
-                      type="button"
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground sm:mt-0.5"
-                      aria-expanded={expanded}
-                      aria-label={expanded ? "Hide row details" : "Show row details"}
-                      onClick={() => toggleRowExpanded(row.id)}
-                    >
-                      <ChevronRight
-                        className={cn(
-                          "size-3.5 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
-                          expanded && "rotate-90"
-                        )}
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => toggleRowExpanded(row.id)}
-                    >
-                      <div className="flex items-start justify-between gap-2 sm:gap-3">
-                        <div className="min-w-0">
-                          <span
-                            className={cn(
-                              "text-[15px] font-bold tracking-tight sm:text-base",
-                              NUMERIC_CLASS
-                            )}
-                          >
-                            {trade.ticker}
-                          </span>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground sm:mt-1 sm:text-xs">
-                            {format(new Date(trade.entryDate), "MMM d, yyyy")} · Qty{" "}
-                            {trade.quantity}
-                          </p>
-                        </div>
-                        <div
-                          className={cn(
-                            "shrink-0 text-right text-sm font-bold leading-tight",
-                            NUMERIC_CLASS,
-                            pnlDisplay.pnl >= 0
-                              ? "text-emerald-700 dark:text-emerald-400"
-                              : "text-rose-700 dark:text-rose-400"
-                          )}
-                        >
-                          <AnimatedNumber
-                            value={pnlDisplay.pnl}
-                            format={(amount) =>
-                              formatSignedMoney(amount, pnlDisplay.currency)
-                            }
-                          />
-                          {dailyPnl != null ? (
-                            <p
-                              className={cn(
-                                "mt-0.5 text-[10px] font-semibold leading-none sm:text-[11px]",
-                                dailyPnl >= 0
-                                  ? "text-emerald-700 dark:text-emerald-400"
-                                  : "text-rose-700 dark:text-rose-400"
-                              )}
-                            >
-                              Daily{" "}
-                              <AnimatedNumber
-                                value={dailyPnl}
-                                format={(amount) =>
-                                  formatSignedMoney(
-                                    amount,
-                                    quoteDisplayCurrency(quote, displayCurrency)
-                                  )
-                                }
-                              />
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-
-                  <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">
-                    <div className="space-y-3 rounded-lg border border-border/70 bg-muted/25 p-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Entry / Exit
-                          </p>
-                          <div className="mt-1 text-left [&_span]:text-left">
-                            <EntryExitValue
-                              entry={trade.entryPrice}
-                              exit={trade.exitPrice}
-                              isActive={(trade.status ?? "Closed") === "Active"}
-                            />
-                          </div>
-                        </div>
-                        <div className="min-w-0 text-right">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Market
-                          </p>
-                          <div className="mt-1 flex justify-end">
-                            <LivePrice
-                              trade={trade}
-                              quote={quote}
-                              loading={
-                                (trade.status ?? "Closed") === "Active" &&
-                                quotesLoading &&
-                                quote == null
-                              }
-                              currency={quoteDisplayCurrency(quote, displayCurrency)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <p className="mb-1.5 w-full max-w-[13rem] text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Target / Stop
-                        </p>
-                        <TargetStopProgressBar
-                          trade={trade}
-                          currentPrice={
-                            (trade.status ?? "Closed") === "Active"
-                              ? (quote?.price ?? null)
-                              : trade.exitPrice > 0
-                                ? trade.exitPrice
-                                : null
-                          }
-                          loading={
-                            (trade.status ?? "Closed") === "Active" &&
-                            quotesLoading &&
-                            quote?.price == null
-                          }
-                          compact
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-muted-foreground sm:text-xs">
-                        Hold {formatHoldTime(resolveTradeHoldHours(trade, holdNow))}
-                        {(trade.status ?? "Closed") === "Active" ? " · live" : ""}
-                      </span>
-                      <TradeActions
-                        trade={trade}
-                        onEdit={onEdit}
-                        onDuplicate={onDuplicate}
-                        onDelete={onDelete}
-                        onPartialExit={onPartialExit}
-                        compact
-                        touchFriendly={isMobile}
-                      />
-                    </div>
-                  </div>
-
-                  <JournalRowAccordionPanel
-                    open={expanded}
-                    className="px-3 py-3 sm:px-4"
-                  >
-                    <RowAccordionDetails
-                      trade={trade}
-                      quote={quote}
-                      displayCurrency={displayCurrency}
-                      earnings={getEarningsDate(trade)}
-                      earningsLoading={earningsLoading}
-                      portfolioPct={portfolioWeights.get(trade.id) ?? null}
-                    />
-                  </JournalRowAccordionPanel>
-                </div>
-              </li>
-            );
-          })}
+          {pageRows.map((row) => (
+            <MemoLiveCompactTradeCard
+              key={row.id}
+              trade={row.original}
+              displayCurrency={displayCurrency}
+              expanded={expandedRowIds.has(row.id)}
+              quotesLoading={quotesLoading}
+              earnings={getEarningsDate(row.original)}
+              earningsLoading={earningsLoading}
+              portfolioPct={portfolioWeights.get(row.original.id) ?? null}
+              onToggleExpand={() => toggleRowExpanded(row.id)}
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onPartialExit={onPartialExit}
+              holdNow={holdNow}
+              touchFriendly={isMobile}
+            />
+          ))}
         </ul>
       ) : (
         <div className="overflow-x-auto">
@@ -1972,70 +2140,18 @@ function JournalTableInner({
               ))}
             </thead>
             <tbody>
-              {pageRows.map((row) => {
-                const expanded = expandedRowIds.has(row.id);
-                const visibleCellCount = row.getVisibleCells().length;
-
-                return (
-                  <Fragment key={row.id}>
-                    <tr
-                      className={cn(
-                        "group cursor-pointer border-b text-center transition-colors",
-                        expanded
-                          ? "border-border/40 border-l-[3px]"
-                          : "border-border/60 border-l-[3px] last:border-b-0",
-                        rowAccentClass(
-                          row.original,
-                          resolveTradePnlDisplay(
-                            row.original,
-                            getQuote(row.original),
-                            displayCurrency
-                          ).pnl
-                        )
-                      )}
-                      onClick={() => toggleRowExpanded(row.id)}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td
-                          key={cell.id}
-                          className={journalCellClass(cell.column.id)}
-                        >
-                          <div
-                            className={cn(
-                              CELL_CENTER,
-                              cell.column.id === "expand" && "w-7"
-                            )}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr className="border-0">
-                      <td colSpan={visibleCellCount} className="p-0 align-top">
-                        <JournalRowAccordionPanel
-                          open={expanded}
-                          className="px-4 py-3"
-                        >
-                          <RowAccordionDetails
-                            trade={row.original}
-                            quote={getQuote(row.original)}
-                            displayCurrency={displayCurrency}
-                            earnings={getEarningsDate(row.original)}
-                            earningsLoading={earningsLoading}
-                            portfolioPct={
-                              portfolioWeights.get(row.original.id) ?? null
-                            }
-                          />
-                        </JournalRowAccordionPanel>
-                      </td>
-                    </tr>
-                  </Fragment>
-                );
-              })}
+              {pageRows.map((row) => (
+                <MemoLiveDesktopTradeRow
+                  key={row.id}
+                  row={row}
+                  expanded={expandedRowIds.has(row.id)}
+                  displayCurrency={displayCurrency}
+                  onToggleExpand={() => toggleRowExpanded(row.id)}
+                  earnings={getEarningsDate(row.original)}
+                  earningsLoading={earningsLoading}
+                  portfolioPct={portfolioWeights.get(row.original.id) ?? null}
+                />
+              ))}
             </tbody>
           </table>
         </div>
