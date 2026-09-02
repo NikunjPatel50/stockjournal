@@ -10,20 +10,23 @@ const DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 const ROLL_CLASS =
   "transition-transform duration-[520ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 
-const ODDS_CELL_CLASS = "inline-flex h-[1em] items-center leading-none";
+/** Fixed 1em slot — digits anchor to the cap line, not vertically centered. */
+const ODDS_SLOT_CLASS =
+  "inline-flex h-[1em] w-[1ch] shrink-0 items-start justify-center leading-none";
 
 /**
  * One column of 0–9 shifted so the active digit sits in the 1em window.
+ * Top-alignment keeps cap heights even (centered "0" looks shorter than "1"/"6").
  */
 const DigitReel = memo(function DigitReel({ digit }: { digit: number }) {
   return (
-    <span className={cn("relative w-[1ch] overflow-hidden", ODDS_CELL_CLASS)}>
+    <span className={cn("relative overflow-hidden", ODDS_SLOT_CLASS)}>
       <span
         className={cn("absolute inset-x-0 top-0 flex flex-col", ROLL_CLASS)}
         style={{ transform: `translateY(-${digit}em)` }}
       >
         {DIGITS.map((d) => (
-          <span key={d} className={cn("w-[1ch] justify-center", ODDS_CELL_CLASS)}>
+          <span key={d} className={ODDS_SLOT_CLASS}>
             {d}
           </span>
         ))}
@@ -33,7 +36,7 @@ const DigitReel = memo(function DigitReel({ digit }: { digit: number }) {
 });
 
 function OdometerGlyph({ char }: { char: string }) {
-  return <span className={ODDS_CELL_CLASS}>{char}</span>;
+  return <span className={ODDS_SLOT_CLASS}>{char}</span>;
 }
 
 /**
@@ -44,7 +47,7 @@ const Odometer = memo(function Odometer({ text }: { text: string }) {
   const chars = useMemo(() => Array.from(text), [text]);
 
   return (
-    <span aria-hidden className="inline-flex items-end whitespace-nowrap leading-none">
+    <span aria-hidden className="inline-flex items-baseline whitespace-nowrap leading-none">
       {chars.map((char, index) => {
         const key = chars.length - 1 - index;
         const code = char.charCodeAt(0);
@@ -77,7 +80,7 @@ export const AnimatedNumber = memo(function AnimatedNumber({
 
   return (
     <span
-      className={cn(NUMERIC_CLASS, "inline-flex items-end leading-none", className)}
+      className={cn(NUMERIC_CLASS, "inline-flex items-baseline leading-none", className)}
       title={title ?? formatted}
     >
       <span className="sr-only">{formatted}</span>
