@@ -181,7 +181,7 @@ export function SmartAtrLevels({
   }
 
   return (
-    <>
+    <div className={cn("min-w-0", open ? "w-full" : "w-full sm:w-auto")}>
       <Button
         type="button"
         variant="outline"
@@ -194,8 +194,7 @@ export function SmartAtrLevels({
       </Button>
 
       {open ? (
-        <div className="w-full basis-full">
-        <div className="mt-3 space-y-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-4">
+        <div className="mt-3 min-w-0 space-y-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-4">
           {loading ? (
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="size-3.5 animate-spin" />
@@ -328,8 +327,7 @@ export function SmartAtrLevels({
             </>
           )}
         </div>
-        </div>
       ) : null}
-    </>
+    </div>
   );
 }

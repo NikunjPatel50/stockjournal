@@ -214,10 +214,12 @@ function LiveTargetStopCell({
   trade,
   displayCurrency,
   quotesLoading,
+  compact = false,
 }: {
   trade: JournalTrade;
   displayCurrency: CurrencyCode;
   quotesLoading: boolean;
+  compact?: boolean;
 }) {
   const quote = useTradeQuote(trade, displayCurrency);
   const isActive = (trade.status ?? "Closed") === "Active";
@@ -232,11 +234,41 @@ function LiveTargetStopCell({
       trade={trade}
       currentPrice={currentPrice}
       loading={isActive && quotesLoading && currentPrice == null}
+      compact={compact}
     />
   );
 }
 
-const MemoLiveTargetStopCell = memo(LiveTargetStopCell);
+function liveTargetStopCellPropsEqual(
+  prev: {
+    trade: JournalTrade;
+    displayCurrency: CurrencyCode;
+    quotesLoading: boolean;
+    compact?: boolean;
+  },
+  next: {
+    trade: JournalTrade;
+    displayCurrency: CurrencyCode;
+    quotesLoading: boolean;
+    compact?: boolean;
+  }
+) {
+  if (prev.displayCurrency !== next.displayCurrency) return false;
+  if (prev.quotesLoading !== next.quotesLoading) return false;
+  if (prev.compact !== next.compact) return false;
+  return (
+    prev.trade.id === next.trade.id &&
+    prev.trade.status === next.trade.status &&
+    prev.trade.assetClass === next.trade.assetClass &&
+    prev.trade.direction === next.trade.direction &&
+    prev.trade.entryPrice === next.trade.entryPrice &&
+    prev.trade.profitTarget === next.trade.profitTarget &&
+    prev.trade.stopLoss === next.trade.stopLoss &&
+    prev.trade.exitPrice === next.trade.exitPrice
+  );
+}
+
+const MemoLiveTargetStopCell = memo(LiveTargetStopCell, liveTargetStopCellPropsEqual);
 
 function LiveCompactTradeCard({
   trade,
@@ -391,16 +423,10 @@ function LiveCompactTradeCard({
               <p className="mb-1.5 w-full max-w-[13rem] text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Target / Stop
               </p>
-              <TargetStopProgressBar
+              <MemoLiveTargetStopCell
                 trade={trade}
-                currentPrice={
-                  isActive
-                    ? (quote?.price ?? null)
-                    : trade.exitPrice > 0
-                      ? trade.exitPrice
-                      : null
-                }
-                loading={isActive && quotesLoading && quote?.price == null}
+                displayCurrency={displayCurrency}
+                quotesLoading={quotesLoading}
                 compact
               />
             </div>

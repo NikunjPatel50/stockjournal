@@ -238,7 +238,7 @@ export function SmartPositionSizer({
   }
 
   return (
-    <>
+    <div className={cn("min-w-0", open ? "w-full" : "w-full sm:w-auto")}>
       <Button
         type="button"
         variant="outline"
@@ -251,19 +251,18 @@ export function SmartPositionSizer({
       </Button>
 
       {open ? (
-        <div className="w-full basis-full">
-          <div className="mt-3 space-y-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
-            <p className="text-xs text-muted-foreground">
-              Enter {TRADE_FIELD_LABELS.entryPrice.toLowerCase()},{" "}
-              {TRADE_FIELD_LABELS.qty.toLowerCase()} or{" "}
-              {TRADE_FIELD_LABELS.capital.toLowerCase()}, and{" "}
-              {TRADE_FIELD_LABELS.riskReward.toLowerCase()} to auto-fill{" "}
-              {TRADE_FIELD_LABELS.stopLoss.toLowerCase()} and{" "}
-              {TRADE_FIELD_LABELS.targetPrice.toLowerCase()}. Edit stop or
-              target anytime; {TRADE_FIELD_LABELS.stopPercent.toLowerCase()}{" "}
-              updates from your stop. Click Apply to update the form.
-            </p>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
+        <div className="mt-3 min-w-0 space-y-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+          <p className="text-xs text-muted-foreground">
+            Enter {TRADE_FIELD_LABELS.entryPrice.toLowerCase()},{" "}
+            {TRADE_FIELD_LABELS.qty.toLowerCase()} or{" "}
+            {TRADE_FIELD_LABELS.capital.toLowerCase()}, and{" "}
+            {TRADE_FIELD_LABELS.riskReward.toLowerCase()} to auto-fill{" "}
+            {TRADE_FIELD_LABELS.stopLoss.toLowerCase()} and{" "}
+            {TRADE_FIELD_LABELS.targetPrice.toLowerCase()}. Edit stop or
+            target anytime; {TRADE_FIELD_LABELS.stopPercent.toLowerCase()}{" "}
+            updates from your stop. Click Apply to update the form.
+          </p>
+          <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
               <AssistantField label={TRADE_FIELD_LABELS.entryPrice}>
                 <Input
                   type="text"
@@ -383,7 +382,7 @@ export function SmartPositionSizer({
             ) : null}
 
             {preview ? (
-              <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border/70 bg-border/70 text-xs sm:grid-cols-3 lg:grid-cols-6">
+              <div className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-md border border-border/70 bg-border/70 text-xs sm:grid-cols-3">
                 <div className="bg-background/90 px-2 py-2.5 text-center">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     {TRADE_FIELD_LABELS.quantity}
@@ -453,8 +452,7 @@ export function SmartPositionSizer({
               </Button>
             </div>
           </div>
-        </div>
       ) : null}
-    </>
+    </div>
   );
 }
