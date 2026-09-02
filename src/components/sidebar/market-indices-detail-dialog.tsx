@@ -59,6 +59,7 @@ function ChangeCell({ value }: { value: number | null | undefined }) {
     <AnimatedPercent
       value={value}
       decimals={2}
+      roll={false}
       className={cn(
         "font-medium",
         up && "text-emerald-700 dark:text-emerald-400",
@@ -90,6 +91,7 @@ function PriceChangeCell({
     <AnimatedNumber
       value={change}
       format={(latest) => formatIndexPriceChange(latest, currency)}
+      roll={false}
       className={cn(
         "font-medium",
         up && "text-emerald-700 dark:text-emerald-400",
@@ -113,6 +115,7 @@ function IndexPrice({
     <AnimatedNumber
       value={price}
       format={(amount) => formatIndexPrice(amount, currency)}
+      roll={false}
       className={className}
     />
   );
@@ -129,6 +132,7 @@ function OhlcValue({
     <AnimatedNumber
       value={value}
       format={(amount) => formatIndexPrice(amount, currency)}
+      roll={false}
       className="truncate font-medium"
     />
   );

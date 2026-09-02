@@ -335,6 +335,7 @@ function LiveCompactTradeCard({
                 <AnimatedCurrency
                   value={pnlDisplay.pnl}
                   currency={pnlDisplay.currency}
+                  roll={false}
                 />
                 {dailyPnl != null ? (
                   <p
@@ -349,6 +350,7 @@ function LiveCompactTradeCard({
                     <AnimatedCurrency
                       value={dailyPnl}
                       currency={quoteDisplayCurrency(quote, displayCurrency)}
+                      roll={false}
                     />
                   </p>
                 ) : null}
@@ -913,7 +915,7 @@ function PortfolioWeightValue({
 
   return (
     <span className={cn("text-sm font-medium", NUMERIC_CLASS)}>
-      <AnimatedPercent value={portfolioPct} decimals={1} signed={false} />
+      <AnimatedPercent value={portfolioPct} decimals={1} signed={false} roll={false} />
     </span>
   );
 }
@@ -995,9 +997,9 @@ function TradePnlCell({
           : "text-rose-700 dark:text-rose-400"
       )}
     >
-      <AnimatedCurrency value={pnl} currency={currency} />
+      <AnimatedCurrency value={pnl} currency={currency} roll={false} />
       <span className="text-[11px] font-medium leading-none opacity-80">
-        (<AnimatedPercent value={roi} decimals={2} className="text-[11px]" />)
+        (<AnimatedPercent value={roi} decimals={2} className="text-[11px]" roll={false} />)
       </span>
     </div>
   );
@@ -1059,7 +1061,7 @@ function DailyPnlCell({
           : "text-rose-700 dark:text-rose-400"
       )}
     >
-      <AnimatedCurrency value={daily} currency={currency} />
+      <AnimatedCurrency value={daily} currency={currency} roll={false} />
     </p>
   );
 }
@@ -1145,6 +1147,7 @@ function LivePrice({
         <AnimatedNumber
           value={quote.price}
           format={(amount) => formatMarketPrice(amount, displayCurrency)}
+          roll={false}
         />
       </p>
       <div className="mt-0.5 flex items-center justify-center gap-1.5">
@@ -1152,6 +1155,7 @@ function LivePrice({
           <AnimatedPercent
             value={change}
             decimals={2}
+            roll={false}
             className={cn(
               "text-[11px] font-medium",
               changeUp && "text-emerald-700 dark:text-emerald-400",
@@ -1220,6 +1224,7 @@ function LivePriceInline({
         <AnimatedNumber
           value={quote.price}
           format={(amount) => formatMarketPrice(amount, displayCurrency)}
+          roll={false}
         />
         {change !== null ? (
           <span
@@ -1230,7 +1235,7 @@ function LivePriceInline({
               !changeUp && !changeDown && "text-muted-foreground"
             )}
           >
-            (<AnimatedPercent value={change} decimals={2} />)
+            (<AnimatedPercent value={change} decimals={2} roll={false} />)
           </span>
         ) : null}
       </span>
@@ -1711,7 +1716,7 @@ function JournalTableInner({
               {formatMarketPrice(invested, displayCurrencyRef.current)}
               {sharePct != null ? (
                 <span className="ml-1 text-[11px] font-medium text-muted-foreground">
-                  (<AnimatedPercent value={sharePct} decimals={1} signed={false} />)
+                  (<AnimatedPercent value={sharePct} decimals={1} signed={false} roll={false} />)
                 </span>
               ) : null}
             </span>

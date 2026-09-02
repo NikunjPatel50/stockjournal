@@ -107,6 +107,7 @@ function ChangeText({ value }: { value: number | null | undefined }) {
     <AnimatedPercent
       value={value}
       decimals={2}
+      roll={false}
       className={cn(
         "font-medium",
         up && "text-emerald-700 dark:text-emerald-400",
@@ -361,6 +362,7 @@ export function MarketIndicesPanel() {
                                 format={(amount) =>
                                   formatIndexPriceCompact(amount, quote.currency)
                                 }
+                                roll={false}
                                 className={cn(
                                   "font-semibold",
                                   marketOpen
