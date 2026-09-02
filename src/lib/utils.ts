@@ -5,13 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Column-aligned currency and P&L (tabular lining figures). */
+/** Column-aligned currency and P&L — Inter for symbols, JetBrains Mono for 0-9. */
 export const NUMERIC_CLASS =
-  "font-sans tabular-nums tracking-tight [font-feature-settings:'tnum'_1,'lnum'_1]";
+  "numeric-figures tabular-nums tracking-tight [font-feature-settings:'tnum'_1,'lnum'_1]";
 
 /** Headline KPIs and summary stats — same figure style as {@link NUMERIC_CLASS}. */
 export const NUMERIC_DISPLAY_CLASS =
-  "font-sans tabular-nums tracking-tight [font-feature-settings:'tnum'_1,'lnum'_1]";
+  "numeric-figures tabular-nums tracking-tight [font-feature-settings:'tnum'_1,'lnum'_1]";
 
 /** High-contrast status badges (light + dark). Use with Badge variant="outline". */
 export const tradeBadgePositive =

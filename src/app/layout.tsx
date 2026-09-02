@@ -13,7 +13,7 @@ import {
 } from "@/lib/site";
 import "./globals.css";
 
-/** Single typeface for the whole product — body copy, headings, and figures. */
+/** Inter for UI copy; digits 0-9 use JetBrains Mono via {@link NUMERIC_CLASS}. */
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
