@@ -1,7 +1,7 @@
 "use client";
 
-import { memo } from "react";
-import { isClosedTrade, type JournalTrade } from "@/lib/journal-types";
+import { memo, type ReactNode } from "react";
+import type { JournalTrade } from "@/lib/journal-types";
 import {
   computeTargetStopProgress,
   getTargetStopMarkerBlink,
@@ -10,26 +10,86 @@ import {
 } from "@/lib/trade-target-progress";
 import { cn } from "@/lib/utils";
 
-const FILL_STYLE_MAP = {
-  green: {
-    bar: "bg-emerald-400/90 dark:bg-emerald-500/55",
-    label: "text-emerald-800 dark:text-emerald-300",
-    glow: "target-stop-fill-glow-green",
-    labelGlow: "target-stop-label-glow-green",
-  },
-  red: {
-    bar: "bg-rose-400/90 dark:bg-rose-500/55",
-    label: "text-rose-800 dark:text-rose-300",
-    glow: "target-stop-fill-glow-red",
-    labelGlow: "target-stop-label-glow-red",
-  },
-  neutral: {
-    bar: "bg-muted-foreground/25",
-    label: "text-muted-foreground",
-    glow: "",
-    labelGlow: "",
-  },
-} as const;
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function computeRangeLayout(
+  trade: JournalTrade,
+  progress: TargetStopProgress,
+  currentPrice: number
+) {
+  const { entryPrice, profitTarget, stopLoss } = trade;
+  const { hasTarget, hasStop } = progress;
+
+  if (hasTarget && hasStop) {
+    const min = Math.min(stopLoss, profitTarget);
+    const max = Math.max(stopLoss, profitTarget);
+    const span = max - min;
+    if (span <= 0) {
+      return {
+        entryVisual: 0.5,
+        currentVisual: 0.5,
+        stopVisual: 0,
+        targetVisual: 1,
+        leftTone: "red" as const,
+      };
+    }
+
+    const toVisual = (price: number) => clamp((price - min) / span, 0, 1);
+    const stopOnLeft = stopLoss < entryPrice;
+
+    return {
+      entryVisual: toVisual(entryPrice),
+      currentVisual: toVisual(currentPrice),
+      stopVisual: toVisual(stopLoss),
+      targetVisual: toVisual(profitTarget),
+      leftTone: stopOnLeft ? ("red" as const) : ("green" as const),
+    };
+  }
+
+  if (hasTarget) {
+    const min = Math.min(entryPrice, profitTarget);
+    const max = Math.max(entryPrice, profitTarget);
+    const span = max - min;
+    const toVisual =
+      span > 0
+        ? (price: number) => clamp((price - min) / span, 0, 1)
+        : () => 0.5;
+    return {
+      entryVisual: toVisual(entryPrice),
+      currentVisual: toVisual(currentPrice),
+      stopVisual: null,
+      targetVisual: toVisual(profitTarget),
+      leftTone: "green" as const,
+    };
+  }
+
+  if (hasStop) {
+    const min = Math.min(stopLoss, entryPrice);
+    const max = Math.max(stopLoss, entryPrice);
+    const span = max - min;
+    const toVisual =
+      span > 0
+        ? (price: number) => clamp((price - min) / span, 0, 1)
+        : () => 0.5;
+    return {
+      entryVisual: toVisual(entryPrice),
+      currentVisual: toVisual(currentPrice),
+      stopVisual: toVisual(stopLoss),
+      targetVisual: null,
+      leftTone: "red" as const,
+    };
+  }
+
+  return {
+    entryVisual: 0.5,
+    currentVisual: 0.5,
+    stopVisual: null,
+    targetVisual: null,
+    leftTone: "red" as const,
+  };
+}
 
 function resolveFillState(progress: TargetStopProgress): {
   pct: number;
@@ -52,20 +112,91 @@ function resolveFillState(progress: TargetStopProgress): {
   return { pct: 0, variant: "neutral" };
 }
 
-function resolveFillStyles(
-  variant: "green" | "red" | "neutral",
-  glow: "green" | "red" | null
-) {
-  const tone = variant === "neutral" && glow ? glow : variant;
-  const styles = FILL_STYLE_MAP[tone];
-  const isGlowing = glow === tone;
+function RangeNode({
+  position,
+  markerClass,
+  className,
+  variant = "tick",
+  label,
+  labelClassName,
+}: {
+  position: number;
+  markerClass: string;
+  className?: string;
+  variant?: "tick" | "live";
+  label?: ReactNode;
+  labelClassName?: string;
+}) {
+  if (variant === "live") {
+    return (
+      <span
+        className={cn(
+          "absolute bottom-full z-30 flex -translate-x-1/2 flex-col items-center pb-px",
+          className
+        )}
+        style={{
+          left: `clamp(0.75rem, ${position * 100}%, calc(100% - 0.75rem))`,
+        }}
+        aria-hidden
+      >
+        {label ? (
+          <span
+            className={cn(
+              "mb-0.5 font-bold tabular-nums leading-none tracking-tight",
+              labelClassName
+            )}
+          >
+            {label}
+          </span>
+        ) : null}
+        <span
+          className={cn(
+            "block size-0 border-x-[3px] border-x-transparent border-t-[4px] sm:border-x-[4px] sm:border-t-[5px]",
+            markerClass
+          )}
+        />
+      </span>
+    );
+  }
 
-  return {
-    bar: styles.bar,
-    label: styles.label,
-    glow: isGlowing ? styles.glow : "",
-    labelGlow: isGlowing ? styles.labelGlow : "",
-  };
+  return (
+    <span
+      className={cn(
+        "absolute top-1/2 z-20 h-2 w-px -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-2.5",
+        markerClass,
+        className
+      )}
+      style={{ left: `${position * 100}%` }}
+      aria-hidden
+    />
+  );
+}
+
+function RangeLabel({
+  position,
+  align,
+  children,
+  className,
+}: {
+  position: number;
+  align: "start" | "center" | "end";
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "absolute top-0 max-w-[42%] truncate tabular-nums",
+        align === "start" && "left-0 text-left",
+        align === "center" && "-translate-x-1/2 text-center",
+        align === "end" && "right-0 text-right",
+        className
+      )}
+      style={align === "center" ? { left: `${position * 100}%` } : undefined}
+    >
+      {children}
+    </span>
+  );
 }
 
 function tradeFieldsEqual(a: JournalTrade, b: JournalTrade) {
@@ -113,7 +244,15 @@ function visualStateEqual(
     return false;
   }
 
-  const closed = isClosedTrade(trade);
+  const prevPos = Math.round(
+    computeRangeLayout(trade, prevProgress, prevPrice).currentVisual * 100
+  );
+  const nextPos = Math.round(
+    computeRangeLayout(trade, nextProgress, nextPrice).currentVisual * 100
+  );
+  if (prevPos !== nextPos) return false;
+
+  const closed = (trade.status ?? "Closed") === "Closed";
   const prevGlow = closed ? null : getTargetStopMarkerBlink(prevProgress);
   const nextGlow = closed ? null : getTargetStopMarkerBlink(nextProgress);
   return prevGlow === nextGlow;
@@ -141,7 +280,7 @@ function TargetStopProgressBarInner({
       <span
         className={cn(
           "mx-auto block w-full animate-pulse rounded-full bg-muted",
-          compact ? "h-3.5 max-w-[10rem]" : "h-4 max-w-[9rem]"
+          compact ? "h-7 max-w-[11rem]" : "h-9 max-w-[14rem]"
         )}
       />
     );
@@ -164,60 +303,121 @@ function TargetStopProgressBarInner({
   }
 
   const status = getTargetStopStatusLabel(progress);
-  const glow = isClosedTrade(trade) ? null : getTargetStopMarkerBlink(progress);
+  const glow = (trade.status ?? "Closed") === "Closed" ? null : getTargetStopMarkerBlink(progress);
   const fill = resolveFillState(progress);
-  const styles = resolveFillStyles(fill.variant, glow);
-  const showFill = fill.pct > 0 && fill.variant !== "neutral";
+  const { entryVisual, currentVisual, stopVisual, targetVisual, leftTone } =
+    computeRangeLayout(trade, progress, currentPrice);
+
+  const pctLabelClass =
+    fill.variant === "green"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : fill.variant === "red"
+        ? "text-rose-700 dark:text-rose-300"
+        : "text-muted-foreground";
+
+  const currentMarkerClass =
+    glow === "green"
+      ? "target-stop-fill-glow-green border-t-emerald-500 dark:border-t-emerald-400"
+      : glow === "red"
+        ? "target-stop-fill-glow-red border-t-rose-500 dark:border-t-rose-400"
+        : "border-t-foreground/80 dark:border-t-white/90";
 
   return (
     <div
       className={cn(
-        "mx-auto w-full min-w-0 [contain:layout]",
-        compact ? "max-w-[10rem] sm:max-w-[11rem]" : "max-w-[9rem] sm:max-w-[9.5rem]"
+        "mx-auto w-full min-w-0 [contain:layout_paint]",
+        compact ? "max-w-[11rem] sm:max-w-[12rem]" : "max-w-[14rem] sm:max-w-[15rem]"
       )}
       title={status.text}
       role="img"
       aria-label={status.text}
     >
-      <div className="space-y-0.5">
-        <div className={cn("px-0.5 py-1", styles.glow && "py-1.5")}>
-          <div
-            className={cn(
-              "target-stop-stripe-track relative overflow-hidden rounded-full ring-1 ring-border/40",
-              compact ? "h-3.5" : "h-4"
-            )}
-          >
-            {showFill ? (
+      <div className={cn("relative px-0.5 pb-1", compact ? "pt-3" : "pt-5")}>
+        <div
+          className={cn(
+            "relative h-1 overflow-visible rounded-full bg-muted/80 sm:h-1.5",
+            glow && "py-0.5"
+          )}
+        >
+          {progress.hasStop && progress.hasTarget ? (
+            <>
               <div
                 className={cn(
-                  "absolute inset-y-0 left-0 w-full origin-left rounded-l-full transition-transform duration-300 ease-out will-change-transform motion-reduce:transition-none motion-reduce:will-change-auto",
-                  styles.bar,
-                  styles.glow
+                  "absolute inset-y-0 left-0 rounded-l-full",
+                  leftTone === "red"
+                    ? "bg-rose-400/85 dark:bg-rose-500/50"
+                    : "bg-teal-500/85 dark:bg-teal-400/55"
                 )}
-                style={{ transform: `scaleX(${fill.pct / 100})` }}
+                style={{ width: `${entryVisual * 100}%` }}
               />
-            ) : null}
-          </div>
+              <div
+                className={cn(
+                  "absolute inset-y-0 rounded-r-full",
+                  leftTone === "red"
+                    ? "bg-teal-500/85 dark:bg-teal-400/55"
+                    : "bg-rose-400/85 dark:bg-rose-500/50"
+                )}
+                style={{ left: `${entryVisual * 100}%`, right: 0 }}
+              />
+            </>
+          ) : progress.hasTarget ? (
+            <div className="absolute inset-0 rounded-full bg-teal-500/85 dark:bg-teal-400/55" />
+          ) : progress.hasStop ? (
+            <div className="absolute inset-0 rounded-full bg-rose-400/85 dark:bg-rose-500/50" />
+          ) : null}
+
+          {progress.hasStop && stopVisual != null ? (
+            <RangeNode
+              position={stopVisual}
+              markerClass="bg-rose-500 dark:bg-rose-400"
+            />
+          ) : null}
+          <RangeNode
+            position={entryVisual}
+            markerClass="bg-slate-600 dark:bg-slate-300"
+          />
+          {progress.hasTarget && targetVisual != null ? (
+            <RangeNode
+              position={targetVisual}
+              markerClass="bg-teal-500 dark:bg-teal-400"
+            />
+          ) : null}
+
+          <RangeNode
+            position={currentVisual}
+            markerClass={currentMarkerClass}
+            variant="live"
+            label={fill.pct > 0 ? `${fill.pct}%` : undefined}
+            labelClassName={cn(
+              compact ? "text-[9px]" : "text-[10px]",
+              pctLabelClass,
+              glow === fill.variant && fill.variant === "green"
+                ? "target-stop-label-glow-green"
+                : glow === fill.variant && fill.variant === "red"
+                  ? "target-stop-label-glow-red"
+                  : ""
+            )}
+          />
         </div>
-        {showFill ? (
-          <div className="relative h-3.5 w-full min-w-0">
-            <span
-              className={cn(
-                "absolute top-0 max-w-full truncate font-bold tabular-nums leading-none tracking-tight",
-                compact ? "text-[9px]" : "text-[10px]",
-                styles.label,
-                styles.labelGlow
-              )}
-              style={{
-                left: `clamp(0.75rem, ${fill.pct}%, calc(100% - 0.75rem))`,
-                transform: "translateX(-50%)",
-              }}
-            >
-              {fill.pct}%
-            </span>
-          </div>
-        ) : null}
       </div>
+
+      {!compact ? (
+        <div className="relative mt-0.5 h-3 w-full text-[8px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px]">
+          {progress.hasStop && stopVisual != null ? (
+            <RangeLabel position={stopVisual} align="center">
+              SL
+            </RangeLabel>
+          ) : null}
+          <RangeLabel position={entryVisual} align="center">
+            E
+          </RangeLabel>
+          {progress.hasTarget && targetVisual != null ? (
+            <RangeLabel position={targetVisual} align="center">
+              T
+            </RangeLabel>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

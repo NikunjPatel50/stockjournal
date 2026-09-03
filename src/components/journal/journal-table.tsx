@@ -1,6 +1,15 @@
 "use client";
 
-import { Fragment, memo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  memo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -77,10 +86,40 @@ import {
 
 const CELL_X = "px-3";
 const CELL_CENTER = "flex w-full items-center justify-center text-center";
+const EXPAND_COL_WIDTH = "1.75rem";
+const NARROW_COLUMN_WIDTHS: Record<string, string> = {
+  quantity: "2.75rem",
+  riskReward: "3.5rem",
+  holdTimeHours: "3rem",
+  targetStopProgress: "9.5rem",
+};
+const NARROW_COLUMN_CLASS: Record<string, string> = {
+  quantity: "w-11 max-w-11 px-1",
+  riskReward: "w-14 max-w-14 px-1",
+  holdTimeHours: "w-12 max-w-12 px-1",
+  targetStopProgress: "w-[9.5rem] max-w-[9.5rem] px-1",
+};
+
+function tradeQuoteDisplayFieldsEqual(a: JournalTrade, b: JournalTrade) {
+  return (
+    a.id === b.id &&
+    a.status === b.status &&
+    a.assetClass === b.assetClass &&
+    a.ticker === b.ticker &&
+    a.direction === b.direction &&
+    a.entryPrice === b.entryPrice &&
+    a.exitPrice === b.exitPrice &&
+    a.quantity === b.quantity &&
+    a.pnl === b.pnl &&
+    a.profitTarget === b.profitTarget &&
+    a.stopLoss === b.stopLoss
+  );
+}
 
 function journalCellClass(columnId: string) {
   return cn(
     columnId === "expand" ? "w-7 px-0" : CELL_X,
+    NARROW_COLUMN_CLASS[columnId],
     columnId === "currentPrice" && "pr-5 sm:pr-7",
     columnId === "pnl" && "pl-5 sm:pl-7",
     "py-3 align-middle text-center [text-align:center]"
@@ -90,6 +129,7 @@ function journalCellClass(columnId: string) {
 function journalHeaderClass(columnId: string) {
   return cn(
     columnId === "expand" ? "w-7 px-0" : CELL_X,
+    NARROW_COLUMN_CLASS[columnId],
     columnId === "currentPrice" && "pr-5 sm:pr-7",
     columnId === "pnl" && "pl-5 sm:pl-7",
     "h-10 border-r border-border/50 py-2 align-middle text-center [text-align:center] last:border-r-0"
@@ -256,16 +296,7 @@ function liveTargetStopCellPropsEqual(
   if (prev.displayCurrency !== next.displayCurrency) return false;
   if (prev.quotesLoading !== next.quotesLoading) return false;
   if (prev.compact !== next.compact) return false;
-  return (
-    prev.trade.id === next.trade.id &&
-    prev.trade.status === next.trade.status &&
-    prev.trade.assetClass === next.trade.assetClass &&
-    prev.trade.direction === next.trade.direction &&
-    prev.trade.entryPrice === next.trade.entryPrice &&
-    prev.trade.profitTarget === next.trade.profitTarget &&
-    prev.trade.stopLoss === next.trade.stopLoss &&
-    prev.trade.exitPrice === next.trade.exitPrice
-  );
+  return tradeQuoteDisplayFieldsEqual(prev.trade, next.trade);
 }
 
 const MemoLiveTargetStopCell = memo(LiveTargetStopCell, liveTargetStopCellPropsEqual);
@@ -293,7 +324,7 @@ function LiveCompactTradeCard({
   earnings: EarningsDateInfo | null;
   earningsLoading: boolean;
   portfolioPct: number | null;
-  onToggleExpand: () => void;
+  onToggleExpand: (rowId: string) => void;
   onEdit: (t: JournalTrade) => void;
   onDuplicate: (t: JournalTrade) => void;
   onDelete: (ids: string[]) => void;
@@ -326,7 +357,7 @@ function LiveCompactTradeCard({
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground sm:mt-0.5"
             aria-expanded={expanded}
             aria-label={expanded ? "Hide row details" : "Show row details"}
-            onClick={onToggleExpand}
+            onClick={() => onToggleExpand(trade.id)}
           >
             <ChevronRight
               className={cn(
@@ -338,7 +369,7 @@ function LiveCompactTradeCard({
           <button
             type="button"
             className="min-w-0 flex-1 text-left"
-            onClick={onToggleExpand}
+            onClick={() => onToggleExpand(trade.id)}
           >
             <div className="flex items-start justify-between gap-2 sm:gap-3">
               <div className="min-w-0">
@@ -464,10 +495,28 @@ function LiveCompactTradeCard({
   );
 }
 
-const MemoLiveCompactTradeCard = memo(LiveCompactTradeCard);
+const MemoLiveCompactTradeCard = memo(
+  LiveCompactTradeCard,
+  (prev, next) =>
+    prev.expanded === next.expanded &&
+    prev.quotesLoading === next.quotesLoading &&
+    prev.earningsLoading === next.earningsLoading &&
+    prev.portfolioPct === next.portfolioPct &&
+    prev.holdNow === next.holdNow &&
+    prev.touchFriendly === next.touchFriendly &&
+    prev.displayCurrency === next.displayCurrency &&
+    prev.onToggleExpand === next.onToggleExpand &&
+    prev.onEdit === next.onEdit &&
+    prev.onDuplicate === next.onDuplicate &&
+    prev.onDelete === next.onDelete &&
+    prev.onPartialExit === next.onPartialExit &&
+    prev.earnings?.nextEarningsDate === next.earnings?.nextEarningsDate &&
+    tradeQuoteDisplayFieldsEqual(prev.trade, next.trade)
+);
 
 function LiveDesktopTradeRow({
   row,
+  rowId,
   expanded,
   displayCurrency,
   onToggleExpand,
@@ -478,9 +527,10 @@ function LiveDesktopTradeRow({
   row: ReturnType<
     ReturnType<typeof useReactTable<JournalTrade>>["getRowModel"]
   >["rows"][number];
+  rowId: string;
   expanded: boolean;
   displayCurrency: CurrencyCode;
-  onToggleExpand: () => void;
+  onToggleExpand: (rowId: string) => void;
   earnings: EarningsDateInfo | null;
   earningsLoading: boolean;
   portfolioPct: number | null;
@@ -503,7 +553,7 @@ function LiveDesktopTradeRow({
             : "border-border/60 border-l-[3px] last:border-b-0",
           rowAccentClass(row.original, livePnl)
         )}
-        onClick={onToggleExpand}
+        onClick={() => onToggleExpand(rowId)}
       >
         {row.getVisibleCells().map((cell) => (
           <td key={cell.id} className={journalCellClass(cell.column.id)}>
@@ -536,7 +586,16 @@ function LiveDesktopTradeRow({
   );
 }
 
-const MemoLiveDesktopTradeRow = memo(LiveDesktopTradeRow);
+const MemoLiveDesktopTradeRow = memo(LiveDesktopTradeRow, (prev, next) => {
+  if (prev.rowId !== next.rowId) return false;
+  if (prev.expanded !== next.expanded) return false;
+  if (prev.displayCurrency !== next.displayCurrency) return false;
+  if (prev.onToggleExpand !== next.onToggleExpand) return false;
+  if (prev.earningsLoading !== next.earningsLoading) return false;
+  if (prev.portfolioPct !== next.portfolioPct) return false;
+  if (prev.earnings?.nextEarningsDate !== next.earnings?.nextEarningsDate) return false;
+  return tradeQuoteDisplayFieldsEqual(prev.row.original, next.row.original);
+});
 
 function RowColorLegend({
   counts,
@@ -752,7 +811,12 @@ function TradeOutcomeBadge({
   );
 }
 
-const MemoTradeOutcomeBadge = memo(TradeOutcomeBadge);
+const MemoTradeOutcomeBadge = memo(
+  TradeOutcomeBadge,
+  (prev, next) =>
+    prev.displayCurrency === next.displayCurrency &&
+    tradeQuoteDisplayFieldsEqual(prev.trade, next.trade)
+);
 
 function AccordionDetailCell({
   label,
@@ -1031,7 +1095,12 @@ function TradePnlCell({
   );
 }
 
-const MemoTradePnlCell = memo(TradePnlCell);
+const MemoTradePnlCell = memo(
+  TradePnlCell,
+  (prev, next) =>
+    prev.displayCurrency === next.displayCurrency &&
+    tradeQuoteDisplayFieldsEqual(prev.trade, next.trade)
+);
 
 function DailyPnlCell({
   trade,
@@ -1092,7 +1161,11 @@ function DailyPnlCell({
   );
 }
 
-const MemoDailyPnlCell = memo(DailyPnlCell);
+const MemoDailyPnlCell = memo(DailyPnlCell, (prev, next) => {
+  if (prev.displayCurrency !== next.displayCurrency) return false;
+  if (prev.loading !== next.loading) return false;
+  return tradeQuoteDisplayFieldsEqual(prev.trade, next.trade);
+});
 
 function quoteDisplayCurrency(
   quote: ClientMarketQuote | null,
@@ -1277,6 +1350,14 @@ function formatCompactPrice(value: number): string {
   }
   return rounded.toFixed(2);
 }
+
+const MemoLivePriceInline = memo(
+  LivePriceInline,
+  (prev, next) =>
+    prev.loading === next.loading &&
+    prev.currency === next.currency &&
+    tradeQuoteDisplayFieldsEqual(prev.trade, next.trade)
+);
 
 function EntryExitValue({
   entry,
@@ -1595,14 +1676,14 @@ function JournalTableInner({
     [columnPrefs.visibility]
   );
 
-  const toggleRowExpanded = (rowId: string) => {
+  const toggleRowExpanded = useCallback((rowId: string) => {
     setExpandedRowIds((prev) => {
       const next = new Set(prev);
       if (next.has(rowId)) next.delete(rowId);
       else next.add(rowId);
       return next;
     });
-  };
+  }, []);
 
   const columns = useMemo<ColumnDef<JournalTrade>[]>(
     () => [
@@ -1701,7 +1782,7 @@ function JournalTableInner({
         cell: ({ row }) => {
           const isActive = (row.original.status ?? "Closed") === "Active";
           return (
-            <LivePriceInline
+            <MemoLivePriceInline
               trade={row.original}
               loading={isActive && quotesLoadingRef.current}
               currency={displayCurrencyRef.current}
@@ -1716,7 +1797,7 @@ function JournalTableInner({
           <SortHeader label="Qty" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => (
-          <span className={cn("block w-full text-center text-sm font-medium", NUMERIC_CLASS)}>
+          <span className={cn("block w-full text-center text-xs font-medium sm:text-sm", NUMERIC_CLASS)}>
             {row.original.quantity}
           </span>
         ),
@@ -1840,7 +1921,7 @@ function JournalTableInner({
         cell: ({ row }) => {
           const rr = formatTradeRiskReward(row.original);
           return (
-            <span className={cn("block w-full text-center text-sm font-medium", NUMERIC_CLASS)}>
+            <span className={cn("block w-full text-center text-xs font-medium sm:text-sm", NUMERIC_CLASS)}>
               {rr ?? "—"}
             </span>
           );
@@ -1871,7 +1952,7 @@ function JournalTableInner({
           return (
             <span
               className={cn(
-                "block w-full text-center text-sm text-muted-foreground",
+                "block w-full text-center text-xs sm:text-sm text-muted-foreground",
                 NUMERIC_CLASS,
                 isActive && "text-foreground"
               )}
@@ -1966,12 +2047,26 @@ function JournalTableInner({
   const rangeEnd = Math.min((pageIndex + 1) * pageSize, totalRows);
   const pageRows = table.getRowModel().rows;
   const visibleColumns = table.getVisibleLeafColumns();
-  const expandColWidth = "1.75rem";
-  const dataColumnCount = visibleColumns.filter((c) => c.id !== "expand").length;
+  const fixedColumnWidths = [
+    EXPAND_COL_WIDTH,
+    ...visibleColumns
+      .map((col) => NARROW_COLUMN_WIDTHS[col.id])
+      .filter(Boolean),
+  ];
+  const flexColumnCount = visibleColumns.filter(
+    (col) => col.id !== "expand" && NARROW_COLUMN_WIDTHS[col.id] == null
+  ).length;
   const equalColWidth =
-    dataColumnCount > 0
-      ? `calc((100% - ${expandColWidth}) / ${dataColumnCount})`
+    flexColumnCount > 0
+      ? `calc((100% - ${fixedColumnWidths.join(" - ")}) / ${flexColumnCount})`
       : "100%";
+
+  function columnWidth(columnId: string) {
+    if (columnId === "expand") return EXPAND_COL_WIDTH;
+    const narrow = NARROW_COLUMN_WIDTHS[columnId];
+    if (narrow) return narrow;
+    return equalColWidth;
+  }
 
   const paginationBar = totalRows > 0 && (
     <div className="flex flex-col gap-2.5 border-t border-border/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -2096,7 +2191,7 @@ function JournalTableInner({
               earnings={getEarningsDate(row.original)}
               earningsLoading={earningsLoading}
               portfolioPct={portfolioWeights.get(row.original.id) ?? null}
-              onToggleExpand={() => toggleRowExpanded(row.id)}
+              onToggleExpand={toggleRowExpanded}
               onEdit={onEdit}
               onDuplicate={onDuplicate}
               onDelete={onDelete}
@@ -2108,16 +2203,13 @@ function JournalTableInner({
         </ul>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[72rem] table-fixed border-collapse text-center text-sm">
+          <table className="w-full min-w-[70rem] table-fixed border-collapse text-center text-sm">
             <colgroup>
               {visibleColumns.map((col) => (
                 <col
                   key={col.id}
                   style={{
-                    width:
-                      col.id === "expand"
-                        ? expandColWidth
-                        : equalColWidth,
+                    width: columnWidth(col.id),
                   }}
                 />
               ))}
@@ -2175,9 +2267,10 @@ function JournalTableInner({
                 <MemoLiveDesktopTradeRow
                   key={row.id}
                   row={row}
+                  rowId={row.id}
                   expanded={expandedRowIds.has(row.id)}
                   displayCurrency={displayCurrency}
-                  onToggleExpand={() => toggleRowExpanded(row.id)}
+                  onToggleExpand={toggleRowExpanded}
                   earnings={getEarningsDate(row.original)}
                   earningsLoading={earningsLoading}
                   portfolioPct={portfolioWeights.get(row.original.id) ?? null}
