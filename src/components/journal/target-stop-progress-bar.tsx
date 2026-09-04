@@ -117,21 +117,17 @@ function RangeNode({
   markerClass,
   className,
   variant = "tick",
-  label,
-  labelClassName,
 }: {
   position: number;
   markerClass: string;
   className?: string;
   variant?: "tick" | "live";
-  label?: ReactNode;
-  labelClassName?: string;
 }) {
   if (variant === "live") {
     return (
       <span
         className={cn(
-          "absolute bottom-full z-30 flex -translate-x-1/2 flex-col items-center pb-px",
+          "absolute bottom-full z-30 -translate-x-1/2 pb-px",
           className
         )}
         style={{
@@ -139,16 +135,6 @@ function RangeNode({
         }}
         aria-hidden
       >
-        {label ? (
-          <span
-            className={cn(
-              "mb-0.5 font-bold tabular-nums leading-none tracking-tight",
-              labelClassName
-            )}
-          >
-            {label}
-          </span>
-        ) : null}
         <span
           className={cn(
             "block size-0 border-x-[3px] border-x-transparent border-t-[4px] sm:border-x-[4px] sm:border-t-[5px]",
@@ -183,16 +169,41 @@ function RangeLabel({
   children: ReactNode;
   className?: string;
 }) {
+  // Keep labels inside the bar at any zoom: edge labels flush inward,
+  // center labels clamped so -translate-x-1/2 cannot spill past the cell.
+  if (align === "start") {
+    return (
+      <span
+        className={cn(
+          "absolute top-0 left-0 text-left whitespace-nowrap tabular-nums",
+          className
+        )}
+      >
+        {children}
+      </span>
+    );
+  }
+  if (align === "end") {
+    return (
+      <span
+        className={cn(
+          "absolute top-0 right-0 text-right whitespace-nowrap tabular-nums",
+          className
+        )}
+      >
+        {children}
+      </span>
+    );
+  }
   return (
     <span
       className={cn(
-        "absolute top-0 max-w-[42%] truncate tabular-nums",
-        align === "start" && "left-0 text-left",
-        align === "center" && "-translate-x-1/2 text-center",
-        align === "end" && "right-0 text-right",
+        "absolute top-0 -translate-x-1/2 text-center whitespace-nowrap tabular-nums",
         className
       )}
-      style={align === "center" ? { left: `${position * 100}%` } : undefined}
+      style={{
+        left: `clamp(0.75rem, ${position * 100}%, calc(100% - 0.75rem))`,
+      }}
     >
       {children}
     </span>
@@ -280,7 +291,7 @@ function TargetStopProgressBarInner({
       <span
         className={cn(
           "mx-auto block w-full animate-pulse rounded-full bg-muted",
-          compact ? "h-7 max-w-[11rem]" : "h-9 max-w-[14rem]"
+          compact ? "h-8 max-w-[11rem]" : "h-10 max-w-[14rem]"
         )}
       />
     );
@@ -325,14 +336,34 @@ function TargetStopProgressBarInner({
   return (
     <div
       className={cn(
-        "mx-auto w-full min-w-0 [contain:layout_paint]",
-        compact ? "max-w-[11rem] sm:max-w-[12rem]" : "max-w-[14rem] sm:max-w-[15rem]"
+        "mx-auto w-full min-w-0 overflow-x-clip [contain:layout]",
+        compact ? "max-w-[11rem] sm:max-w-[12rem]" : "max-w-full"
       )}
       title={status.text}
       role="img"
       aria-label={status.text}
     >
-      <div className={cn("relative px-0.5 pb-1", compact ? "pt-3" : "pt-5")}>
+      <div className="relative mb-0.5 h-3.5 w-full shrink-0">
+        <span
+          className={cn(
+            "absolute top-0 -translate-x-1/2 font-bold tabular-nums leading-none tracking-tight",
+            compact ? "text-[10px]" : "text-[11px]",
+            pctLabelClass,
+            glow === fill.variant && fill.variant === "green"
+              ? "target-stop-label-glow-green"
+              : glow === fill.variant && fill.variant === "red"
+                ? "target-stop-label-glow-red"
+                : ""
+          )}
+          style={{
+            left: `clamp(0.75rem, ${currentVisual * 100}%, calc(100% - 0.75rem))`,
+          }}
+        >
+          {fill.pct}%
+        </span>
+      </div>
+
+      <div className="relative px-0.5 pb-0.5 pt-1.5">
         <div
           className={cn(
             "relative h-1 overflow-visible rounded-full bg-muted/80 sm:h-1.5",
@@ -387,24 +418,17 @@ function TargetStopProgressBarInner({
             position={currentVisual}
             markerClass={currentMarkerClass}
             variant="live"
-            label={fill.pct > 0 ? `${fill.pct}%` : undefined}
-            labelClassName={cn(
-              compact ? "text-[9px]" : "text-[10px]",
-              pctLabelClass,
-              glow === fill.variant && fill.variant === "green"
-                ? "target-stop-label-glow-green"
-                : glow === fill.variant && fill.variant === "red"
-                  ? "target-stop-label-glow-red"
-                  : ""
-            )}
           />
         </div>
       </div>
 
       {!compact ? (
-        <div className="relative mt-0.5 h-3 w-full text-[8px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px]">
+        <div className="relative mt-0.5 h-3.5 w-full overflow-hidden px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[11px]">
           {progress.hasStop && stopVisual != null ? (
-            <RangeLabel position={stopVisual} align="center">
+            <RangeLabel
+              position={stopVisual}
+              align={stopVisual <= entryVisual ? "start" : "end"}
+            >
               SL
             </RangeLabel>
           ) : null}
@@ -412,7 +436,10 @@ function TargetStopProgressBarInner({
             E
           </RangeLabel>
           {progress.hasTarget && targetVisual != null ? (
-            <RangeLabel position={targetVisual} align="center">
+            <RangeLabel
+              position={targetVisual}
+              align={targetVisual >= entryVisual ? "end" : "start"}
+            >
               T
             </RangeLabel>
           ) : null}

@@ -91,13 +91,12 @@ const NARROW_COLUMN_WIDTHS: Record<string, string> = {
   quantity: "2.75rem",
   riskReward: "3.5rem",
   holdTimeHours: "3rem",
-  targetStopProgress: "9.5rem",
 };
 const NARROW_COLUMN_CLASS: Record<string, string> = {
   quantity: "w-11 max-w-11 px-1",
   riskReward: "w-14 max-w-14 px-1",
   holdTimeHours: "w-12 max-w-12 px-1",
-  targetStopProgress: "w-[9.5rem] max-w-[9.5rem] px-1",
+  targetStopProgress: "min-w-[9rem] px-1.5",
 };
 
 function tradeQuoteDisplayFieldsEqual(a: JournalTrade, b: JournalTrade) {
@@ -122,7 +121,7 @@ function journalCellClass(columnId: string) {
     NARROW_COLUMN_CLASS[columnId],
     columnId === "currentPrice" && "pr-5 sm:pr-7",
     columnId === "pnl" && "pl-5 sm:pl-7",
-    "py-3 align-middle text-center [text-align:center]"
+    "overflow-x-clip py-1.5 align-middle text-center [text-align:center]"
   );
 }
 
@@ -132,7 +131,7 @@ function journalHeaderClass(columnId: string) {
     NARROW_COLUMN_CLASS[columnId],
     columnId === "currentPrice" && "pr-5 sm:pr-7",
     columnId === "pnl" && "pl-5 sm:pl-7",
-    "h-10 border-r border-border/50 py-2 align-middle text-center [text-align:center] last:border-r-0"
+    "h-9 overflow-x-clip border-r border-border/50 py-1.5 align-middle text-center [text-align:center] last:border-r-0"
   );
 }
 
@@ -1797,7 +1796,7 @@ function JournalTableInner({
           <SortHeader label="Qty" sorted={column.getIsSorted()} />
         ),
         cell: ({ row }) => (
-          <span className={cn("block w-full text-center text-xs font-medium sm:text-sm", NUMERIC_CLASS)}>
+          <span className={cn("block w-full text-center text-sm font-medium", NUMERIC_CLASS)}>
             {row.original.quantity}
           </span>
         ),
@@ -1921,7 +1920,7 @@ function JournalTableInner({
         cell: ({ row }) => {
           const rr = formatTradeRiskReward(row.original);
           return (
-            <span className={cn("block w-full text-center text-xs font-medium sm:text-sm", NUMERIC_CLASS)}>
+            <span className={cn("block w-full text-center text-sm font-medium", NUMERIC_CLASS)}>
               {rr ?? "—"}
             </span>
           );
@@ -1952,7 +1951,7 @@ function JournalTableInner({
           return (
             <span
               className={cn(
-                "block w-full text-center text-xs sm:text-sm text-muted-foreground",
+                "block w-full text-center text-sm text-muted-foreground",
                 NUMERIC_CLASS,
                 isActive && "text-foreground"
               )}
