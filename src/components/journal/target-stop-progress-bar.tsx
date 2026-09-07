@@ -14,6 +14,14 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+/** Stop is on the profit side of entry (trailing stop locking a gain). */
+function isProfitLockedStop(trade: JournalTrade): boolean {
+  const { direction, entryPrice, stopLoss } = trade;
+  if (!entryPrice || !stopLoss || stopLoss <= 0) return false;
+  if (Math.abs(stopLoss - entryPrice) / entryPrice <= 0.000_01) return false;
+  return direction === "Short" ? stopLoss < entryPrice : stopLoss > entryPrice;
+}
+
 function computeRangeLayout(
   trade: JournalTrade,
   progress: TargetStopProgress,
@@ -21,10 +29,16 @@ function computeRangeLayout(
 ) {
   const { entryPrice, profitTarget, stopLoss } = trade;
   const { hasTarget, hasStop } = progress;
+  const profitLocked = isProfitLockedStop(trade);
 
   if (hasTarget && hasStop) {
-    const min = Math.min(stopLoss, profitTarget);
-    const max = Math.max(stopLoss, profitTarget);
+    // When stop locks profit, span entry→target so E/SL/T all sit on a green bar.
+    const min = profitLocked
+      ? Math.min(entryPrice, stopLoss, profitTarget)
+      : Math.min(stopLoss, profitTarget);
+    const max = profitLocked
+      ? Math.max(entryPrice, stopLoss, profitTarget)
+      : Math.max(stopLoss, profitTarget);
     const span = max - min;
     if (span <= 0) {
       return {
@@ -32,7 +46,8 @@ function computeRangeLayout(
         currentVisual: 0.5,
         stopVisual: 0,
         targetVisual: 1,
-        leftTone: "red" as const,
+        leftTone: "green" as const,
+        allGreen: true,
       };
     }
 
@@ -44,7 +59,8 @@ function computeRangeLayout(
       currentVisual: toVisual(currentPrice),
       stopVisual: toVisual(stopLoss),
       targetVisual: toVisual(profitTarget),
-      leftTone: stopOnLeft ? ("red" as const) : ("green" as const),
+      leftTone: profitLocked || !stopOnLeft ? ("green" as const) : ("red" as const),
+      allGreen: profitLocked,
     };
   }
 
@@ -62,6 +78,7 @@ function computeRangeLayout(
       stopVisual: null,
       targetVisual: toVisual(profitTarget),
       leftTone: "green" as const,
+      allGreen: true,
     };
   }
 
@@ -78,7 +95,8 @@ function computeRangeLayout(
       currentVisual: toVisual(currentPrice),
       stopVisual: toVisual(stopLoss),
       targetVisual: null,
-      leftTone: "red" as const,
+      leftTone: profitLocked ? ("green" as const) : ("red" as const),
+      allGreen: profitLocked,
     };
   }
 
@@ -88,6 +106,7 @@ function computeRangeLayout(
     stopVisual: null,
     targetVisual: null,
     leftTone: "red" as const,
+    allGreen: false,
   };
 }
 
@@ -316,7 +335,7 @@ function TargetStopProgressBarInner({
   const status = getTargetStopStatusLabel(progress);
   const glow = (trade.status ?? "Closed") === "Closed" ? null : getTargetStopMarkerBlink(progress);
   const fill = resolveFillState(progress);
-  const { entryVisual, currentVisual, stopVisual, targetVisual, leftTone } =
+  const { entryVisual, currentVisual, stopVisual, targetVisual, leftTone, allGreen } =
     computeRangeLayout(trade, progress, currentPrice);
 
   const pctLabelClass =
@@ -371,36 +390,51 @@ function TargetStopProgressBarInner({
           )}
         >
           {progress.hasStop && progress.hasTarget ? (
-            <>
-              <div
-                className={cn(
-                  "absolute inset-y-0 left-0 rounded-l-full",
-                  leftTone === "red"
-                    ? "bg-rose-400/85 dark:bg-rose-500/50"
-                    : "bg-teal-500/85 dark:bg-teal-400/55"
-                )}
-                style={{ width: `${entryVisual * 100}%` }}
-              />
-              <div
-                className={cn(
-                  "absolute inset-y-0 rounded-r-full",
-                  leftTone === "red"
-                    ? "bg-teal-500/85 dark:bg-teal-400/55"
-                    : "bg-rose-400/85 dark:bg-rose-500/50"
-                )}
-                style={{ left: `${entryVisual * 100}%`, right: 0 }}
-              />
-            </>
+            allGreen ? (
+              <div className="absolute inset-0 rounded-full bg-teal-500/85 dark:bg-teal-400/55" />
+            ) : (
+              <>
+                <div
+                  className={cn(
+                    "absolute inset-y-0 left-0 rounded-l-full",
+                    leftTone === "red"
+                      ? "bg-rose-400/85 dark:bg-rose-500/50"
+                      : "bg-teal-500/85 dark:bg-teal-400/55"
+                  )}
+                  style={{ width: `${entryVisual * 100}%` }}
+                />
+                <div
+                  className={cn(
+                    "absolute inset-y-0 rounded-r-full",
+                    leftTone === "red"
+                      ? "bg-teal-500/85 dark:bg-teal-400/55"
+                      : "bg-rose-400/85 dark:bg-rose-500/50"
+                  )}
+                  style={{ left: `${entryVisual * 100}%`, right: 0 }}
+                />
+              </>
+            )
           ) : progress.hasTarget ? (
             <div className="absolute inset-0 rounded-full bg-teal-500/85 dark:bg-teal-400/55" />
           ) : progress.hasStop ? (
-            <div className="absolute inset-0 rounded-full bg-rose-400/85 dark:bg-rose-500/50" />
+            <div
+              className={cn(
+                "absolute inset-0 rounded-full",
+                allGreen
+                  ? "bg-teal-500/85 dark:bg-teal-400/55"
+                  : "bg-rose-400/85 dark:bg-rose-500/50"
+              )}
+            />
           ) : null}
 
           {progress.hasStop && stopVisual != null ? (
             <RangeNode
               position={stopVisual}
-              markerClass="bg-rose-500 dark:bg-rose-400"
+              markerClass={
+                allGreen
+                  ? "bg-teal-600 dark:bg-teal-300"
+                  : "bg-rose-500 dark:bg-rose-400"
+              }
             />
           ) : null}
           <RangeNode
