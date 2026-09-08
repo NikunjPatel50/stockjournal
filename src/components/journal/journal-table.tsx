@@ -28,6 +28,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  LineChart,
   Pencil,
   Split,
   Trash2,
@@ -74,6 +75,8 @@ import { useEarningsDates } from "@/hooks/use-earnings-dates";
 import { useMarketQuotes, useTradeQuote, type ClientMarketQuote } from "@/hooks/use-market-quotes";
 import { useIsJournalCompact, useIsMobile } from "@/hooks/use-media-query";
 import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
+import { openTradingViewDailyChart } from "@/lib/tradingview";
 import { parseEarningsDisplayDate, type EarningsDateInfo } from "@/lib/yahoo-earnings";
 import {
   cn,
@@ -476,6 +479,7 @@ function LiveCompactTradeCard({
               onDuplicate={onDuplicate}
               onDelete={onDelete}
               onPartialExit={onPartialExit}
+              displayCurrency={displayCurrency}
               compact
               touchFriendly={touchFriendly}
             />
@@ -1390,6 +1394,7 @@ function TradeActions({
   onDuplicate,
   onDelete,
   onPartialExit,
+  displayCurrency = DEFAULT_CURRENCY,
   className,
   compact = false,
   touchFriendly = false,
@@ -1399,6 +1404,7 @@ function TradeActions({
   onDuplicate: (t: JournalTrade) => void;
   onDelete: (ids: string[]) => void;
   onPartialExit?: (t: JournalTrade) => void;
+  displayCurrency?: CurrencyCode;
   className?: string;
   compact?: boolean;
   touchFriendly?: boolean;
@@ -1409,7 +1415,10 @@ function TradeActions({
 
   return (
     <div
-      className={cn("flex items-center justify-center gap-0.5", className)}
+      className={cn(
+        "inline-flex items-center justify-center rounded-lg border border-border bg-muted/60 p-0.5 shadow-sm ring-1 ring-foreground/10 dark:bg-muted/50 dark:ring-white/15",
+        className
+      )}
       onClick={(e) => e.stopPropagation()}
     >
       {isActive && onPartialExit ? (
@@ -1417,7 +1426,7 @@ function TradeActions({
           type="button"
           variant="ghost"
           size={actionSize}
-          className={actionButtonClass}
+          className={cn(actionButtonClass, "rounded-md")}
           title="Partial exit"
           aria-label="Partial exit"
           onClick={() => onPartialExit(trade)}
@@ -1429,7 +1438,18 @@ function TradeActions({
         type="button"
         variant="ghost"
         size={actionSize}
-        className={actionButtonClass}
+        className={cn(actionButtonClass, "rounded-md")}
+        title="Open TradingView chart (daily)"
+        aria-label="Open TradingView chart"
+        onClick={() => openTradingViewDailyChart(trade, displayCurrency)}
+      >
+        <LineChart className="size-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size={actionSize}
+        className={cn(actionButtonClass, "rounded-md")}
         title="Edit trade"
         aria-label="Edit trade"
         onClick={() => onEdit(trade)}
@@ -1440,7 +1460,7 @@ function TradeActions({
         type="button"
         variant="ghost"
         size={actionSize}
-        className={actionButtonClass}
+        className={cn(actionButtonClass, "rounded-md")}
         title="Duplicate trade"
         aria-label="Duplicate trade"
         onClick={() => onDuplicate(trade)}
@@ -1455,7 +1475,7 @@ function TradeActions({
         aria-label="Delete trade"
         className={cn(
           actionButtonClass,
-          "text-destructive hover:bg-destructive/10 hover:text-destructive"
+          "rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive"
         )}
         onClick={() => onDelete([trade.id])}
       >
@@ -1975,6 +1995,7 @@ function JournalTableInner({
             onDuplicate={onDuplicateRef.current}
             onDelete={onDeleteRef.current}
             onPartialExit={onPartialExitRef.current}
+            displayCurrency={displayCurrencyRef.current}
           />
         ),
       },
