@@ -251,7 +251,10 @@ function BreakdownPnlShareChart({
           )}
         </div>
 
-        <ul className="min-w-0 flex-1 space-y-1.5">
+        <ul
+          className="min-w-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-0.5"
+          style={{ maxHeight: "calc(7 * 3.35rem)" }}
+        >
           {chartData.map((row) => {
             const isPositive = row.pnl > 0;
             const isNegative = row.pnl < 0;

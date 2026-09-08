@@ -90,9 +90,13 @@ import {
 const CELL_X = "px-3";
 const CELL_CENTER = "flex w-full items-center justify-center text-center";
 const EXPAND_COL_WIDTH = "1.75rem";
-/** Desktop body shows ~7 trade rows before scrolling (header stays sticky). */
-const JOURNAL_TABLE_BODY_MAX_HEIGHT = "calc(2.25rem + 7 * 3.85rem)";
-const JOURNAL_COMPACT_LIST_MAX_HEIGHT = "calc(7 * 9.5rem)";
+/** Desktop body height tracks the Rows pagination setting; header stays sticky. */
+function journalTableBodyMaxHeight(pageSize: number) {
+  return `calc(2.25rem + ${pageSize} * 3.85rem)`;
+}
+function journalCompactListMaxHeight(pageSize: number) {
+  return `calc(${pageSize} * 9.5rem)`;
+}
 const NARROW_COLUMN_WIDTHS: Record<string, string> = {
   quantity: "2.75rem",
   riskReward: "3.5rem",
@@ -2205,7 +2209,7 @@ function JournalTableInner({
       ) : isCompact ? (
         <ul
           className="divide-y divide-border/80 overflow-y-auto overscroll-contain"
-          style={{ maxHeight: JOURNAL_COMPACT_LIST_MAX_HEIGHT }}
+          style={{ maxHeight: journalCompactListMaxHeight(pageSize) }}
         >
           {pageRows.map((row) => (
             <MemoLiveCompactTradeCard
@@ -2230,7 +2234,7 @@ function JournalTableInner({
       ) : (
         <div
           className="overflow-auto overscroll-contain"
-          style={{ maxHeight: JOURNAL_TABLE_BODY_MAX_HEIGHT }}
+          style={{ maxHeight: journalTableBodyMaxHeight(pageSize) }}
         >
           <table className="w-full min-w-[70rem] table-fixed border-collapse text-center text-sm">
             <colgroup>
