@@ -90,6 +90,8 @@ import {
 const CELL_X = "px-3";
 const CELL_CENTER = "flex w-full items-center justify-center text-center";
 const EXPAND_COL_WIDTH = "1.75rem";
+/** Room for the action control group (chart / edit / duplicate / delete ± partial). */
+const ACTIONS_COL_WIDTH = "11.5rem";
 /** Desktop body height tracks the Rows pagination setting; header stays sticky. */
 function journalTableBodyMaxHeight(pageSize: number) {
   return `calc(2.25rem + ${pageSize} * 3.85rem)`;
@@ -100,12 +102,14 @@ function journalCompactListMaxHeight(pageSize: number) {
 const NARROW_COLUMN_WIDTHS: Record<string, string> = {
   quantity: "2.75rem",
   riskReward: "3.5rem",
-  holdTimeHours: "3rem",
+  holdTimeHours: "3.25rem",
+  actions: ACTIONS_COL_WIDTH,
 };
 const NARROW_COLUMN_CLASS: Record<string, string> = {
   quantity: "w-11 max-w-11 px-1",
   riskReward: "w-14 max-w-14 px-1",
-  holdTimeHours: "w-12 max-w-12 px-1",
+  holdTimeHours: "w-[3.25rem] max-w-[3.25rem] px-1",
+  actions: "w-[11.5rem] min-w-[11.5rem] max-w-[11.5rem] px-1",
   targetStopProgress: "min-w-[9rem] px-1.5",
 };
 
@@ -2236,7 +2240,7 @@ function JournalTableInner({
           className="overflow-auto overscroll-contain"
           style={{ maxHeight: journalTableBodyMaxHeight(pageSize) }}
         >
-          <table className="w-full min-w-[70rem] table-fixed border-collapse text-center text-sm">
+          <table className="w-full min-w-[74rem] table-fixed border-collapse text-center text-sm">
             <colgroup>
               {visibleColumns.map((col) => (
                 <col
