@@ -12,6 +12,7 @@ import {
   hasExchangeSessionStartedForDate,
   isExchangeSessionClosedForDate,
   isExchangeSessionPendingForToday,
+  isListingMarketNonTradingDay,
   lastCompletedTradingSessionYmd,
   resolveDailyPnlSessionDate,
   todayYmdForListingMarket,
@@ -111,6 +112,13 @@ export function quoteDailyPnlForSession(
   asOf = new Date(),
   options?: { hasPriorSessionBar?: boolean }
 ): number | null {
+  // Live quotes only describe the current calendar session. Never apply them to
+  // a prior day (e.g. weekend mapping) — that rewrites historical daily P&L.
+  const today = todayYmdForListingMarket(listingMarket, asOf);
+  if (sessionDate !== today) {
+    return null;
+  }
+
   // Gate on session *start* (not close) so today's P&L goes live at market
   // open and updates continuously through the day, resetting to ~0 each
   // morning instead of staying frozen until the session closes.
@@ -140,6 +148,22 @@ export function quoteDailyPnlForSession(
   return null;
 }
 
+/**
+ * Live quotes may update today's point only while the regular session is open.
+ * After the close (e.g. 3:30 PM IST), that day's P&L is locked to EOD history.
+ */
+function canLiveUpdateDailyPnl(
+  listingMarket: ListingMarketId,
+  asOf: Date
+): boolean {
+  if (isListingMarketNonTradingDay(listingMarket, asOf)) return false;
+  const today = todayYmdForListingMarket(listingMarket, asOf);
+  return (
+    hasExchangeSessionStartedForDate(listingMarket, today, asOf) &&
+    !isExchangeSessionClosedForDate(listingMarket, today, asOf)
+  );
+}
+
 function dailyPnlForTrade(
   trade: ActivePositionPnlInput,
   bars: OhlcvBar[],
@@ -159,9 +183,10 @@ function dailyPnlForTrade(
     let reference = trade.entryPrice;
     if (bar.date !== entryDay) {
       const previous = findPreviousTradingBar(sorted, bar.date, entryDay);
-      if (previous) {
-        reference = previous.close;
-      }
+      // Skip until the prior session bar exists — using entry as a stand-in
+      // makes "daily" P&L look cumulative and then jump when history fills in.
+      if (!previous) continue;
+      reference = previous.close;
     }
 
     result.set(
@@ -182,21 +207,39 @@ function applyQuoteDailyForToday(
   bars: OhlcvBar[] = []
 ) {
   const today = todayYmdForListingMarket(listingMarket, asOf);
-  const sessionDate = resolveDailyPnlSessionDate(listingMarket, asOf);
+  const sessionClosed = isExchangeSessionClosedForDate(
+    listingMarket,
+    today,
+    asOf
+  );
+
+  // After the bell, keep the locked EOD (or previously seeded) value.
+  if (sessionClosed && tradeDaily.has(today)) {
+    return;
+  }
+
+  // During the session: live updates. After close with no EOD bar yet: seed
+  // once from the closing quote so the day still appears, then leave it alone.
+  if (!sessionClosed && !canLiveUpdateDailyPnl(listingMarket, asOf)) {
+    return;
+  }
+  if (sessionClosed && !hasExchangeSessionStartedForDate(listingMarket, today, asOf)) {
+    return;
+  }
+
   const entryDay = entryDayKey(trade.entryDate, listingMarket);
   const quoteDaily = quoteDailyPnlForSession(
     trade,
     quote,
-    sessionDate,
+    today,
     listingMarket,
     asOf,
     {
-      hasPriorSessionBar: hasPriorExchangeSessionBar(bars, entryDay, sessionDate),
+      hasPriorSessionBar: hasPriorExchangeSessionBar(bars, entryDay, today),
     }
   );
   if (quoteDaily == null) return;
 
-  // Live quotes are more accurate than stale/missing EOD bars for today.
   tradeDaily.set(today, quoteDaily);
 }
 
@@ -218,15 +261,18 @@ export function patchTodayDailyFromQuotes(
     if (!quote?.price || quote.price <= 0) continue;
 
     const listingMarket = resolveListingMarket(trade, currency);
+    // Do not rewrite historical days after the session closes — live ticks
+    // (and next-day change%) must not move yesterday's locked bar.
+    if (!canLiveUpdateDailyPnl(listingMarket, asOf)) continue;
+
     const today = todayYmdForListingMarket(listingMarket, asOf);
-    const sessionDate = resolveDailyPnlSessionDate(listingMarket, asOf);
     const entryDay = entryDayKey(trade.entryDate, listingMarket);
     const hasPriorSessionBar =
-      priorSessionBarByTradeId[trade.id] ?? entryDay < sessionDate;
+      priorSessionBarByTradeId[trade.id] ?? entryDay < today;
     const quoteDaily = quoteDailyPnlForSession(
       trade,
       quote,
-      sessionDate,
+      today,
       listingMarket,
       asOf,
       { hasPriorSessionBar }
@@ -324,12 +370,12 @@ export function computeTradeDailyPnlFromQuote(
   if (!quote?.price || quote.price <= 0) return null;
 
   const listingMarket = resolveListingMarket(trade, currency);
-  const sessionDate = resolveDailyPnlSessionDate(listingMarket, asOf);
+  const today = todayYmdForListingMarket(listingMarket, asOf);
   const entryDay = entryDayKey(trade.entryDate, listingMarket);
   const hasPriorSessionBar =
-    priorSessionBarByTradeId[trade.id] ?? entryDay < sessionDate;
+    priorSessionBarByTradeId[trade.id] ?? entryDay < today;
 
-  return quoteDailyPnlForSession(trade, quote, sessionDate, listingMarket, asOf, {
+  return quoteDailyPnlForSession(trade, quote, today, listingMarket, asOf, {
     hasPriorSessionBar,
   });
 }
