@@ -247,10 +247,12 @@ function hasStopAboveEntry(trade: JournalTrade): boolean {
   return hasDistinctLevel(stopLoss, entryPrice) && stopLoss > entryPrice;
 }
 
+type RowAccentCategory = "profit" | "loss" | "stopAboveEntry";
+
 function resolveRowAccentCategory(
   trade: JournalTrade,
   livePnl?: number
-): "profit" | "loss" | "stopAboveEntry" | null {
+): RowAccentCategory | null {
   if (hasStopAboveEntry(trade)) return "stopAboveEntry";
   const pnl = livePnl ?? trade.pnl;
   if (pnl > 0) return "profit";
@@ -283,12 +285,33 @@ function compactRowAccentClass(trade: JournalTrade, livePnl?: number) {
   );
 }
 
+function rowLegendHighlightClass(
+  category: RowAccentCategory | null,
+  highlightedCategory: RowAccentCategory | null
+) {
+  if (!highlightedCategory) return "";
+  if (category === highlightedCategory) {
+    if (category === "profit") {
+      return "bg-emerald-500/[0.12] ring-1 ring-inset ring-emerald-500/25 dark:bg-emerald-500/15";
+    }
+    if (category === "loss") {
+      return "bg-rose-500/[0.12] ring-1 ring-inset ring-rose-500/25 dark:bg-rose-500/15";
+    }
+    return "bg-sky-500/[0.12] ring-1 ring-inset ring-sky-500/25 dark:bg-sky-500/15";
+  }
+  return "opacity-35 saturate-50";
+}
+
 const LiveRowColorLegend = memo(function LiveRowColorLegend({
   trades,
   displayCurrency,
+  highlightedCategory,
+  onCategoryHover,
 }: {
   trades: JournalTrade[];
   displayCurrency: CurrencyCode;
+  highlightedCategory: RowAccentCategory | null;
+  onCategoryHover: (category: RowAccentCategory | null) => void;
 }) {
   const { getQuote, quoteRevision } = useMarketQuotes();
   const countsRef = useRef({ profit: 0, loss: 0, stopAboveEntry: 0 });
@@ -314,7 +337,13 @@ const LiveRowColorLegend = memo(function LiveRowColorLegend({
     return result;
   }, [trades, getQuote, quoteRevision, displayCurrency]);
 
-  return <RowColorLegend counts={counts} />;
+  return (
+    <RowColorLegend
+      counts={counts}
+      highlightedCategory={highlightedCategory}
+      onCategoryHover={onCategoryHover}
+    />
+  );
 });
 
 function LiveTargetStopCell({
@@ -382,6 +411,7 @@ function LiveCompactTradeCard({
   onDelete,
   onPartialExit,
   touchFriendly,
+  highlightedRowCategory,
 }: {
   trade: JournalTrade;
   displayCurrency: CurrencyCode;
@@ -396,9 +426,11 @@ function LiveCompactTradeCard({
   onDelete: (ids: string[]) => void;
   onPartialExit?: (t: JournalTrade) => void;
   touchFriendly: boolean;
+  highlightedRowCategory: RowAccentCategory | null;
 }) {
   const quote = useTradeQuote(trade, displayCurrency);
   const pnlDisplay = resolveTradePnlDisplay(trade, quote, displayCurrency);
+  const rowCategory = resolveRowAccentCategory(trade, pnlDisplay.pnl);
   const dailyInput = toActivePositionPnlInput(trade);
   const dailyPnl =
     dailyInput && quote?.price
@@ -415,7 +447,13 @@ function LiveCompactTradeCard({
 
   return (
     <li>
-      <div className={compactRowAccentClass(trade, pnlDisplay.pnl)}>
+      <div
+        className={cn(
+          compactRowAccentClass(trade, pnlDisplay.pnl),
+          "transition-[opacity,background-color,filter] duration-150",
+          rowLegendHighlightClass(rowCategory, highlightedRowCategory)
+        )}
+      >
         <div className="flex items-start gap-2 px-3 py-3 sm:px-4 sm:py-4">
           <button
             type="button"
@@ -570,6 +608,7 @@ const MemoLiveCompactTradeCard = memo(
     prev.earningsLoading === next.earningsLoading &&
     prev.portfolioPct === next.portfolioPct &&
     prev.touchFriendly === next.touchFriendly &&
+    prev.highlightedRowCategory === next.highlightedRowCategory &&
     prev.displayCurrency === next.displayCurrency &&
     prev.onToggleExpand === next.onToggleExpand &&
     prev.onEdit === next.onEdit &&
@@ -590,6 +629,7 @@ function LiveDesktopTradeRow({
   earnings,
   earningsLoading,
   portfolioPct,
+  highlightedRowCategory,
 }: {
   row: ReturnType<
     ReturnType<typeof useReactTable<JournalTrade>>["getRowModel"]
@@ -602,6 +642,7 @@ function LiveDesktopTradeRow({
   earnings: EarningsDateInfo | null;
   earningsLoading: boolean;
   portfolioPct: number | null;
+  highlightedRowCategory: RowAccentCategory | null;
 }) {
   const quote = useTradeQuote(row.original, displayCurrency);
   const livePnl = resolveTradePnlDisplay(
@@ -609,17 +650,19 @@ function LiveDesktopTradeRow({
     quote,
     displayCurrency
   ).pnl;
+  const rowCategory = resolveRowAccentCategory(row.original, livePnl);
   const visibleCellCount = row.getVisibleCells().length;
 
   return (
     <Fragment>
       <tr
         className={cn(
-          "group cursor-pointer border-b text-center transition-colors",
+          "group cursor-pointer border-b text-center transition-[opacity,background-color,filter] duration-150",
           rowIndex % 2 === 1 && "bg-muted/[0.14]",
           expanded ? "bg-muted/25" : "hover:bg-muted/20",
           "border-border/50",
-          rowAccentClass(row.original, livePnl)
+          rowAccentClass(row.original, livePnl),
+          rowLegendHighlightClass(rowCategory, highlightedRowCategory)
         )}
         onClick={() => onToggleExpand(rowId)}
       >
@@ -662,14 +705,19 @@ const MemoLiveDesktopTradeRow = memo(LiveDesktopTradeRow, (prev, next) => {
   if (prev.onToggleExpand !== next.onToggleExpand) return false;
   if (prev.earningsLoading !== next.earningsLoading) return false;
   if (prev.portfolioPct !== next.portfolioPct) return false;
+  if (prev.highlightedRowCategory !== next.highlightedRowCategory) return false;
   if (prev.earnings?.nextEarningsDate !== next.earnings?.nextEarningsDate) return false;
   return tradeQuoteDisplayFieldsEqual(prev.row.original, next.row.original);
 });
 
 const RowColorLegend = memo(function RowColorLegend({
   counts,
+  highlightedCategory,
+  onCategoryHover,
 }: {
   counts: { profit: number; loss: number; stopAboveEntry: number };
+  highlightedCategory: RowAccentCategory | null;
+  onCategoryHover: (category: RowAccentCategory | null) => void;
 }) {
   const items = [
     {
@@ -713,9 +761,22 @@ const RowColorLegend = memo(function RowColorLegend({
           key={item.key}
           role="listitem"
           className={cn(
-            "inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 whitespace-nowrap sm:gap-1.5 sm:px-2 sm:py-1",
-            item.chip
+            "inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 whitespace-nowrap transition-[box-shadow,transform] duration-150 sm:gap-1.5 sm:px-2 sm:py-1",
+            item.chip,
+            item.count > 0 && "cursor-pointer hover:brightness-110",
+            highlightedCategory === item.key &&
+              "z-10 shadow-sm ring-1 ring-foreground/15 dark:ring-white/20"
           )}
+          onMouseEnter={() => {
+            if (item.count > 0) onCategoryHover(item.key);
+          }}
+          onMouseLeave={() => onCategoryHover(null)}
+          onFocus={() => {
+            if (item.count > 0) onCategoryHover(item.key);
+          }}
+          onBlur={() => onCategoryHover(null)}
+          tabIndex={item.count > 0 ? 0 : undefined}
+          aria-label={`${item.label}: ${item.count}`}
         >
           <span
             className={cn("h-3.5 w-1 shrink-0 rounded-full", item.accent)}
@@ -1660,6 +1721,8 @@ const JournalTableHeader = memo(function JournalTableHeader({
   isCompact,
   columnPrefs,
   onColumnPrefsChange,
+  highlightedRowCategory,
+  onCategoryHover,
 }: {
   title: string;
   totalRows: number;
@@ -1676,6 +1739,8 @@ const JournalTableHeader = memo(function JournalTableHeader({
   isCompact: boolean;
   columnPrefs: JournalColumnPrefs;
   onColumnPrefsChange: (prefs: JournalColumnPrefs) => void;
+  highlightedRowCategory: RowAccentCategory | null;
+  onCategoryHover: (category: RowAccentCategory | null) => void;
 }) {
   const { quotesDelayed, quotesSessionOpen, quotesError } = quoteStatus;
   const hasActiveTrades = useMemo(
@@ -1710,9 +1775,15 @@ const JournalTableHeader = memo(function JournalTableHeader({
                 <LiveRowColorLegend
                   trades={trades}
                   displayCurrency={displayCurrency}
+                  highlightedCategory={highlightedRowCategory}
+                  onCategoryHover={onCategoryHover}
                 />
               ) : staticRowLegendCounts ? (
-                <RowColorLegend counts={staticRowLegendCounts} />
+                <RowColorLegend
+                  counts={staticRowLegendCounts}
+                  highlightedCategory={highlightedRowCategory}
+                  onCategoryHover={onCategoryHover}
+                />
               ) : null}
             </div>
           ) : null}
@@ -1839,6 +1910,8 @@ function JournalTableInner({
     loadJournalColumnPrefs()
   );
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() => new Set());
+  const [highlightedRowCategory, setHighlightedRowCategory] =
+    useState<RowAccentCategory | null>(null);
 
   const { activeCurrency } = useJournalMarket();
   const displayCurrency = displayCurrencyProp ?? activeCurrency;
@@ -2408,6 +2481,8 @@ function JournalTableInner({
         isCompact={isCompact}
         columnPrefs={columnPrefs}
         onColumnPrefsChange={setColumnPrefs}
+        highlightedRowCategory={highlightedRowCategory}
+        onCategoryHover={setHighlightedRowCategory}
       />
 
       {totalRows === 0 ? (
@@ -2439,6 +2514,7 @@ function JournalTableInner({
               onDelete={onDelete}
               onPartialExit={onPartialExit}
               touchFriendly={isMobile}
+              highlightedRowCategory={highlightedRowCategory}
             />
           ))}
         </ul>
@@ -2519,6 +2595,7 @@ function JournalTableInner({
                   earnings={getEarningsDate(row.original)}
                   earningsLoading={earningsLoading}
                   portfolioPct={portfolioWeights.get(row.original.id) ?? null}
+                  highlightedRowCategory={highlightedRowCategory}
                 />
               ))}
             </tbody>
