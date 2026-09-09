@@ -19,6 +19,17 @@ function stopHoldClockIfIdle() {
   holdClockInterval = null;
 }
 
+/** Subscribe to the shared hold clock without re-rendering (e.g. for sort accessors). */
+export function subscribeHoldTimeClock(listener: () => void) {
+  subscribers.add(listener);
+  ensureHoldClock();
+
+  return () => {
+    subscribers.delete(listener);
+    stopHoldClockIfIdle();
+  };
+}
+
 /** Shared ticking clock for live hold-time display — one interval app-wide. */
 export function useHoldTimeClock(intervalMs = 60_000) {
   const [now, setNow] = useState(() => Date.now());

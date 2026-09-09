@@ -1,4 +1,4 @@
-import { memo, useMemo, type ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { MetricHint } from "@/components/ui/metric-hint";
 import {
   AnimatedCurrency,
@@ -19,12 +19,6 @@ import type {
 } from "@/lib/trade-pnl";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 
 interface JournalSummaryBarProps {
@@ -46,34 +40,47 @@ function toneValueClass(tone: MetricTone) {
   return "text-foreground";
 }
 
-function toneAccentClass(tone: MetricTone) {
+function toneDotClass(tone: MetricTone) {
   if (tone === "profit") return "bg-emerald-500";
   if (tone === "loss") return "bg-rose-500";
-  return "bg-border";
+  return "bg-muted-foreground/35";
 }
 
 function valueFontClass(value: string) {
   const len = value.length;
-  if (len <= 10) return "text-2xl sm:text-[1.75rem]";
-  if (len <= 14) return "text-xl sm:text-2xl";
-  if (len <= 18) return "text-lg sm:text-xl";
-  return "text-base sm:text-lg";
+  if (len <= 10) return "text-xl sm:text-2xl";
+  if (len <= 14) return "text-lg sm:text-xl";
+  if (len <= 18) return "text-base sm:text-lg";
+  return "text-sm sm:text-base";
 }
 
 function MetricLabel({
   label,
   labelShort,
   hint,
+  tone = "neutral",
+  labelClassName,
 }: {
   label: string;
   labelShort?: string;
   hint: string;
+  tone?: MetricTone;
+  labelClassName?: string;
 }) {
   const displayLabel = labelShort ?? label;
 
   return (
-    <div className="flex min-w-0 items-center gap-1">
-      <span className="min-w-0 truncate text-[11px] font-medium leading-none tracking-wide text-muted-foreground sm:text-xs">
+    <div className="flex min-w-0 items-center justify-center gap-1.5">
+      <span
+        className={cn("size-1.5 shrink-0 rounded-full", toneDotClass(tone))}
+        aria-hidden
+      />
+      <span
+        className={cn(
+          "min-w-0 truncate text-center text-xs font-medium text-muted-foreground",
+          labelClassName
+        )}
+      >
         {labelShort ? (
           <>
             <span className="lg:hidden">{labelShort}</span>
@@ -95,54 +102,71 @@ function HeroMetric({
   value,
   valueTitle,
   valueFontHint,
-  valueClassName,
-  footer,
   tone = "neutral",
+  className,
 }: {
   label: string;
   labelShort?: string;
   hint: string;
   value: ReactNode;
   valueTitle?: string;
-  /** Shorter string for responsive font sizing (avoids shrinking when valueTitle includes extra text). */
   valueFontHint?: string;
-  valueClassName?: string;
-  footer?: ReactNode;
   tone?: MetricTone;
+  className?: string;
 }) {
   return (
     <div
       className={cn(
-        "relative min-w-0 rounded-lg px-4 py-3 sm:px-5 sm:py-3.5",
-        tone === "profit" && "bg-emerald-500/[0.06]",
-        tone === "loss" && "bg-rose-500/[0.06]",
-        tone === "neutral" && "bg-muted/25"
+        "flex min-w-0 flex-col items-center bg-card px-3 py-1.5 text-center sm:px-4 sm:py-2",
+        className
       )}
     >
-      <span
-        className={cn(
-          "absolute inset-y-3 left-0 w-0.5 rounded-full",
-          toneAccentClass(tone)
-        )}
-        aria-hidden
+      <MetricLabel
+        label={label}
+        labelShort={labelShort}
+        hint={hint}
+        tone={tone}
       />
-      <MetricLabel label={label} labelShort={labelShort} hint={hint} />
       <div
         className={cn(
-          "mt-2 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 font-semibold tracking-tight",
+          "mt-1 flex min-w-0 flex-wrap items-baseline justify-center gap-x-1.5 font-semibold leading-none tracking-tight",
           NUMERIC_DISPLAY_CLASS,
-          valueClassName ??
-            (valueTitle || valueFontHint
-              ? valueFontClass(valueFontHint ?? valueTitle ?? "")
-              : "text-2xl sm:text-[1.75rem]"),
+          valueTitle || valueFontHint
+            ? valueFontClass(valueFontHint ?? valueTitle ?? "")
+            : "text-xl sm:text-2xl",
           toneValueClass(tone)
         )}
         title={valueTitle}
       >
         {value}
       </div>
-      {footer ? <div className="mt-1.5 min-w-0">{footer}</div> : null}
     </div>
+  );
+}
+
+function AmountCell({
+  children,
+  className,
+  title,
+  large = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  title?: string;
+  large?: boolean;
+}) {
+  return (
+    <td
+      className={cn(
+        "truncate py-0.5 text-right font-semibold leading-5",
+        large ? "text-base sm:text-lg" : "text-sm",
+        NUMERIC_DISPLAY_CLASS,
+        className
+      )}
+      title={title}
+    >
+      {children}
+    </td>
   );
 }
 
@@ -156,7 +180,7 @@ function SummarySection({
   return (
     <section className="min-w-0">
       <div className="mb-3 flex items-center gap-3">
-        <h3 className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+        <h3 className="shrink-0 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground/80 sm:text-sm">
           {title}
         </h3>
         <div className="h-px min-w-0 flex-1 bg-border/60" aria-hidden />
@@ -276,9 +300,6 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
   const accumulatedReward = plannedProfitLoss?.accumulatedReward ?? 0;
   const accumulatedRisk = plannedProfitLoss?.accumulatedRisk ?? 0;
   const hasAccumulatedLive = (plannedProfitLoss?.pricedCount ?? 0) > 0;
-  const plannedValueTitle = hasOpenPositions
-    ? `${formatCurrency(plannedProfit, displayCurrency)} / ${formatCurrency(plannedLoss, displayCurrency)}`
-    : `${formatCurrency(0, displayCurrency)} / ${formatCurrency(0, displayCurrency)}`;
 
   const plannedTone: MetricTone =
     plannedProfit > 0 && plannedLoss < 0
@@ -289,55 +310,22 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
           ? "loss"
           : "neutral";
 
-  const rewardRiskFooter = useMemo(() => {
-    if (!liveDataReady || !hasOpenPositions) return null;
-    if (!hasAccumulatedLive && (livePnlLoading || !hasLivePrice)) {
-      return (
-        <p className="text-[11px] text-muted-foreground sm:text-xs">So far …</p>
-      );
-    }
-    return (
-      <p
-        className={cn(
-          "flex min-w-0 flex-wrap items-baseline gap-x-1 text-[11px] font-medium sm:text-xs",
-          NUMERIC_DISPLAY_CLASS
-        )}
-        title={`So far ${formatCurrency(accumulatedReward, displayCurrency)} / ${formatCurrency(accumulatedRisk, displayCurrency)}`}
-      >
-        <span className="text-muted-foreground">So far</span>
-        <AnimatedNumber
-          value={accumulatedReward}
-          format={(amount) => formatCurrency(amount, displayCurrency)}
-          className="text-emerald-600 dark:text-emerald-400"
-        />
-        <span className="text-muted-foreground">/</span>
-        <AnimatedNumber
-          value={accumulatedRisk}
-          format={(amount) => formatCurrency(amount, displayCurrency)}
-          className={
-            accumulatedRisk >= 0
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-rose-600 dark:text-rose-400"
-          }
-        />
-      </p>
-    );
-  }, [
-    accumulatedReward,
-    accumulatedRisk,
-    displayCurrency,
-    hasAccumulatedLive,
-    hasLivePrice,
-    hasOpenPositions,
-    liveDataReady,
-    livePnlLoading,
-  ]);
+  const showAccumulated =
+    liveDataReady &&
+    hasOpenPositions &&
+    (hasAccumulatedLive || !(livePnlLoading || !hasLivePrice));
+  const accumulatedPending =
+    liveDataReady &&
+    hasOpenPositions &&
+    !hasAccumulatedLive &&
+    (livePnlLoading || !hasLivePrice);
 
   return (
     <div className="space-y-5">
       <SummarySection title="Performance">
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+        <div className="grid min-w-0 grid-cols-1 gap-px overflow-hidden rounded-xl border border-border/80 bg-border/70 shadow-sm ring-1 ring-foreground/[0.04] sm:grid-cols-2 dark:ring-foreground/[0.06] lg:grid-cols-5 lg:grid-rows-2">
           <HeroMetric
+            className="lg:col-start-1 lg:row-start-1"
             label="Daily P/L"
             hint="Combined price change today across open positions vs prior close (or from entry on day one). Updates live during market hours."
             value={
@@ -350,6 +338,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             tone={dailyTone}
           />
           <HeroMetric
+            className="lg:col-start-2 lg:row-start-1"
             label="Total P/L"
             hint="Net profit or loss for all trades in your current filter, including realized on closed trades plus live unrealized on open positions."
             value={
@@ -362,6 +351,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             tone={totalTone}
           />
           <HeroMetric
+            className="lg:col-start-3 lg:row-start-1"
             label="Win rate"
             hint="Share of trades marked as wins out of all trades in your current filter."
             value={
@@ -375,6 +365,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             tone={winRateTone}
           />
           <HeroMetric
+            className="lg:col-start-4 lg:row-start-1"
             label="Accuracy %"
             hint="Win rate among decided outcomes only: wins divided by wins plus losses, excluding open and breakeven trades."
             value={
@@ -388,72 +379,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             tone={accuracyTone}
           />
           <HeroMetric
-            label="Reward / Risk"
-            labelShort="Reward / Risk"
-            hint="Planned reward at target and risk at stop across open positions. The line below shows live unrealized gains and losses accumulated so far."
-            value={
-              !liveDataReady ? (
-                "…"
-              ) : (
-                <>
-                  <AnimatedNumber
-                    value={plannedProfit}
-                    format={(amount) => formatCurrency(amount, displayCurrency)}
-                    className="text-emerald-600 dark:text-emerald-400"
-                  />
-                  <span className="text-muted-foreground">/</span>
-                  <AnimatedNumber
-                    value={plannedLoss}
-                    format={(amount) => formatCurrency(amount, displayCurrency)}
-                    className={
-                      plannedLoss >= 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-rose-600 dark:text-rose-400"
-                    }
-                  />
-                </>
-              )
-            }
-            valueTitle={plannedValueTitle}
-            valueClassName="text-lg sm:text-xl lg:text-2xl"
-            footer={rewardRiskFooter}
-            tone={plannedTone}
-          />
-        </div>
-      </SummarySection>
-
-      <Accordion className="min-w-0">
-        <AccordionItem value="positions-outcomes" className="border-0">
-          <AccordionTrigger className="w-full gap-3 px-0 py-0 hover:no-underline focus-visible:ring-0">
-            <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
-              <h3 className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
-                Positions & outcomes
-              </h3>
-              <div className="h-px min-w-0 flex-1 bg-border/60" aria-hidden />
-              {typeof openPnlValue === "number" ? (
-                <span
-                  className={cn(
-                    "shrink-0 text-sm font-semibold sm:text-base",
-                    NUMERIC_DISPLAY_CLASS,
-                    toneValueClass(openTone)
-                  )}
-                >
-                  <AnimatedCurrency
-                    value={openPnlValue}
-                    currency={displayCurrency}
-                  />
-                  {openPnlRoi != null ? (
-                    <span className="ml-1 font-medium text-muted-foreground">
-                      (<AnimatedPercent value={openPnlRoi} decimals={2} />)
-                    </span>
-                  ) : null}
-                </span>
-              ) : null}
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pt-3">
-            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
-          <HeroMetric
+            className="lg:col-start-1 lg:row-start-2"
             label="Total invested"
             hint="Total capital deployed in open positions (entry price × quantity)."
             value={
@@ -466,22 +392,16 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             tone="neutral"
           />
           <HeroMetric
+            className="lg:col-start-2 lg:row-start-2"
             label="Net P/L across open positions"
             labelShort="Open net P&L"
             hint="Sum of the Net P&L values shown for each row in the active trade log."
             value={
               typeof openPnlValue === "number" ? (
-                <>
-                  <AnimatedCurrency
-                    value={openPnlValue}
-                    currency={displayCurrency}
-                  />
-                  {openPnlRoi != null ? (
-                    <span className="text-sm font-medium text-muted-foreground sm:text-base">
-                      (<AnimatedPercent value={openPnlRoi} decimals={2} />)
-                    </span>
-                  ) : null}
-                </>
+                <AnimatedCurrency
+                  value={openPnlValue}
+                  currency={displayCurrency}
+                />
               ) : (
                 openPnlValue
               )
@@ -495,6 +415,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             tone={openTone}
           />
           <HeroMetric
+            className="lg:col-start-3 lg:row-start-2"
             label="Total win"
             hint="Sum of all positive P&L from winning trades in your current filter."
             value={
@@ -507,6 +428,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             tone={summary.totalWin > 0 ? "profit" : "neutral"}
           />
           <HeroMetric
+            className="lg:col-start-4 lg:row-start-2"
             label="Total loss"
             hint="Sum of all losses from losing trades in your current filter, shown as a negative amount."
             value={
@@ -518,10 +440,133 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             valueTitle={formatCurrency(-summary.totalLoss, displayCurrency)}
             tone={summary.totalLoss > 0 ? "loss" : "neutral"}
           />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+          <div className="flex min-w-0 flex-col items-center justify-center bg-card px-3 py-1.5 text-center sm:px-4 sm:py-2 lg:col-start-5 lg:row-start-1 lg:row-span-2">
+            <MetricLabel
+              label="Reward / Risk"
+              labelShort="Reward / Risk"
+              hint="Planned reward at target and risk at stop across open positions. Live columns show unrealized gains and losses accumulated so far."
+              tone={plannedTone}
+              labelClassName="text-sm sm:text-base"
+            />
+            <table className="mt-2 w-full table-fixed border-collapse">
+              <colgroup>
+                <col className="w-[22%]" />
+                <col className="w-[39%]" />
+                <col className="w-[39%]" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="pb-1 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-sm">
+                    <span className="sr-only">Metric</span>
+                  </th>
+                  <th className="pb-1 text-right text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-sm">
+                    Planned
+                  </th>
+                  <th className="pb-1 text-right text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-sm">
+                    {accumulatedPending || showAccumulated ? "Live" : ""}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="py-0.5 pr-2 text-left text-sm leading-5 text-muted-foreground sm:text-base">
+                    Reward
+                  </td>
+                  <AmountCell
+                    large
+                    className="text-emerald-600 dark:text-emerald-400"
+                    title={formatCurrency(plannedProfit, displayCurrency)}
+                  >
+                    {!liveDataReady ? (
+                      "…"
+                    ) : (
+                      <AnimatedNumber
+                        value={plannedProfit}
+                        format={(amount) =>
+                          formatCurrency(amount, displayCurrency)
+                        }
+                      />
+                    )}
+                  </AmountCell>
+                  <AmountCell
+                    large
+                    className="text-emerald-600 dark:text-emerald-400"
+                    title={
+                      showAccumulated
+                        ? formatCurrency(accumulatedReward, displayCurrency)
+                        : undefined
+                    }
+                  >
+                    {accumulatedPending
+                      ? "…"
+                      : showAccumulated
+                        ? (
+                            <AnimatedNumber
+                              value={accumulatedReward}
+                              format={(amount) =>
+                                formatCurrency(amount, displayCurrency)
+                              }
+                            />
+                          )
+                        : "—"}
+                  </AmountCell>
+                </tr>
+                <tr>
+                  <td className="py-0.5 pr-2 text-left text-sm leading-5 text-muted-foreground sm:text-base">
+                    Risk
+                  </td>
+                  <AmountCell
+                    large
+                    className={
+                      plannedLoss >= 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    }
+                    title={formatCurrency(plannedLoss, displayCurrency)}
+                  >
+                    {!liveDataReady ? (
+                      "…"
+                    ) : (
+                      <AnimatedNumber
+                        value={plannedLoss}
+                        format={(amount) =>
+                          formatCurrency(amount, displayCurrency)
+                        }
+                      />
+                    )}
+                  </AmountCell>
+                  <AmountCell
+                    large
+                    className={
+                      accumulatedRisk >= 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    }
+                    title={
+                      showAccumulated
+                        ? formatCurrency(accumulatedRisk, displayCurrency)
+                        : undefined
+                    }
+                  >
+                    {accumulatedPending
+                      ? "…"
+                      : showAccumulated
+                        ? (
+                            <AnimatedNumber
+                              value={accumulatedRisk}
+                              format={(amount) =>
+                                formatCurrency(amount, displayCurrency)
+                              }
+                            />
+                          )
+                        : "—"}
+                  </AmountCell>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </SummarySection>
     </div>
   );
 });

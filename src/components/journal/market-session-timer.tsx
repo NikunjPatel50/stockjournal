@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { defaultListingMarketForCurrency } from "@/lib/equity-listing-markets";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import { normalizeQuoteAssetClass } from "@/lib/eodhd";
@@ -52,7 +52,7 @@ interface MarketSessionTimerProps {
   currency: CurrencyCode;
 }
 
-export function MarketSessionTimer({
+export const MarketSessionTimer = memo(function MarketSessionTimer({
   trades,
   currency,
 }: MarketSessionTimerProps) {
@@ -98,4 +98,4 @@ export function MarketSessionTimer({
       {label}
     </span>
   );
-}
+});

@@ -56,7 +56,10 @@ import {
   resolveTradeHoldHours,
   type JournalTrade,
 } from "@/lib/journal-types";
-import { useHoldTimeClock } from "@/hooks/use-hold-time-clock";
+import {
+  subscribeHoldTimeClock,
+  useHoldTimeClock,
+} from "@/hooks/use-hold-time-clock";
 import { resolveTradePnlDisplay, resolveMaxProfitLossDisplay, formatTradeRiskReward, computeActivePortfolioWeights } from "@/lib/trade-pnl";
 import {
   computeTradeDailyPnlFromQuote,
@@ -95,7 +98,7 @@ const ACTIONS_COL_WIDTH = "11.5rem";
 const DEFAULT_CLOSED_TABLE_PAGE_SIZE = 10;
 /** Desktop body height tracks visible rows; header stays sticky. */
 function journalTableBodyMaxHeight(visibleRows: number) {
-  return `calc(2.25rem + ${visibleRows} * 3.85rem)`;
+  return `calc(2rem + ${visibleRows} * 3.35rem)`;
 }
 function journalCompactListMaxHeight(visibleRows: number) {
   return `calc(${visibleRows} * 9.5rem)`;
@@ -130,13 +133,53 @@ function tradeQuoteDisplayFieldsEqual(a: JournalTrade, b: JournalTrade) {
   );
 }
 
+function tradeHoldFieldsEqual(a: JournalTrade, b: JournalTrade) {
+  return (
+    a.id === b.id &&
+    a.status === b.status &&
+    a.entryDate === b.entryDate &&
+    a.exitDate === b.exitDate
+  );
+}
+
+function TradeHoldTime({
+  trade,
+  className,
+  activeClassName,
+}: {
+  trade: JournalTrade;
+  className?: string;
+  activeClassName?: string;
+}) {
+  const now = useHoldTimeClock(60_000);
+  const hours = resolveTradeHoldHours(trade, now);
+  const isActive = (trade.status ?? "Closed") === "Active";
+
+  return (
+    <span
+      className={cn(
+        className,
+        isActive && activeClassName
+      )}
+    >
+      {formatHoldTime(hours)}
+    </span>
+  );
+}
+
+const MemoTradeHoldTime = memo(TradeHoldTime, (prev, next) =>
+  tradeHoldFieldsEqual(prev.trade, next.trade) &&
+  prev.className === next.className &&
+  prev.activeClassName === next.activeClassName
+);
+
 function journalCellClass(columnId: string) {
   return cn(
     columnId === "expand" ? "w-7 px-0" : CELL_X,
     NARROW_COLUMN_CLASS[columnId],
-    columnId === "currentPrice" && "pr-5 sm:pr-7",
-    columnId === "pnl" && "pl-5 sm:pl-7",
-    "overflow-x-clip py-1.5 align-middle text-center [text-align:center]"
+    columnId === "currentPrice" && "pr-4 sm:pr-5",
+    columnId === "pnl" && "pl-4 sm:pl-5",
+    "overflow-x-clip py-2 align-middle text-center text-sm [text-align:center]"
   );
 }
 
@@ -144,15 +187,15 @@ function journalHeaderClass(columnId: string) {
   return cn(
     columnId === "expand" ? "w-7 px-0" : CELL_X,
     NARROW_COLUMN_CLASS[columnId],
-    columnId === "currentPrice" && "pr-5 sm:pr-7",
-    columnId === "pnl" && "pl-5 sm:pl-7",
-    "h-9 overflow-x-clip border-r border-border/50 py-1.5 align-middle text-center [text-align:center] last:border-r-0"
+    columnId === "currentPrice" && "pr-4 sm:pr-5",
+    columnId === "pnl" && "pl-4 sm:pl-5",
+    "h-8 overflow-x-clip py-2 align-middle text-center [text-align:center]"
   );
 }
 
 function StaticHeader({ label }: { label: string }) {
   return (
-    <span className="mx-auto block w-full text-center text-xs font-medium tracking-tight text-muted-foreground">
+    <span className="block w-full text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
       {label}
     </span>
   );
@@ -168,24 +211,24 @@ function SortHeader({
   return (
     <span
       className={cn(
-        "group inline-flex w-full items-center justify-center gap-1 rounded-md px-1 py-1 text-xs font-medium tracking-tight",
+        "group inline-flex w-full items-center justify-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em]",
         sorted ? "text-foreground" : "text-muted-foreground"
       )}
     >
-      <span className="text-center">{label}</span>
+      <span>{label}</span>
       <span
         className={cn(
-          "inline-flex shrink-0",
-          !sorted && "opacity-40 transition-opacity group-hover:opacity-80"
+          "inline-flex shrink-0 normal-case tracking-normal",
+          !sorted && "opacity-35 transition-opacity group-hover:opacity-70"
         )}
         aria-hidden
       >
         {sorted === "asc" ? (
-          <ArrowUp className="size-3.5 text-foreground" />
+          <ArrowUp className="size-3 text-foreground" />
         ) : sorted === "desc" ? (
-          <ArrowDown className="size-3.5 text-foreground" />
+          <ArrowDown className="size-3 text-foreground" />
         ) : (
-          <ArrowUpDown className="size-3.5" />
+          <ArrowUpDown className="size-3" />
         )}
       </span>
     </span>
@@ -228,7 +271,7 @@ function rowAccentBorderColor(trade: JournalTrade, livePnl?: number) {
 
 function rowAccentClass(trade: JournalTrade, livePnl?: number) {
   return cn(
-    "border-l-4 bg-card hover:bg-muted/50",
+    "border-l-[3px] bg-card hover:bg-muted/30",
     rowAccentBorderColor(trade, livePnl)
   );
 }
@@ -240,7 +283,7 @@ function compactRowAccentClass(trade: JournalTrade, livePnl?: number) {
   );
 }
 
-function LiveRowColorLegend({
+const LiveRowColorLegend = memo(function LiveRowColorLegend({
   trades,
   displayCurrency,
 }: {
@@ -272,7 +315,7 @@ function LiveRowColorLegend({
   }, [trades, getQuote, quoteRevision, displayCurrency]);
 
   return <RowColorLegend counts={counts} />;
-}
+});
 
 function LiveTargetStopCell({
   trade,
@@ -338,7 +381,6 @@ function LiveCompactTradeCard({
   onDuplicate,
   onDelete,
   onPartialExit,
-  holdNow,
   touchFriendly,
 }: {
   trade: JournalTrade;
@@ -353,7 +395,6 @@ function LiveCompactTradeCard({
   onDuplicate: (t: JournalTrade) => void;
   onDelete: (ids: string[]) => void;
   onPartialExit?: (t: JournalTrade) => void;
-  holdNow: number;
   touchFriendly: boolean;
 }) {
   const quote = useTradeQuote(trade, displayCurrency);
@@ -489,7 +530,8 @@ function LiveCompactTradeCard({
 
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] text-muted-foreground sm:text-xs">
-              Hold {formatHoldTime(resolveTradeHoldHours(trade, holdNow))}
+              Hold{" "}
+              <MemoTradeHoldTime trade={trade} />
               {isActive ? " · live" : ""}
             </span>
             <TradeActions
@@ -527,7 +569,6 @@ const MemoLiveCompactTradeCard = memo(
     prev.quotesLoading === next.quotesLoading &&
     prev.earningsLoading === next.earningsLoading &&
     prev.portfolioPct === next.portfolioPct &&
-    prev.holdNow === next.holdNow &&
     prev.touchFriendly === next.touchFriendly &&
     prev.displayCurrency === next.displayCurrency &&
     prev.onToggleExpand === next.onToggleExpand &&
@@ -542,6 +583,7 @@ const MemoLiveCompactTradeCard = memo(
 function LiveDesktopTradeRow({
   row,
   rowId,
+  rowIndex,
   expanded,
   displayCurrency,
   onToggleExpand,
@@ -553,6 +595,7 @@ function LiveDesktopTradeRow({
     ReturnType<typeof useReactTable<JournalTrade>>["getRowModel"]
   >["rows"][number];
   rowId: string;
+  rowIndex: number;
   expanded: boolean;
   displayCurrency: CurrencyCode;
   onToggleExpand: (rowId: string) => void;
@@ -573,9 +616,9 @@ function LiveDesktopTradeRow({
       <tr
         className={cn(
           "group cursor-pointer border-b text-center transition-colors",
-          expanded
-            ? "border-border/40 border-l-[3px]"
-            : "border-border/60 border-l-[3px] last:border-b-0",
+          rowIndex % 2 === 1 && "bg-muted/[0.14]",
+          expanded ? "bg-muted/25" : "hover:bg-muted/20",
+          "border-border/50",
           rowAccentClass(row.original, livePnl)
         )}
         onClick={() => onToggleExpand(rowId)}
@@ -613,6 +656,7 @@ function LiveDesktopTradeRow({
 
 const MemoLiveDesktopTradeRow = memo(LiveDesktopTradeRow, (prev, next) => {
   if (prev.rowId !== next.rowId) return false;
+  if (prev.rowIndex !== next.rowIndex) return false;
   if (prev.expanded !== next.expanded) return false;
   if (prev.displayCurrency !== next.displayCurrency) return false;
   if (prev.onToggleExpand !== next.onToggleExpand) return false;
@@ -622,7 +666,7 @@ const MemoLiveDesktopTradeRow = memo(LiveDesktopTradeRow, (prev, next) => {
   return tradeQuoteDisplayFieldsEqual(prev.row.original, next.row.original);
 });
 
-function RowColorLegend({
+const RowColorLegend = memo(function RowColorLegend({
   counts,
 }: {
   counts: { profit: number; loss: number; stopAboveEntry: number };
@@ -631,44 +675,70 @@ function RowColorLegend({
     {
       key: "profit" as const,
       label: "In profit",
+      labelShort: "Profit",
       count: counts.profit,
-      swatch:
-        "border-l-[3px] border-l-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/30",
+      accent: "bg-emerald-500",
+      chip:
+        "border-emerald-500/15 bg-emerald-500/[0.06] dark:border-emerald-500/25 dark:bg-emerald-500/10",
+      countClass: "text-emerald-700 dark:text-emerald-400",
     },
     {
       key: "loss" as const,
       label: "In loss",
+      labelShort: "Loss",
       count: counts.loss,
-      swatch: "border-l-[3px] border-l-rose-500 bg-rose-500/20 dark:bg-rose-500/30",
+      accent: "bg-rose-500",
+      chip: "border-rose-500/15 bg-rose-500/[0.06] dark:border-rose-500/25 dark:bg-rose-500/10",
+      countClass: "text-rose-700 dark:text-rose-400",
     },
     {
       key: "stopAboveEntry" as const,
       label: "Stoploss above entry",
+      labelShort: "SL > entry",
       count: counts.stopAboveEntry,
-      swatch: "border-l-[3px] border-l-sky-600 bg-sky-500/25 dark:border-l-sky-400 dark:bg-sky-500/35",
+      accent: "bg-sky-600 dark:bg-sky-400",
+      chip: "border-sky-500/15 bg-sky-500/[0.08] dark:border-sky-400/25 dark:bg-sky-500/10",
+      countClass: "text-sky-700 dark:text-sky-400",
     },
   ] as const;
 
   return (
-    <div className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+    <div
+      className="inline-flex w-max max-w-full flex-nowrap items-center gap-0.5 rounded-lg border border-border/70 bg-muted/20 p-0.5 ring-1 ring-foreground/[0.03] dark:ring-white/[0.04] sm:gap-1"
+      role="list"
+      aria-label="Row color legend"
+    >
       {items.map((item) => (
-        <span
+        <div
           key={item.key}
-          className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
+          role="listitem"
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 whitespace-nowrap sm:gap-1.5 sm:px-2 sm:py-1",
+            item.chip
+          )}
         >
           <span
-            className={cn("h-3 w-4 shrink-0 rounded-sm", item.swatch)}
+            className={cn("h-3.5 w-1 shrink-0 rounded-full", item.accent)}
             aria-hidden
           />
-          {item.label}
-          <span className={cn("font-medium tabular-nums text-foreground", NUMERIC_CLASS)}>
-            ({item.count})
+          <span className="hidden text-xs font-medium text-muted-foreground min-[480px]:inline">
+            <span className="sm:hidden">{item.labelShort}</span>
+            <span className="hidden sm:inline">{item.label}</span>
           </span>
-        </span>
+          <span
+            className={cn(
+              "min-w-[1.125rem] text-center text-xs font-semibold tabular-nums",
+              NUMERIC_CLASS,
+              item.countClass
+            )}
+          >
+            {item.count}
+          </span>
+        </div>
       ))}
     </div>
   );
-}
+});
 
 function JournalRowAccordionPanel({
   open,
@@ -1435,7 +1505,7 @@ function TradeActions({
   return (
     <div
       className={cn(
-        "inline-flex items-center justify-center rounded-lg border border-border bg-muted/60 p-0.5 shadow-sm ring-1 ring-foreground/10 dark:bg-muted/50 dark:ring-white/15",
+        "inline-flex items-center justify-center rounded-md border border-border/60 bg-background/80 p-0.5",
         className
       )}
       onClick={(e) => e.stopPropagation()}
@@ -1534,6 +1604,13 @@ type QuoteSlice = {
   quotesSessionOpen: boolean;
 };
 
+type QuoteStatus = {
+  quotesLoading: boolean;
+  quotesError: string | null;
+  quotesDelayed: boolean;
+  quotesSessionOpen: boolean;
+};
+
 const STATIC_QUOTE_SLICE: QuoteSlice = {
   getQuote: () => null,
   quotesLoading: false,
@@ -1542,6 +1619,115 @@ const STATIC_QUOTE_SLICE: QuoteSlice = {
   quotesSessionOpen: false,
 };
 
+const STATIC_QUOTE_STATUS: QuoteStatus = {
+  quotesLoading: false,
+  quotesError: null,
+  quotesDelayed: true,
+  quotesSessionOpen: false,
+};
+
+function journalTableInnerPropsEqual(
+  prev: JournalTableProps & { quoteSlice: QuoteSlice; quoteStatus: QuoteStatus },
+  next: JournalTableProps & { quoteSlice: QuoteSlice; quoteStatus: QuoteStatus }
+) {
+  return (
+    prev.trades === next.trades &&
+    prev.title === next.title &&
+    prev.totalTradeCount === next.totalTradeCount &&
+    prev.displayCurrency === next.displayCurrency &&
+    prev.onEdit === next.onEdit &&
+    prev.onDuplicate === next.onDuplicate &&
+    prev.onDelete === next.onDelete &&
+    prev.onPartialExit === next.onPartialExit &&
+    prev.showColumnsMenu === next.showColumnsMenu &&
+    prev.enableLiveQuotes === next.enableLiveQuotes &&
+    prev.getEarningsDate === next.getEarningsDate &&
+    prev.earningsLoading === next.earningsLoading &&
+    prev.quoteSlice === next.quoteSlice &&
+    prev.quoteStatus === next.quoteStatus
+  );
+}
+
+const JournalTableHeader = memo(function JournalTableHeader({
+  title,
+  totalRows,
+  trades,
+  displayCurrency,
+  enableLiveQuotes,
+  quoteStatus,
+  staticRowLegendCounts,
+  showColumnsMenu,
+  isCompact,
+  columnPrefs,
+  onColumnPrefsChange,
+}: {
+  title: string;
+  totalRows: number;
+  trades: JournalTrade[];
+  displayCurrency: CurrencyCode;
+  enableLiveQuotes: boolean;
+  quoteStatus: QuoteStatus;
+  staticRowLegendCounts: {
+    profit: number;
+    loss: number;
+    stopAboveEntry: number;
+  } | null;
+  showColumnsMenu: boolean;
+  isCompact: boolean;
+  columnPrefs: JournalColumnPrefs;
+  onColumnPrefsChange: (prefs: JournalColumnPrefs) => void;
+}) {
+  const { quotesDelayed, quotesSessionOpen, quotesError } = quoteStatus;
+  const hasActiveTrades = useMemo(
+    () => trades.some((trade) => (trade.status ?? "Closed") === "Active"),
+    [trades]
+  );
+
+  return (
+    <header className="flex flex-col gap-3 border-b border-border/70 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5">
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+          <h2 className="shrink-0 text-sm font-semibold tracking-tight text-foreground sm:text-base">
+            {title}
+          </h2>
+          {totalRows > 0 ? (
+            <span className="shrink-0 rounded-md border border-border/60 bg-background/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {totalRows} {totalRows === 1 ? "trade" : "trades"}
+            </span>
+          ) : null}
+          {quotesDelayed && quotesSessionOpen && !quotesError && totalRows > 0 ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+              EODHD delayed
+            </span>
+          ) : null}
+          {!quotesError && hasActiveTrades && enableLiveQuotes ? (
+            <MarketSessionTimer trades={trades} currency={displayCurrency} />
+          ) : null}
+          {totalRows > 0 ? (
+            <div className="min-w-0 max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {enableLiveQuotes ? (
+                <LiveRowColorLegend
+                  trades={trades}
+                  displayCurrency={displayCurrency}
+                />
+              ) : staticRowLegendCounts ? (
+                <RowColorLegend counts={staticRowLegendCounts} />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {quotesError ? (
+          <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
+        ) : null}
+      </div>
+      {showColumnsMenu && !isCompact ? (
+        <JournalColumnsMenu prefs={columnPrefs} onChange={onColumnPrefsChange} />
+      ) : null}
+    </header>
+  );
+});
+
 export function JournalTable(props: JournalTableProps) {
   if (props.enableLiveQuotes === false) {
     return (
@@ -1549,6 +1735,7 @@ export function JournalTable(props: JournalTableProps) {
         {...props}
         enableLiveQuotes={false}
         quoteSlice={STATIC_QUOTE_SLICE}
+        quoteStatus={STATIC_QUOTE_STATUS}
       />
     );
   }
@@ -1571,6 +1758,21 @@ function JournalTableLive(props: JournalTableProps) {
     quotesDelayed: sharedQuotes.delayed,
     quotesSessionOpen: sharedQuotes.sessionOpen,
   };
+
+  const quoteStatus = useMemo<QuoteStatus>(
+    () => ({
+      quotesLoading: sharedQuotes.loading,
+      quotesError: sharedQuotes.error,
+      quotesDelayed: sharedQuotes.delayed,
+      quotesSessionOpen: sharedQuotes.sessionOpen,
+    }),
+    [
+      sharedQuotes.loading,
+      sharedQuotes.error,
+      sharedQuotes.delayed,
+      sharedQuotes.sessionOpen,
+    ]
+  );
 
   const quoteSlice = useMemo<QuoteSlice>(
     () => ({
@@ -1596,11 +1798,12 @@ function JournalTableLive(props: JournalTableProps) {
       {...props}
       enableLiveQuotes
       quoteSlice={quoteSlice}
+      quoteStatus={quoteStatus}
     />
   );
 }
 
-const MemoJournalTableInner = memo(JournalTableInner);
+const MemoJournalTableInner = memo(JournalTableInner, journalTableInnerPropsEqual);
 
 function JournalTableInner({
   trades,
@@ -1616,7 +1819,8 @@ function JournalTableInner({
   getEarningsDate: getEarningsDateProp,
   earningsLoading: earningsLoadingProp,
   quoteSlice,
-}: JournalTableProps & { quoteSlice: QuoteSlice }) {
+  quoteStatus,
+}: JournalTableProps & { quoteSlice: QuoteSlice; quoteStatus: QuoteStatus }) {
   const isCompact = useIsJournalCompact();
   const isMobile = useIsMobile();
   const userPageSizeRef = useRef<number | "all">(
@@ -1639,13 +1843,7 @@ function JournalTableInner({
   const { activeCurrency } = useJournalMarket();
   const displayCurrency = displayCurrencyProp ?? activeCurrency;
 
-  const {
-    getQuote,
-    quotesLoading,
-    quotesError,
-    quotesDelayed,
-    quotesSessionOpen,
-  } = quoteSlice;
+  const { getQuote, quotesLoading } = quoteSlice;
 
   const {
     getEarningsDate: getEarningsDateFromHook,
@@ -1654,8 +1852,6 @@ function JournalTableInner({
 
   const getEarningsDate = getEarningsDateProp ?? getEarningsDateFromHook;
   const earningsLoading = earningsLoadingProp ?? earningsLoadingFromHook;
-
-  const holdNow = useHoldTimeClock(60_000);
 
   const portfolioWeights = useMemo(
     () => computeActivePortfolioWeights(trades),
@@ -1666,7 +1862,7 @@ function JournalTableInner({
   const onDuplicateRef = useRef(onDuplicate);
   const onDeleteRef = useRef(onDelete);
   const onPartialExitRef = useRef(onPartialExit);
-  const holdNowRef = useRef(holdNow);
+  const holdNowRef = useRef(Date.now());
   const displayCurrencyRef = useRef(displayCurrency);
   const getQuoteRef = useRef(getQuote);
   const quotesLoadingRef = useRef(quotesLoading);
@@ -1678,13 +1874,20 @@ function JournalTableInner({
   onDuplicateRef.current = onDuplicate;
   onDeleteRef.current = onDelete;
   onPartialExitRef.current = onPartialExit;
-  holdNowRef.current = holdNow;
   displayCurrencyRef.current = displayCurrency;
   getQuoteRef.current = getQuote;
   quotesLoadingRef.current = quotesLoading;
   expandedRowIdsRef.current = expandedRowIds;
   portfolioWeightsRef.current = portfolioWeights;
   enableLiveQuotesRef.current = enableLiveQuotes;
+
+  useEffect(
+    () =>
+      subscribeHoldTimeClock(() => {
+        holdNowRef.current = Date.now();
+      }),
+    []
+  );
 
   useEffect(() => {
     setPagination((prev) => {
@@ -1751,7 +1954,7 @@ function JournalTableInner({
           return (
             <button
               type="button"
-              className="inline-flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
               aria-expanded={expanded}
               aria-label={expanded ? "Hide row details" : "Show row details"}
               onClick={(e) => {
@@ -1789,7 +1992,7 @@ function JournalTableInner({
         cell: ({ row }) => (
           <span
             className={cn(
-              "block w-full text-center text-sm font-bold tracking-tight",
+              "block w-full text-center text-sm font-semibold tracking-wide text-foreground",
               NUMERIC_CLASS
             )}
           >
@@ -2000,21 +2203,16 @@ function JournalTableInner({
         header: ({ column }) => (
           <SortHeader label="Hold" sorted={column.getIsSorted()} />
         ),
-        cell: ({ row }) => {
-          const hours = resolveTradeHoldHours(row.original, holdNowRef.current);
-          const isActive = (row.original.status ?? "Closed") === "Active";
-          return (
-            <span
-              className={cn(
-                "block w-full text-center text-sm text-muted-foreground",
-                NUMERIC_CLASS,
-                isActive && "text-foreground"
-              )}
-            >
-              {formatHoldTime(hours)}
-            </span>
-          );
-        },
+        cell: ({ row }) => (
+          <MemoTradeHoldTime
+            trade={row.original}
+            className={cn(
+              "block w-full text-center text-sm text-muted-foreground",
+              NUMERIC_CLASS
+            )}
+            activeClassName="text-foreground"
+          />
+        ),
       },
       {
         id: "actions",
@@ -2090,9 +2288,6 @@ function JournalTableInner({
   const visibleRowCount = Math.max(pageRows.length, 1);
   const rowsSelectValue =
     userPageSizeRef.current === "all" ? "all" : String(pageSize);
-  const hasActiveTrades = trades.some(
-    (trade) => (trade.status ?? "Closed") === "Active"
-  );
   const staticRowLegendCounts = useMemo(() => {
     if (enableLiveQuotes) return null;
     const counts = { profit: 0, loss: 0, stopAboveEntry: 0 };
@@ -2127,18 +2322,18 @@ function JournalTableInner({
   }
 
   const paginationBar = totalRows > 0 && (
-    <div className="flex flex-col gap-2.5 border-t border-border/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-      <p className="text-[11px] tabular-nums text-muted-foreground">
-        <span className="font-semibold text-foreground">
+    <div className="flex flex-col gap-2 border-t border-border/70 bg-muted/15 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <p className="text-xs tabular-nums text-muted-foreground">
+        <span className="font-medium text-foreground">
           {rangeStart}–{rangeEnd}
         </span>
-        <span className="mx-1.5 text-border">·</span>
+        <span className="mx-1.5 text-border/80">·</span>
         {totalRows} {totalRows === 1 ? "trade" : "trades"}
       </p>
 
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 p-0.5">
-          <span className="hidden pl-2 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground sm:inline">
+        <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-background/70 p-0.5">
+          <span className="hidden pl-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground sm:inline">
             Rows
           </span>
           <Select
@@ -2167,7 +2362,7 @@ function JournalTableInner({
           </Select>
         </div>
 
-        <div className="flex items-center rounded-lg border border-border/70 bg-muted/30 p-0.5">
+        <div className="flex items-center rounded-md border border-border/60 bg-background/70 p-0.5">
           <Button
             type="button"
             variant="ghost"
@@ -2200,41 +2395,20 @@ function JournalTableInner({
   );
 
   return (
-    <section className="cv-section overflow-x-auto rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]">
-      <header className="flex flex-col gap-2.5 border-b border-border/80 bg-card px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <h2 className="text-base font-semibold tracking-tight text-foreground">
-              {title}
-            </h2>
-            {totalRows > 0 ? (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                {totalRows} {totalRows === 1 ? "trade" : "trades"}
-              </span>
-            ) : null}
-            {quotesDelayed && quotesSessionOpen && !quotesError && totalRows > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
-                EODHD delayed
-              </span>
-            ) : null}
-            {!quotesError && hasActiveTrades && enableLiveQuotes ? (
-              <MarketSessionTimer trades={trades} currency={displayCurrency} />
-            ) : null}
-            {totalRows > 0 && enableLiveQuotes ? (
-              <LiveRowColorLegend trades={trades} displayCurrency={displayCurrency} />
-            ) : totalRows > 0 && staticRowLegendCounts ? (
-              <RowColorLegend counts={staticRowLegendCounts} />
-            ) : null}
-          </div>
-          {quotesError ? (
-            <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
-          ) : null}
-        </div>
-        {showColumnsMenu && !isCompact ? (
-          <JournalColumnsMenu prefs={columnPrefs} onChange={setColumnPrefs} />
-        ) : null}
-      </header>
+    <section className="cv-section overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm ring-1 ring-foreground/[0.04] dark:ring-white/[0.05]">
+      <JournalTableHeader
+        title={title}
+        totalRows={totalRows}
+        trades={trades}
+        displayCurrency={displayCurrency}
+        enableLiveQuotes={enableLiveQuotes}
+        quoteStatus={quoteStatus}
+        staticRowLegendCounts={staticRowLegendCounts}
+        showColumnsMenu={showColumnsMenu}
+        isCompact={isCompact}
+        columnPrefs={columnPrefs}
+        onColumnPrefsChange={setColumnPrefs}
+      />
 
       {totalRows === 0 ? (
         <div className="flex min-h-[10rem] items-center justify-center px-4 py-10 text-center text-sm text-muted-foreground">
@@ -2264,7 +2438,6 @@ function JournalTableInner({
               onDuplicate={onDuplicate}
               onDelete={onDelete}
               onPartialExit={onPartialExit}
-              holdNow={holdNow}
               touchFriendly={isMobile}
             />
           ))}
@@ -2274,7 +2447,7 @@ function JournalTableInner({
           className="overflow-auto overscroll-contain"
           style={{ maxHeight: journalTableBodyMaxHeight(visibleRowCount) }}
         >
-          <table className="w-full min-w-[74rem] table-fixed border-collapse text-center text-sm">
+          <table className="w-full min-w-[74rem] table-fixed border-separate border-spacing-0 text-center text-sm">
             <colgroup>
               {visibleColumns.map((col) => (
                 <col
@@ -2285,11 +2458,11 @@ function JournalTableInner({
                 />
               ))}
             </colgroup>
-            <thead className="sticky top-0 z-10 border-b border-border bg-card shadow-[0_1px_0_0_hsl(var(--border))]">
+            <thead className="sticky top-0 z-20 bg-muted/55 backdrop-blur-sm supports-[backdrop-filter]:bg-muted/45">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr
                   key={headerGroup.id}
-                  className="border-b border-border bg-muted/30 text-center"
+                  className="border-b border-border/80 text-center"
                 >
                   {headerGroup.headers.map((header) => {
                     const canSort = header.column.getCanSort();
@@ -2299,9 +2472,8 @@ function JournalTableInner({
                         key={header.id}
                         className={cn(
                           journalHeaderClass(header.column.id),
-                          "bg-muted/30",
                           canSort &&
-                            "cursor-pointer select-none hover:bg-muted/50"
+                            "cursor-pointer select-none hover:bg-muted/70"
                         )}
                         onClick={header.column.getToggleSortingHandler()}
                         aria-sort={
@@ -2334,12 +2506,13 @@ function JournalTableInner({
                 </tr>
               ))}
             </thead>
-            <tbody>
-              {pageRows.map((row) => (
+            <tbody className="bg-card">
+              {pageRows.map((row, rowIndex) => (
                 <MemoLiveDesktopTradeRow
                   key={row.id}
                   row={row}
                   rowId={row.id}
+                  rowIndex={rowIndex}
                   expanded={expandedRowIds.has(row.id)}
                   displayCurrency={displayCurrency}
                   onToggleExpand={toggleRowExpanded}
