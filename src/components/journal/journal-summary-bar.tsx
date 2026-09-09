@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import { MetricHint } from "@/components/ui/metric-hint";
 import {
   AnimatedCurrency,
@@ -95,6 +95,8 @@ function HeroMetric({
   value,
   valueTitle,
   valueFontHint,
+  valueClassName,
+  footer,
   tone = "neutral",
 }: {
   label: string;
@@ -104,6 +106,8 @@ function HeroMetric({
   valueTitle?: string;
   /** Shorter string for responsive font sizing (avoids shrinking when valueTitle includes extra text). */
   valueFontHint?: string;
+  valueClassName?: string;
+  footer?: ReactNode;
   tone?: MetricTone;
 }) {
   return (
@@ -127,15 +131,17 @@ function HeroMetric({
         className={cn(
           "mt-2 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 font-semibold tracking-tight",
           NUMERIC_DISPLAY_CLASS,
-          valueTitle || valueFontHint
-            ? valueFontClass(valueFontHint ?? valueTitle ?? "")
-            : "text-2xl sm:text-[1.75rem]",
+          valueClassName ??
+            (valueTitle || valueFontHint
+              ? valueFontClass(valueFontHint ?? valueTitle ?? "")
+              : "text-2xl sm:text-[1.75rem]"),
           toneValueClass(tone)
         )}
         title={valueTitle}
       >
         {value}
       </div>
+      {footer ? <div className="mt-1.5 min-w-0">{footer}</div> : null}
     </div>
   );
 }
@@ -267,6 +273,9 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
 
   const plannedProfit = plannedProfitLoss?.totalPlannedProfit ?? 0;
   const plannedLoss = plannedProfitLoss?.totalPlannedLoss ?? 0;
+  const accumulatedReward = plannedProfitLoss?.accumulatedReward ?? 0;
+  const accumulatedRisk = plannedProfitLoss?.accumulatedRisk ?? 0;
+  const hasAccumulatedLive = (plannedProfitLoss?.pricedCount ?? 0) > 0;
   const plannedValueTitle = hasOpenPositions
     ? `${formatCurrency(plannedProfit, displayCurrency)} / ${formatCurrency(plannedLoss, displayCurrency)}`
     : `${formatCurrency(0, displayCurrency)} / ${formatCurrency(0, displayCurrency)}`;
@@ -280,10 +289,54 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
           ? "loss"
           : "neutral";
 
+  const rewardRiskFooter = useMemo(() => {
+    if (!liveDataReady || !hasOpenPositions) return null;
+    if (!hasAccumulatedLive && (livePnlLoading || !hasLivePrice)) {
+      return (
+        <p className="text-[11px] text-muted-foreground sm:text-xs">So far …</p>
+      );
+    }
+    return (
+      <p
+        className={cn(
+          "flex min-w-0 flex-wrap items-baseline gap-x-1 text-[11px] font-medium sm:text-xs",
+          NUMERIC_DISPLAY_CLASS
+        )}
+        title={`So far ${formatCurrency(accumulatedReward, displayCurrency)} / ${formatCurrency(accumulatedRisk, displayCurrency)}`}
+      >
+        <span className="text-muted-foreground">So far</span>
+        <AnimatedNumber
+          value={accumulatedReward}
+          format={(amount) => formatCurrency(amount, displayCurrency)}
+          className="text-emerald-600 dark:text-emerald-400"
+        />
+        <span className="text-muted-foreground">/</span>
+        <AnimatedNumber
+          value={accumulatedRisk}
+          format={(amount) => formatCurrency(amount, displayCurrency)}
+          className={
+            accumulatedRisk >= 0
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-rose-600 dark:text-rose-400"
+          }
+        />
+      </p>
+    );
+  }, [
+    accumulatedReward,
+    accumulatedRisk,
+    displayCurrency,
+    hasAccumulatedLive,
+    hasLivePrice,
+    hasOpenPositions,
+    liveDataReady,
+    livePnlLoading,
+  ]);
+
   return (
     <div className="space-y-5">
       <SummarySection title="Performance">
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
           <HeroMetric
             label="Daily P/L"
             hint="Combined price change today across open positions vs prior close (or from entry on day one). Updates live during market hours."
@@ -334,6 +387,38 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             valueTitle={`${summary.accuracyPercent.toFixed(1)}%`}
             tone={accuracyTone}
           />
+          <HeroMetric
+            label="Reward / Risk"
+            labelShort="Reward / Risk"
+            hint="Planned reward at target and risk at stop across open positions. The line below shows live unrealized gains and losses accumulated so far."
+            value={
+              !liveDataReady ? (
+                "…"
+              ) : (
+                <>
+                  <AnimatedNumber
+                    value={plannedProfit}
+                    format={(amount) => formatCurrency(amount, displayCurrency)}
+                    className="text-emerald-600 dark:text-emerald-400"
+                  />
+                  <span className="text-muted-foreground">/</span>
+                  <AnimatedNumber
+                    value={plannedLoss}
+                    format={(amount) => formatCurrency(amount, displayCurrency)}
+                    className={
+                      plannedLoss >= 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    }
+                  />
+                </>
+              )
+            }
+            valueTitle={plannedValueTitle}
+            valueClassName="text-lg sm:text-xl lg:text-2xl"
+            footer={rewardRiskFooter}
+            tone={plannedTone}
+          />
         </div>
       </SummarySection>
 
@@ -367,7 +452,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-3">
-            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
           <HeroMetric
             label="Total invested"
             hint="Total capital deployed in open positions (entry price × quantity)."
@@ -432,36 +517,6 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             }
             valueTitle={formatCurrency(-summary.totalLoss, displayCurrency)}
             tone={summary.totalLoss > 0 ? "loss" : "neutral"}
-          />
-          <HeroMetric
-            label="Target profit / stop loss"
-            labelShort="Target P/L"
-            hint="Sum of planned profit at target and planned loss at stop across all open positions. Based on entry, target, and stop only — does not change with live price."
-            value={
-              !liveDataReady ? (
-                "…"
-              ) : (
-                <>
-                  <AnimatedNumber
-                    value={plannedProfit}
-                    format={(amount) => formatCurrency(amount, displayCurrency)}
-                    className="text-emerald-600 dark:text-emerald-400"
-                  />
-                  <span className="text-muted-foreground">/</span>
-                  <AnimatedNumber
-                    value={plannedLoss}
-                    format={(amount) => formatCurrency(amount, displayCurrency)}
-                    className={
-                      plannedLoss >= 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-rose-600 dark:text-rose-400"
-                    }
-                  />
-                </>
-              )
-            }
-            valueTitle={plannedValueTitle}
-            tone={plannedTone}
           />
             </div>
           </AccordionContent>

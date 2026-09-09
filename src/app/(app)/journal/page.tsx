@@ -29,7 +29,7 @@ import {
   type JournalTrade,
 } from "@/lib/journal-types";
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
-import { computeFilteredPnl, computeOpenPositionsNetPnl, computeOpenPositionsPlannedProfitLoss } from "@/lib/trade-pnl";
+import { computeFilteredPnl, computeOpenPositionsLiveSummaries } from "@/lib/trade-pnl";
 import { enrichSavedTradeFundamentals } from "@/lib/trade-fundamentals";
 import { useJournalTrades } from "@/components/journal-trades-provider";
 import {
@@ -172,33 +172,40 @@ export default function JournalPage() {
     return next;
   }, [filtered, getQuote, quoteRevision, activeCurrency]);
 
-  const openPositionsNetPnlRef = useRef<ReturnType<
-    typeof computeOpenPositionsNetPnl
+  const openLiveSummariesRef = useRef<ReturnType<
+    typeof computeOpenPositionsLiveSummaries
   > | null>(null);
-  const openPositionsNetPnl = useMemo(() => {
-    const next = computeOpenPositionsNetPnl(
+  const { openPositionsNetPnl, plannedProfitLoss } = useMemo(() => {
+    const next = computeOpenPositionsLiveSummaries(
       activeTrades,
       getQuote,
       activeCurrency
     );
-    const prev = openPositionsNetPnlRef.current;
+    const prev = openLiveSummariesRef.current;
     if (
       prev &&
-      prev.totalPnl === next.totalPnl &&
-      prev.totalRoi === next.totalRoi &&
-      prev.activeCount === next.activeCount &&
-      prev.pricedCount === next.pricedCount
+      prev.netPnl.totalPnl === next.netPnl.totalPnl &&
+      prev.netPnl.totalRoi === next.netPnl.totalRoi &&
+      prev.netPnl.activeCount === next.netPnl.activeCount &&
+      prev.netPnl.pricedCount === next.netPnl.pricedCount &&
+      prev.planned.totalPlannedProfit === next.planned.totalPlannedProfit &&
+      prev.planned.totalPlannedLoss === next.planned.totalPlannedLoss &&
+      prev.planned.accumulatedReward === next.planned.accumulatedReward &&
+      prev.planned.accumulatedRisk === next.planned.accumulatedRisk &&
+      prev.planned.pricedCount === next.planned.pricedCount &&
+      prev.planned.activeCount === next.planned.activeCount
     ) {
-      return prev;
+      return {
+        openPositionsNetPnl: prev.netPnl,
+        plannedProfitLoss: prev.planned,
+      };
     }
-    openPositionsNetPnlRef.current = next;
-    return next;
+    openLiveSummariesRef.current = next;
+    return {
+      openPositionsNetPnl: next.netPnl,
+      plannedProfitLoss: next.planned,
+    };
   }, [activeTrades, getQuote, quoteRevision, activeCurrency]);
-
-  const plannedProfitLoss = useMemo(
-    () => computeOpenPositionsPlannedProfitLoss(activeTrades),
-    [activeTrades]
-  );
 
   const handleSave = useCallback(
     (trade: JournalTrade) => {

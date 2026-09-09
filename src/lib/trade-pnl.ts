@@ -1,5 +1,5 @@
 import type { JournalDirection, JournalTrade } from "@/lib/journal-types";
-import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/settings";
 
 export type QuoteForPnl = {
   price: number | null;
@@ -223,22 +223,38 @@ export type OpenPositionsNetPnlSummary = {
   pricedCount: number;
 };
 
-/** Sum of Net P&L column values for open positions (matches journal table rows). */
-export function computeOpenPositionsNetPnl(
+export type OpenPositionsLiveSummaries = {
+  netPnl: OpenPositionsNetPnlSummary;
+  planned: OpenPositionsPlannedProfitLossSummary;
+};
+
+function computeOpenPositionsLiveSummariesInternal(
   trades: JournalTrade[],
   getQuote: (trade: JournalTrade) => QuoteForPnl | null,
-  defaultCurrency: CurrencyCode
-): OpenPositionsNetPnlSummary {
+  defaultCurrency: CurrencyCode,
+  includeLiveQuotes: boolean
+): OpenPositionsLiveSummaries {
   let totalPnl = 0;
   let totalInvested = 0;
   let activeCount = 0;
   let pricedCount = 0;
+  let totalPlannedProfit = 0;
+  let totalPlannedLoss = 0;
+  let accumulatedReward = 0;
+  let accumulatedRisk = 0;
 
   for (const trade of trades) {
     if ((trade.status ?? "Closed") !== "Active") continue;
     activeCount += 1;
+
+    const { maxProfit, maxLoss } = plannedMaxProfitLoss(trade);
+    if (maxProfit != null) totalPlannedProfit += maxProfit;
+    if (maxLoss != null) totalPlannedLoss += maxLoss;
+
     const invested = trade.entryPrice * trade.quantity;
     if (invested > 0) totalInvested += invested;
+
+    if (!includeLiveQuotes) continue;
 
     const display = resolveTradePnlDisplay(
       trade,
@@ -246,20 +262,64 @@ export function computeOpenPositionsNetPnl(
       defaultCurrency
     );
     totalPnl += display.pnl;
-    if (display.isUnrealized) pricedCount += 1;
+    if (!display.isUnrealized) continue;
+    pricedCount += 1;
+    if (display.pnl > 0) {
+      accumulatedReward += display.pnl;
+    } else if (display.pnl < 0) {
+      accumulatedRisk += display.pnl;
+    }
   }
 
   const roundedPnl = Math.round(totalPnl * 100) / 100;
 
   return {
-    totalPnl: roundedPnl,
-    totalRoi:
-      totalInvested > 0
-        ? Math.round((roundedPnl / totalInvested) * 10000) / 100
-        : null,
-    activeCount,
-    pricedCount,
+    netPnl: {
+      totalPnl: roundedPnl,
+      totalRoi:
+        totalInvested > 0
+          ? Math.round((roundedPnl / totalInvested) * 10000) / 100
+          : null,
+      activeCount,
+      pricedCount,
+    },
+    planned: {
+      totalPlannedProfit: Math.round(totalPlannedProfit * 100) / 100,
+      totalPlannedLoss: Math.round(totalPlannedLoss * 100) / 100,
+      accumulatedReward: Math.round(accumulatedReward * 100) / 100,
+      accumulatedRisk: Math.round(accumulatedRisk * 100) / 100,
+      pricedCount,
+      activeCount,
+    },
   };
+}
+
+/** One pass over active trades for open net P&L and reward/risk summaries. */
+export function computeOpenPositionsLiveSummaries(
+  trades: JournalTrade[],
+  getQuote: (trade: JournalTrade) => QuoteForPnl | null,
+  defaultCurrency: CurrencyCode = DEFAULT_CURRENCY
+): OpenPositionsLiveSummaries {
+  return computeOpenPositionsLiveSummariesInternal(
+    trades,
+    getQuote,
+    defaultCurrency,
+    true
+  );
+}
+
+/** Sum of Net P&L column values for open positions (matches journal table rows). */
+export function computeOpenPositionsNetPnl(
+  trades: JournalTrade[],
+  getQuote: (trade: JournalTrade) => QuoteForPnl | null,
+  defaultCurrency: CurrencyCode
+): OpenPositionsNetPnlSummary {
+  return computeOpenPositionsLiveSummariesInternal(
+    trades,
+    getQuote,
+    defaultCurrency,
+    true
+  ).netPnl;
 }
 
 /** Entry notional as a share of total capital deployed in open positions. */
@@ -323,28 +383,37 @@ export type OpenPositionsPlannedProfitLossSummary = {
   totalPlannedProfit: number;
   /** Signed sum of P&L if each open position hits its stop. */
   totalPlannedLoss: number;
+  /** Live unrealized gains so far (sum of positive open P&L with quotes). */
+  accumulatedReward: number;
+  /** Live unrealized losses so far (sum of negative open P&L with quotes). */
+  accumulatedRisk: number;
+  /** Open positions that contributed a live quote to the accumulated totals. */
+  pricedCount: number;
   activeCount: number;
 };
 
-/** Static planned reward/risk totals from entry, target, and stop on open positions. */
+/**
+ * Planned reward/risk at target/stop for open positions, plus live
+ * accumulation so far (unrealized gains vs losses from current quotes).
+ */
 export function computeOpenPositionsPlannedProfitLoss(
-  trades: JournalTrade[]
+  trades: JournalTrade[],
+  getQuote?: (trade: JournalTrade) => QuoteForPnl | null,
+  defaultCurrency: CurrencyCode = DEFAULT_CURRENCY
 ): OpenPositionsPlannedProfitLossSummary {
-  let totalPlannedProfit = 0;
-  let totalPlannedLoss = 0;
-  let activeCount = 0;
-
-  for (const trade of trades) {
-    if ((trade.status ?? "Closed") !== "Active") continue;
-    activeCount += 1;
-    const { maxProfit, maxLoss } = plannedMaxProfitLoss(trade);
-    if (maxProfit != null) totalPlannedProfit += maxProfit;
-    if (maxLoss != null) totalPlannedLoss += maxLoss;
+  if (!getQuote) {
+    return computeOpenPositionsLiveSummariesInternal(
+      trades,
+      () => null,
+      defaultCurrency,
+      false
+    ).planned;
   }
 
-  return {
-    totalPlannedProfit: Math.round(totalPlannedProfit * 100) / 100,
-    totalPlannedLoss: Math.round(totalPlannedLoss * 100) / 100,
-    activeCount,
-  };
+  return computeOpenPositionsLiveSummariesInternal(
+    trades,
+    getQuote,
+    defaultCurrency,
+    true
+  ).planned;
 }

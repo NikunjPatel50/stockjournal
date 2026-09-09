@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, type ReactNode } from "react";
+import { memo, useMemo, useRef, type ReactNode } from "react";
 import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
 import { formatMoney, formatSignedPercent } from "@/lib/analytics";
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
@@ -55,10 +55,24 @@ export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
   const { getQuote, quoteRevision } = useMarketQuotes();
   const todayDailyPnl = useTodayDailyPnl(trades, currency);
 
-  const snapshot = useMemo(
-    () => computeLivePortfolioSnapshot(trades, getQuote, currency),
-    [trades, getQuote, currency, quoteRevision]
+  const snapshotRef = useRef<ReturnType<typeof computeLivePortfolioSnapshot> | null>(
+    null
   );
+  const snapshot = useMemo(() => {
+    const next = computeLivePortfolioSnapshot(trades, getQuote, currency);
+    const prev = snapshotRef.current;
+    if (
+      prev &&
+      prev.date === next.date &&
+      prev.invested === next.invested &&
+      prev.totalPnl === next.totalPnl &&
+      prev.portfolioValue === next.portfolioValue
+    ) {
+      return prev;
+    }
+    snapshotRef.current = next;
+    return next;
+  }, [trades, getQuote, currency, quoteRevision]);
 
   const activeTrades = useMemo(
     () => trades.filter((trade) => (trade.status ?? "Closed") === "Active"),
