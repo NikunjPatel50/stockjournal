@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 
 export const APP_MAIN_ELEMENT_ID = "app-scroll-main";
 
-/** Minimum main-column width before the journal desktop table fits (72rem + padding). */
-export const JOURNAL_DESKTOP_TABLE_MIN_WIDTH = 1200;
+/** Minimum main-column width for the desktop journal table (sidebar excluded).
+ * Sidebar is w-72 (18rem). At 1440px viewport that leaves ~1152px for main —
+ * keep this under that so common laptops get the table (inner overflow-x is ok). */
+export const JOURNAL_DESKTOP_TABLE_MIN_WIDTH = 1080;
 
 /** Tracks the scrollable main column width (sidebar excluded), including browser zoom. */
 export function useAppMainWidth(): number | null {

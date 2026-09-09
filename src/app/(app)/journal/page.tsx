@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -119,10 +119,10 @@ export default function JournalPage() {
   );
   const [deleteTarget, setDeleteTarget] = useState<string[] | null>(null);
 
-  function openEditTrade(trade: JournalTrade) {
+  const openEditTrade = useCallback((trade: JournalTrade) => {
     setEditingTrade(trade);
     setModalOpen(true);
-  }
+  }, []);
 
   const filtered = useMemo(
     () => filterJournalTrades(regionTrades, filters),
@@ -151,48 +151,91 @@ export default function JournalPage() {
     activeCurrency
   );
 
-  const { getQuote, loading: quotesLoading, quoteRevision } = useMarketQuotes();
+  const { getQuote, quoteRevision } = useMarketQuotes();
   const livePnl = useTodayDailyPnl(regionTrades, activeCurrency);
-  const filteredPnl = useMemo(
-    () =>
-      computeFilteredPnl(filtered, getQuote, activeCurrency),
-    [filtered, getQuote, quoteRevision, activeCurrency]
+
+  const filteredPnlRef = useRef<ReturnType<typeof computeFilteredPnl> | null>(
+    null
   );
-  const openPositionsNetPnl = useMemo(
-    () => computeOpenPositionsNetPnl(activeTrades, getQuote, activeCurrency),
-    [activeTrades, getQuote, quoteRevision, activeCurrency]
-  );
+  const filteredPnl = useMemo(() => {
+    const next = computeFilteredPnl(filtered, getQuote, activeCurrency);
+    const prev = filteredPnlRef.current;
+    if (
+      prev &&
+      prev.totalPnl === next.totalPnl &&
+      prev.activeCount === next.activeCount &&
+      prev.pricedActiveCount === next.pricedActiveCount
+    ) {
+      return prev;
+    }
+    filteredPnlRef.current = next;
+    return next;
+  }, [filtered, getQuote, quoteRevision, activeCurrency]);
+
+  const openPositionsNetPnlRef = useRef<ReturnType<
+    typeof computeOpenPositionsNetPnl
+  > | null>(null);
+  const openPositionsNetPnl = useMemo(() => {
+    const next = computeOpenPositionsNetPnl(
+      activeTrades,
+      getQuote,
+      activeCurrency
+    );
+    const prev = openPositionsNetPnlRef.current;
+    if (
+      prev &&
+      prev.totalPnl === next.totalPnl &&
+      prev.totalRoi === next.totalRoi &&
+      prev.activeCount === next.activeCount &&
+      prev.pricedCount === next.pricedCount
+    ) {
+      return prev;
+    }
+    openPositionsNetPnlRef.current = next;
+    return next;
+  }, [activeTrades, getQuote, quoteRevision, activeCurrency]);
+
   const plannedProfitLoss = useMemo(
     () => computeOpenPositionsPlannedProfitLoss(activeTrades),
     [activeTrades]
   );
 
-  function handleSave(trade: JournalTrade) {
-    const isNewTrade = !allTrades.some((t) => t.id === trade.id);
-    const opensNewMarket =
-      isNewTrade &&
-      isFirstTradeInMarketRegion(trade, allTrades, defaultCurrency);
+  const handleSave = useCallback(
+    (trade: JournalTrade) => {
+      const isNewTrade = !allTrades.some((t) => t.id === trade.id);
+      const opensNewMarket =
+        isNewTrade &&
+        isFirstTradeInMarketRegion(trade, allTrades, defaultCurrency);
 
-    setTrades((prev) => {
-      const exists = prev.some((t) => t.id === trade.id);
-      if (exists) return prev.map((t) => (t.id === trade.id ? trade : t));
-      return [trade, ...prev];
-    });
+      setTrades((prev) => {
+        const exists = prev.some((t) => t.id === trade.id);
+        if (exists) return prev.map((t) => (t.id === trade.id ? trade : t));
+        return [trade, ...prev];
+      });
 
-    if (opensNewMarket) {
-      const regionId = resolveTradeRegionId(trade, defaultCurrency);
-      setActiveRegionId(regionId);
-      router.push("/dashboard");
-    }
+      if (opensNewMarket) {
+        const regionId = resolveTradeRegionId(trade, defaultCurrency);
+        setActiveRegionId(regionId);
+        router.push("/dashboard");
+      }
 
-    void enrichSavedTradeFundamentals(trade, activeCurrency, setTrades);
-  }
+      void enrichSavedTradeFundamentals(trade, activeCurrency, setTrades);
+    },
+    [
+      allTrades,
+      defaultCurrency,
+      activeCurrency,
+      setTrades,
+      setActiveRegionId,
+      router,
+    ]
+  );
 
-  function handleDelete(ids: string[]) {
+  const handleDelete = useCallback((ids: string[]) => {
     setDeleteTarget(ids);
-  }
+  }, []);
 
-  function confirmDelete() {
+  const confirmDelete = useCallback(() => {
     if (!deleteTarget?.length) return;
 
     const removed = allTrades.filter((t) => deleteTarget.includes(t.id));
@@ -205,7 +248,7 @@ export default function JournalPage() {
     }
 
     toast.success(`${removed.length} trades removed from your journal`);
-  }
+  }, [deleteTarget, allTrades, setTrades]);
 
   const deleteDialogCopy = useMemo(() => {
     if (!deleteTarget?.length) {
@@ -229,41 +272,47 @@ export default function JournalPage() {
     };
   }, [deleteTarget, allTrades]);
 
-  function handleDuplicate(trade: JournalTrade) {
-    const copy: JournalTrade = {
-      ...trade,
-      id: crypto.randomUUID(),
-      ticker: `${trade.ticker}`,
-      notes: `${trade.notes} (duplicate)`,
-      executions: trade.executions.map((e) => ({
-        ...e,
+  const handleDuplicate = useCallback(
+    (trade: JournalTrade) => {
+      const copy: JournalTrade = {
+        ...trade,
         id: crypto.randomUUID(),
-      })),
-    };
-    setTrades((prev) => [copy, ...prev]);
-  }
+        ticker: `${trade.ticker}`,
+        notes: `${trade.notes} (duplicate)`,
+        executions: trade.executions.map((e) => ({
+          ...e,
+          id: crypto.randomUUID(),
+        })),
+      };
+      setTrades((prev) => [copy, ...prev]);
+    },
+    [setTrades]
+  );
 
-  function handlePartialExit(result: {
-    closedLot: JournalTrade;
-    updatedActive: JournalTrade | null;
-  }) {
-    const originalId = result.updatedActive?.id ?? result.closedLot.id;
-    setTrades((prev) => {
-      const withoutOriginal = prev.filter((t) => t.id !== originalId);
-      if (result.updatedActive) {
-        return [result.closedLot, result.updatedActive, ...withoutOriginal];
-      }
-      return [result.closedLot, ...withoutOriginal];
-    });
-    setPartialExitTrade(null);
-    toast.success(
-      result.updatedActive
-        ? `Partial exit recorded — ${result.updatedActive.quantity} share${result.updatedActive.quantity === 1 ? "" : "s"} still active`
-        : `${result.closedLot.ticker} fully closed`
-    );
-  }
+  const handlePartialExit = useCallback(
+    (result: {
+      closedLot: JournalTrade;
+      updatedActive: JournalTrade | null;
+    }) => {
+      const originalId = result.updatedActive?.id ?? result.closedLot.id;
+      setTrades((prev) => {
+        const withoutOriginal = prev.filter((t) => t.id !== originalId);
+        if (result.updatedActive) {
+          return [result.closedLot, result.updatedActive, ...withoutOriginal];
+        }
+        return [result.closedLot, ...withoutOriginal];
+      });
+      setPartialExitTrade(null);
+      toast.success(
+        result.updatedActive
+          ? `Partial exit recorded — ${result.updatedActive.quantity} share${result.updatedActive.quantity === 1 ? "" : "s"} still active`
+          : `${result.closedLot.ticker} fully closed`
+      );
+    },
+    [setTrades]
+  );
 
-  function handleExportCsv() {
+  const handleExportCsv = useCallback(() => {
     const csv = tradesToCsv(filtered);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -272,7 +321,7 @@ export default function JournalPage() {
     a.download = `tradetracker-journal-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }
+  }, [filtered]);
 
   function handleImportFile(file: File) {
     const reader = new FileReader();

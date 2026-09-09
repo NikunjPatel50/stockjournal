@@ -366,13 +366,14 @@ export function SiteChatbot() {
           <Button
             type="button"
             size="lg"
-            className="h-14 rounded-full bg-emerald-500 px-5 text-zinc-950 shadow-lg hover:bg-emerald-400"
+            className="h-12 rounded-full bg-emerald-500 px-3.5 text-zinc-950 shadow-lg hover:bg-emerald-400 sm:h-14 sm:px-5"
             aria-expanded={open}
             aria-controls="site-chatbot-panel"
+            aria-label="Ask a question"
             onClick={() => setOpen(true)}
           >
             <MessageCircle className="size-5" />
-            <span>Ask a question</span>
+            <span className="hidden sm:inline">Ask a question</span>
           </Button>
         ) : null}
       </div>

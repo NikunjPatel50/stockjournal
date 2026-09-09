@@ -247,6 +247,7 @@ function LiveRowColorLegend({
   displayCurrency: CurrencyCode;
 }) {
   const { getQuote, quoteRevision } = useMarketQuotes();
+  const countsRef = useRef({ profit: 0, loss: 0, stopAboveEntry: 0 });
   const counts = useMemo(() => {
     const result = { profit: 0, loss: 0, stopAboveEntry: 0 };
     for (const trade of trades) {
@@ -257,6 +258,15 @@ function LiveRowColorLegend({
       const category = resolveRowAccentCategory(trade, livePnl);
       if (category) result[category] += 1;
     }
+    const prev = countsRef.current;
+    if (
+      prev.profit === result.profit &&
+      prev.loss === result.loss &&
+      prev.stopAboveEntry === result.stopAboveEntry
+    ) {
+      return prev;
+    }
+    countsRef.current = result;
     return result;
   }, [trades, getQuote, quoteRevision, displayCurrency]);
 

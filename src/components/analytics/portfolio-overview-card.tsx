@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import {
   CartesianGrid,
@@ -65,14 +65,51 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
 
   const timeline = useMemo(() => computePortfolioTimeline(trades), [trades]);
 
-  const liveSnapshot = useMemo(
-    () => computeLivePortfolioSnapshot(trades, getQuote, currency),
-    [trades, getQuote, currency, quoteRevision]
+  const liveSnapshotRef = useRef<ReturnType<
+    typeof computeLivePortfolioSnapshot
+  > | null>(null);
+  const liveSnapshot = useMemo(() => {
+    const next = computeLivePortfolioSnapshot(trades, getQuote, currency);
+    const prev = liveSnapshotRef.current;
+    if (
+      prev &&
+      prev.date === next.date &&
+      prev.invested === next.invested &&
+      prev.totalPnl === next.totalPnl &&
+      prev.portfolioValue === next.portfolioValue
+    ) {
+      return prev;
+    }
+    liveSnapshotRef.current = next;
+    return next;
+  }, [trades, getQuote, currency, quoteRevision]);
+
+  const chartSeriesRef = useRef<ReturnType<typeof buildPortfolioChartSeries>>(
+    []
   );
-  const chartSeries = useMemo(
-    () => buildPortfolioChartSeries(timeline, timeframe, new Date(), liveSnapshot),
-    [timeline, timeframe, liveSnapshot]
-  );
+  const chartSeries = useMemo(() => {
+    const next = buildPortfolioChartSeries(
+      timeline,
+      timeframe,
+      new Date(),
+      liveSnapshot
+    );
+    const prev = chartSeriesRef.current;
+    if (
+      prev.length === next.length &&
+      prev.every(
+        (point, index) =>
+          point.date === next[index]?.date &&
+          point.invested === next[index]?.invested &&
+          point.totalPnl === next[index]?.totalPnl &&
+          point.portfolioValue === next[index]?.portfolioValue
+      )
+    ) {
+      return prev;
+    }
+    chartSeriesRef.current = next;
+    return next;
+  }, [timeline, timeframe, liveSnapshot]);
 
   const chartData = useMemo(
     () =>

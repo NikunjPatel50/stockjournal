@@ -268,10 +268,12 @@ export const PnlChartCard = memo(function PnlChartCard({
     return () => window.clearInterval(timer);
   }, [todayPending, activeTrades.length, fetchDailyPnl]);
 
-  const dailyWithQuotes = useMemo(() => {
-    if (activeTrades.length === 0) return daily;
-
-    const quotesByTradeId: Record<
+  const quotesByTradeIdRef = useRef<Record<
+    string,
+    { price: number; changePercent?: number | null }
+  >>({});
+  const quotesByTradeId = useMemo(() => {
+    const map: Record<
       string,
       { price: number; changePercent?: number | null }
     > = {};
@@ -280,12 +282,31 @@ export const PnlChartCard = memo(function PnlChartCard({
       if (!input) continue;
       const quote = getQuote(trade);
       if (quote?.price != null && quote.price > 0) {
-        quotesByTradeId[input.id] = {
+        map[input.id] = {
           price: quote.price,
           changePercent: quote.changePercent,
         };
       }
     }
+    const prev = quotesByTradeIdRef.current;
+    const prevKeys = Object.keys(prev);
+    const nextKeys = Object.keys(map);
+    if (
+      prevKeys.length === nextKeys.length &&
+      nextKeys.every(
+        (key) =>
+          prev[key]?.price === map[key]?.price &&
+          prev[key]?.changePercent === map[key]?.changePercent
+      )
+    ) {
+      return prev;
+    }
+    quotesByTradeIdRef.current = map;
+    return map;
+  }, [activePool, getQuote, quoteRevision]);
+
+  const dailyWithQuotes = useMemo(() => {
+    if (activeTrades.length === 0) return daily;
 
     return patchTodayDailyFromQuotes(
       daily,
@@ -297,14 +318,11 @@ export const PnlChartCard = memo(function PnlChartCard({
     );
   }, [
     activeTrades,
-    activePool,
     currency,
     daily,
-    quoteRevision,
-    getQuote,
     now,
     priorSessionBarByTradeId,
-    quotesLoading,
+    quotesByTradeId,
   ]);
 
   const filteredDaily = useMemo(
@@ -337,40 +355,17 @@ export const PnlChartCard = memo(function PnlChartCard({
     [dailyWithQuotes, activeTrades, currency, now]
   );
 
-  const todayLivePnl = useMemo(() => {
-    const quotesByTradeId: Record<
-      string,
-      { price: number; changePercent?: number | null }
-    > = {};
-
-    for (const trade of activePool) {
-      const input = toActivePositionPnlInput(trade);
-      if (!input) continue;
-      const quote = getQuote(trade);
-      if (quote?.price != null && quote.price > 0) {
-        quotesByTradeId[input.id] = {
-          price: quote.price,
-          changePercent: quote.changePercent,
-        };
-      }
-    }
-
-    return computeTodayDailyPnlFromQuotes(
-      activeTrades,
-      quotesByTradeId,
-      currency,
-      now,
-      priorSessionBarByTradeId
-    );
-  }, [
-    activePool,
-    activeTrades,
-    currency,
-    getQuote,
-    now,
-    priorSessionBarByTradeId,
-    quoteRevision,
-  ]);
+  const todayLivePnl = useMemo(
+    () =>
+      computeTodayDailyPnlFromQuotes(
+        activeTrades,
+        quotesByTradeId,
+        currency,
+        now,
+        priorSessionBarByTradeId
+      ),
+    [activeTrades, currency, now, priorSessionBarByTradeId, quotesByTradeId]
+  );
 
   const todayDisplayPnl =
     todayLivePnl.pricedCount > 0 ? todayLivePnl.totalPnl : todayPnl;

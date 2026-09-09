@@ -77,7 +77,7 @@ export function LandingPricing({
             </span>
           </div>
 
-          <Link href="/login" className="mt-8 block">
+          <Link href="/login" className="mt-8 mb-2 block max-sm:mb-14">
             <Button className="h-10 w-full bg-emerald-500 text-zinc-950 hover:bg-emerald-400">
               Get started free
             </Button>

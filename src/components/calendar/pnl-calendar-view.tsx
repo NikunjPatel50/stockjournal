@@ -162,10 +162,7 @@ export function PnlCalendarView() {
   return (
     <div className={APP_PAGE_SHELL_CLASS}>
       <div className="space-y-4">
-        <AppPageHeader
-          eyebrow="Portfolio analytics"
-          title="Calendar"
-        />
+        <AppPageHeader title="Calendar" />
 
         <div className="pl-12 lg:pl-0">
           <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">

@@ -90,7 +90,6 @@ export function AnalyticsHeader({
   return (
     <div className="space-y-3">
       <AppPageHeader
-        eyebrow="Portfolio analytics"
         title={title}
         description={subtitle}
       />

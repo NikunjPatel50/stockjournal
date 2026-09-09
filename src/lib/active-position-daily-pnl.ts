@@ -287,9 +287,19 @@ export function patchTodayDailyFromQuotes(
 
   if (todayTotals.size === 0) return daily;
 
+  let changed = false;
   const next = [...daily];
   for (const [date, value] of todayTotals) {
     const index = next.findIndex((point) => point.date === date);
+    const existing = index >= 0 ? next[index] : null;
+    if (
+      existing &&
+      existing.pnl === value.pnl &&
+      existing.trades === value.positions
+    ) {
+      continue;
+    }
+    changed = true;
     const point: DailyPnlPoint = {
       date,
       pnl: value.pnl,
@@ -302,6 +312,7 @@ export function patchTodayDailyFromQuotes(
     }
   }
 
+  if (!changed) return daily;
   return next.sort((a, b) => a.date.localeCompare(b.date));
 }
 

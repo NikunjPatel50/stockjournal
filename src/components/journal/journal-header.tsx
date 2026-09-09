@@ -142,7 +142,7 @@ export function JournalHeader({
 
   return (
     <div className="space-y-4">
-      <AppPageHeader eyebrow="Trade log" title="Journal" />
+      <AppPageHeader title="Journal" />
 
       <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
