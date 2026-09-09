@@ -92,12 +92,13 @@ const CELL_CENTER = "flex w-full items-center justify-center text-center";
 const EXPAND_COL_WIDTH = "1.75rem";
 /** Room for the action control group (chart / edit / duplicate / delete ± partial). */
 const ACTIONS_COL_WIDTH = "11.5rem";
-/** Desktop body height tracks the Rows pagination setting; header stays sticky. */
-function journalTableBodyMaxHeight(pageSize: number) {
-  return `calc(2.25rem + ${pageSize} * 3.85rem)`;
+const DEFAULT_CLOSED_TABLE_PAGE_SIZE = 10;
+/** Desktop body height tracks visible rows; header stays sticky. */
+function journalTableBodyMaxHeight(visibleRows: number) {
+  return `calc(2.25rem + ${visibleRows} * 3.85rem)`;
 }
-function journalCompactListMaxHeight(pageSize: number) {
-  return `calc(${pageSize} * 9.5rem)`;
+function journalCompactListMaxHeight(visibleRows: number) {
+  return `calc(${visibleRows} * 9.5rem)`;
 }
 const NARROW_COLUMN_WIDTHS: Record<string, string> = {
   quantity: "2.75rem",
@@ -649,7 +650,7 @@ function RowColorLegend({
   ] as const;
 
   return (
-    <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 sm:flex">
+    <div className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
       {items.map((item) => (
         <span
           key={item.key}
@@ -1618,13 +1619,18 @@ function JournalTableInner({
 }: JournalTableProps & { quoteSlice: QuoteSlice }) {
   const isCompact = useIsJournalCompact();
   const isMobile = useIsMobile();
+  const userPageSizeRef = useRef<number | "all">(
+    enableLiveQuotes ? "all" : DEFAULT_CLOSED_TABLE_PAGE_SIZE
+  );
   const [sorting, setSorting] = useState<SortingState>([
     { id: "entryDate", desc: true },
   ]);
-  const [pagination, setPagination] = useState<PaginationState>({
+  const [pagination, setPagination] = useState<PaginationState>(() => ({
     pageIndex: 0,
-    pageSize: 10,
-  });
+    pageSize: enableLiveQuotes
+      ? Math.max(trades.length, 1)
+      : DEFAULT_CLOSED_TABLE_PAGE_SIZE,
+  }));
   const [columnPrefs, setColumnPrefs] = useState<JournalColumnPrefs>(() =>
     loadJournalColumnPrefs()
   );
@@ -1681,8 +1687,16 @@ function JournalTableInner({
   enableLiveQuotesRef.current = enableLiveQuotes;
 
   useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [trades.length]);
+    setPagination((prev) => {
+      const pageSize =
+        enableLiveQuotes && userPageSizeRef.current === "all"
+          ? Math.max(trades.length, 1)
+          : typeof userPageSizeRef.current === "number"
+            ? userPageSizeRef.current
+            : prev.pageSize;
+      return { pageIndex: 0, pageSize };
+    });
+  }, [trades.length, enableLiveQuotes]);
 
   useEffect(() => {
     setColumnPrefs((prev) => {
@@ -2072,6 +2086,10 @@ function JournalTableInner({
   const pageIndex = table.getState().pagination.pageIndex;
   const pageSize = table.getState().pagination.pageSize;
   const totalRows = trades.length;
+  const pageRows = table.getRowModel().rows;
+  const visibleRowCount = Math.max(pageRows.length, 1);
+  const rowsSelectValue =
+    userPageSizeRef.current === "all" ? "all" : String(pageSize);
   const hasActiveTrades = trades.some(
     (trade) => (trade.status ?? "Closed") === "Active"
   );
@@ -2086,7 +2104,6 @@ function JournalTableInner({
   }, [enableLiveQuotes, trades]);
   const rangeStart = totalRows === 0 ? 0 : pageIndex * pageSize + 1;
   const rangeEnd = Math.min((pageIndex + 1) * pageSize, totalRows);
-  const pageRows = table.getRowModel().rows;
   const visibleColumns = table.getVisibleLeafColumns();
   const fixedColumnWidths = [
     EXPAND_COL_WIDTH,
@@ -2125,16 +2142,23 @@ function JournalTableInner({
             Rows
           </span>
           <Select
-            value={String(pageSize)}
+            value={rowsSelectValue}
             onValueChange={(v) => {
               if (!v) return;
+              if (v === "all") {
+                userPageSizeRef.current = "all";
+                table.setPageSize(Math.max(totalRows, 1));
+                return;
+              }
+              userPageSizeRef.current = Number(v);
               table.setPageSize(Number(v));
             }}
           >
             <SelectTrigger className="h-7 w-[3.25rem] border-0 bg-transparent text-xs font-medium shadow-none hover:bg-background/80">
-              <span>{pageSize}</span>
+              <span>{rowsSelectValue === "all" ? "All" : pageSize}</span>
             </SelectTrigger>
             <SelectContent align="end">
+              <SelectItem value="all">All</SelectItem>
               <SelectItem value="10">10</SelectItem>
               <SelectItem value="20">20</SelectItem>
               <SelectItem value="30">30</SelectItem>
@@ -2179,7 +2203,7 @@ function JournalTableInner({
     <section className="cv-section overflow-x-auto rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/[0.03] dark:ring-white/[0.04]">
       <header className="flex flex-col gap-2.5 border-b border-border/80 bg-card px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
         <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <h2 className="text-base font-semibold tracking-tight text-foreground">
               {title}
             </h2>
@@ -2197,12 +2221,12 @@ function JournalTableInner({
             {!quotesError && hasActiveTrades && enableLiveQuotes ? (
               <MarketSessionTimer trades={trades} currency={displayCurrency} />
             ) : null}
+            {totalRows > 0 && enableLiveQuotes ? (
+              <LiveRowColorLegend trades={trades} displayCurrency={displayCurrency} />
+            ) : totalRows > 0 && staticRowLegendCounts ? (
+              <RowColorLegend counts={staticRowLegendCounts} />
+            ) : null}
           </div>
-          {totalRows > 0 && enableLiveQuotes ? (
-            <LiveRowColorLegend trades={trades} displayCurrency={displayCurrency} />
-          ) : totalRows > 0 && staticRowLegendCounts ? (
-            <RowColorLegend counts={staticRowLegendCounts} />
-          ) : null}
           {quotesError ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
           ) : null}
@@ -2223,7 +2247,7 @@ function JournalTableInner({
       ) : isCompact ? (
         <ul
           className="divide-y divide-border/80 overflow-y-auto overscroll-contain"
-          style={{ maxHeight: journalCompactListMaxHeight(pageSize) }}
+          style={{ maxHeight: journalCompactListMaxHeight(visibleRowCount) }}
         >
           {pageRows.map((row) => (
             <MemoLiveCompactTradeCard
@@ -2248,7 +2272,7 @@ function JournalTableInner({
       ) : (
         <div
           className="overflow-auto overscroll-contain"
-          style={{ maxHeight: journalTableBodyMaxHeight(pageSize) }}
+          style={{ maxHeight: journalTableBodyMaxHeight(visibleRowCount) }}
         >
           <table className="w-full min-w-[74rem] table-fixed border-collapse text-center text-sm">
             <colgroup>

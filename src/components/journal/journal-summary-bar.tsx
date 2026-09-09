@@ -422,7 +422,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
         </div>
       </SummarySection>
 
-      <Accordion defaultValue={["positions-outcomes"]} className="min-w-0">
+      <Accordion className="min-w-0">
         <AccordionItem value="positions-outcomes" className="border-0">
           <AccordionTrigger className="w-full gap-3 px-0 py-0 hover:no-underline focus-visible:ring-0">
             <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
