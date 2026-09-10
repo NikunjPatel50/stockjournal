@@ -146,7 +146,7 @@ function HeroMetric({
 
 const REWARD_RISK_AMOUNT_CLASS = cn(
   "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-right font-semibold leading-tight",
-  "text-[length:clamp(0.8125rem,1.35cqi+0.45rem,1.125rem)]",
+  "text-[length:clamp(0.9375rem,1.55cqi+0.55rem,1.375rem)]",
   NUMERIC_DISPLAY_CLASS
 );
 
@@ -234,7 +234,7 @@ function RewardRiskCard({
       : "—";
 
   const columnLabelClass =
-    "pb-1 text-right text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 @[12rem]/reward-risk:text-sm";
+    "pb-0.5 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70 @[12rem]/reward-risk:text-[11px]";
   const gridColumnClass = showLiveColumn ? "grid-cols-2" : "grid-cols-1";
 
   return (
