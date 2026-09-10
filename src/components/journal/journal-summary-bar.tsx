@@ -144,29 +144,229 @@ function HeroMetric({
   );
 }
 
-function AmountCell({
+const REWARD_RISK_AMOUNT_CLASS = cn(
+  "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-right font-semibold leading-tight",
+  "text-[length:clamp(0.625rem,1.1cqi+0.35rem,0.875rem)]",
+  NUMERIC_DISPLAY_CLASS
+);
+
+function RewardRiskAmount({
   children,
   className,
   title,
-  large = false,
 }: {
   children: ReactNode;
   className?: string;
   title?: string;
-  large?: boolean;
 }) {
   return (
-    <td
-      className={cn(
-        "truncate py-0.5 text-right font-semibold leading-5",
-        large ? "text-base sm:text-lg" : "text-sm",
-        NUMERIC_DISPLAY_CLASS,
-        className
-      )}
-      title={title}
-    >
+    <div className={cn(REWARD_RISK_AMOUNT_CLASS, className)} title={title}>
       {children}
-    </td>
+    </div>
+  );
+}
+
+function RewardRiskCard({
+  displayCurrency,
+  plannedTone,
+  plannedProfit,
+  plannedLoss,
+  accumulatedReward,
+  accumulatedRisk,
+  liveDataReady,
+  showAccumulated,
+  accumulatedPending,
+}: {
+  displayCurrency: CurrencyCode;
+  plannedTone: MetricTone;
+  plannedProfit: number;
+  plannedLoss: number;
+  accumulatedReward: number;
+  accumulatedRisk: number;
+  liveDataReady: boolean;
+  showAccumulated: boolean;
+  accumulatedPending: boolean;
+}) {
+  const showLiveColumn = accumulatedPending || showAccumulated;
+  const plannedProfitTitle = formatCurrency(plannedProfit, displayCurrency);
+  const plannedLossTitle = formatCurrency(plannedLoss, displayCurrency);
+  const accumulatedRewardTitle = formatCurrency(accumulatedReward, displayCurrency);
+  const accumulatedRiskTitle = formatCurrency(accumulatedRisk, displayCurrency);
+
+  const plannedProfitValue = !liveDataReady ? (
+    "…"
+  ) : (
+    <AnimatedNumber
+      value={plannedProfit}
+      format={(amount) => formatCurrency(amount, displayCurrency)}
+    />
+  );
+
+  const plannedLossValue = !liveDataReady ? (
+    "…"
+  ) : (
+    <AnimatedNumber
+      value={plannedLoss}
+      format={(amount) => formatCurrency(amount, displayCurrency)}
+    />
+  );
+
+  const liveRewardValue = accumulatedPending
+    ? "…"
+    : showAccumulated
+      ? (
+          <AnimatedNumber
+            value={accumulatedReward}
+            format={(amount) => formatCurrency(amount, displayCurrency)}
+          />
+        )
+      : "—";
+
+  const liveRiskValue = accumulatedPending
+    ? "…"
+    : showAccumulated
+      ? (
+          <AnimatedNumber
+            value={accumulatedRisk}
+            format={(amount) => formatCurrency(amount, displayCurrency)}
+          />
+        )
+      : "—";
+
+  const rowLabelClass =
+    "min-w-0 py-0.5 text-left text-[length:clamp(0.6875rem,1cqi+0.4rem,0.9375rem)] leading-tight text-muted-foreground";
+  const columnLabelClass =
+    "pb-1 text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 @[12rem]/reward-risk:text-xs";
+
+  return (
+    <div
+      className="@container/reward-risk flex min-w-0 flex-col items-center justify-center bg-card px-3 py-1.5 text-center sm:px-4 sm:py-2 lg:col-start-5 lg:row-start-1 lg:row-span-2"
+    >
+      <MetricLabel
+        label="Reward / Risk"
+        labelShort="Reward / Risk"
+        hint="Planned reward at target and risk at stop across open positions. Live columns show unrealized gains and losses accumulated so far."
+        tone={plannedTone}
+      />
+
+      <div className="mt-2 w-full min-w-0 overflow-x-auto">
+        <div className="@[11rem]/reward-risk:hidden min-w-[8.5rem] space-y-2.5 text-left">
+          {[
+            {
+              label: "Reward",
+              planned: plannedProfitValue,
+              plannedTitle: plannedProfitTitle,
+              plannedClass: "text-emerald-600 dark:text-emerald-400",
+              live: liveRewardValue,
+              liveTitle: showAccumulated ? accumulatedRewardTitle : undefined,
+              liveClass: "text-emerald-600 dark:text-emerald-400",
+            },
+            {
+              label: "Risk",
+              planned: plannedLossValue,
+              plannedTitle: plannedLossTitle,
+              plannedClass:
+                plannedLoss >= 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400",
+              live: liveRiskValue,
+              liveTitle: showAccumulated ? accumulatedRiskTitle : undefined,
+              liveClass:
+                accumulatedRisk >= 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400",
+            },
+          ].map((row) => (
+            <div key={row.label} className="min-w-0">
+              <p className={rowLabelClass}>{row.label}</p>
+              <div
+                className={cn(
+                  "mt-1 grid min-w-0 gap-x-2 gap-y-1",
+                  showLiveColumn ? "grid-cols-2" : "grid-cols-1"
+                )}
+              >
+                <div className="min-w-0">
+                  <p className={columnLabelClass}>Planned</p>
+                  <RewardRiskAmount
+                    className={row.plannedClass}
+                    title={row.plannedTitle}
+                  >
+                    {row.planned}
+                  </RewardRiskAmount>
+                </div>
+                {showLiveColumn ? (
+                  <div className="min-w-0">
+                    <p className={columnLabelClass}>Live</p>
+                    <RewardRiskAmount
+                      className={row.liveClass}
+                      title={row.liveTitle}
+                    >
+                      {row.live}
+                    </RewardRiskAmount>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div
+          className={cn(
+            "hidden min-w-[9.5rem] @[11rem]/reward-risk:grid",
+            showLiveColumn
+              ? "grid-cols-[minmax(0,auto)_minmax(0,1fr)_minmax(0,1fr)]"
+              : "grid-cols-[minmax(0,auto)_minmax(0,1fr)]",
+            "w-full gap-x-1.5 gap-y-1"
+          )}
+        >
+          <div className="sr-only">Metric</div>
+          <div className={columnLabelClass}>Planned</div>
+          {showLiveColumn ? (
+            <div className={columnLabelClass}>Live</div>
+          ) : null}
+
+          <div className={rowLabelClass}>Reward</div>
+          <RewardRiskAmount
+            className="text-emerald-600 dark:text-emerald-400"
+            title={plannedProfitTitle}
+          >
+            {plannedProfitValue}
+          </RewardRiskAmount>
+          {showLiveColumn ? (
+            <RewardRiskAmount
+              className="text-emerald-600 dark:text-emerald-400"
+              title={showAccumulated ? accumulatedRewardTitle : undefined}
+            >
+              {liveRewardValue}
+            </RewardRiskAmount>
+          ) : null}
+
+          <div className={rowLabelClass}>Risk</div>
+          <RewardRiskAmount
+            className={
+              plannedLoss >= 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400"
+            }
+            title={plannedLossTitle}
+          >
+            {plannedLossValue}
+          </RewardRiskAmount>
+          {showLiveColumn ? (
+            <RewardRiskAmount
+              className={
+                accumulatedRisk >= 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400"
+              }
+              title={showAccumulated ? accumulatedRiskTitle : undefined}
+            >
+              {liveRiskValue}
+            </RewardRiskAmount>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -440,131 +640,17 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
             valueTitle={formatCurrency(-summary.totalLoss, displayCurrency)}
             tone={summary.totalLoss > 0 ? "loss" : "neutral"}
           />
-          <div className="flex min-w-0 flex-col items-center justify-center bg-card px-3 py-1.5 text-center sm:px-4 sm:py-2 lg:col-start-5 lg:row-start-1 lg:row-span-2">
-            <MetricLabel
-              label="Reward / Risk"
-              labelShort="Reward / Risk"
-              hint="Planned reward at target and risk at stop across open positions. Live columns show unrealized gains and losses accumulated so far."
-              tone={plannedTone}
-              labelClassName="text-sm sm:text-base"
-            />
-            <table className="mt-2 w-full table-fixed border-collapse">
-              <colgroup>
-                <col className="w-[22%]" />
-                <col className="w-[39%]" />
-                <col className="w-[39%]" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th className="pb-1 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-sm">
-                    <span className="sr-only">Metric</span>
-                  </th>
-                  <th className="pb-1 text-right text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-sm">
-                    Planned
-                  </th>
-                  <th className="pb-1 text-right text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-sm">
-                    {accumulatedPending || showAccumulated ? "Live" : ""}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="py-0.5 pr-2 text-left text-sm leading-5 text-muted-foreground sm:text-base">
-                    Reward
-                  </td>
-                  <AmountCell
-                    large
-                    className="text-emerald-600 dark:text-emerald-400"
-                    title={formatCurrency(plannedProfit, displayCurrency)}
-                  >
-                    {!liveDataReady ? (
-                      "…"
-                    ) : (
-                      <AnimatedNumber
-                        value={plannedProfit}
-                        format={(amount) =>
-                          formatCurrency(amount, displayCurrency)
-                        }
-                      />
-                    )}
-                  </AmountCell>
-                  <AmountCell
-                    large
-                    className="text-emerald-600 dark:text-emerald-400"
-                    title={
-                      showAccumulated
-                        ? formatCurrency(accumulatedReward, displayCurrency)
-                        : undefined
-                    }
-                  >
-                    {accumulatedPending
-                      ? "…"
-                      : showAccumulated
-                        ? (
-                            <AnimatedNumber
-                              value={accumulatedReward}
-                              format={(amount) =>
-                                formatCurrency(amount, displayCurrency)
-                              }
-                            />
-                          )
-                        : "—"}
-                  </AmountCell>
-                </tr>
-                <tr>
-                  <td className="py-0.5 pr-2 text-left text-sm leading-5 text-muted-foreground sm:text-base">
-                    Risk
-                  </td>
-                  <AmountCell
-                    large
-                    className={
-                      plannedLoss >= 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-rose-600 dark:text-rose-400"
-                    }
-                    title={formatCurrency(plannedLoss, displayCurrency)}
-                  >
-                    {!liveDataReady ? (
-                      "…"
-                    ) : (
-                      <AnimatedNumber
-                        value={plannedLoss}
-                        format={(amount) =>
-                          formatCurrency(amount, displayCurrency)
-                        }
-                      />
-                    )}
-                  </AmountCell>
-                  <AmountCell
-                    large
-                    className={
-                      accumulatedRisk >= 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-rose-600 dark:text-rose-400"
-                    }
-                    title={
-                      showAccumulated
-                        ? formatCurrency(accumulatedRisk, displayCurrency)
-                        : undefined
-                    }
-                  >
-                    {accumulatedPending
-                      ? "…"
-                      : showAccumulated
-                        ? (
-                            <AnimatedNumber
-                              value={accumulatedRisk}
-                              format={(amount) =>
-                                formatCurrency(amount, displayCurrency)
-                              }
-                            />
-                          )
-                        : "—"}
-                  </AmountCell>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <RewardRiskCard
+            displayCurrency={displayCurrency}
+            plannedTone={plannedTone}
+            plannedProfit={plannedProfit}
+            plannedLoss={plannedLoss}
+            accumulatedReward={accumulatedReward}
+            accumulatedRisk={accumulatedRisk}
+            liveDataReady={liveDataReady}
+            showAccumulated={showAccumulated}
+            accumulatedPending={accumulatedPending}
+          />
         </div>
       </SummarySection>
     </div>
