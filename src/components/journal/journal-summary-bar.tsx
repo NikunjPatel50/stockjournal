@@ -117,7 +117,7 @@ function HeroMetric({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col items-center bg-card px-3 py-1.5 text-center sm:px-4 sm:py-2",
+        "flex h-full min-h-0 min-w-0 flex-col items-center justify-center bg-card px-2.5 py-2 text-center sm:px-3 sm:py-2.5",
         className
       )}
     >
@@ -144,24 +144,42 @@ function HeroMetric({
   );
 }
 
-const REWARD_RISK_AMOUNT_CLASS = cn(
-  "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-right font-semibold leading-tight",
-  "text-[length:clamp(0.9375rem,1.55cqi+0.55rem,1.375rem)]",
-  NUMERIC_DISPLAY_CLASS
-);
-
-function RewardRiskAmount({
-  children,
-  className,
-  title,
+function RewardRiskCell({
+  label,
+  labelShort,
+  hint,
+  tone,
+  value,
+  valueTitle,
+  valueClassName,
 }: {
-  children: ReactNode;
-  className?: string;
-  title?: string;
+  label: string;
+  labelShort?: string;
+  hint: string;
+  tone: MetricTone;
+  value: ReactNode;
+  valueTitle?: string;
+  valueClassName?: string;
 }) {
   return (
-    <div className={cn(REWARD_RISK_AMOUNT_CLASS, className)} title={title}>
-      {children}
+    <div className="flex min-h-0 flex-col items-center justify-center bg-card px-2 py-2 text-center sm:px-2.5 sm:py-2.5">
+      <MetricLabel
+        label={label}
+        labelShort={labelShort}
+        hint={hint}
+        tone={tone}
+        labelClassName="text-[10px] sm:text-[11px]"
+      />
+      <div
+        className={cn(
+          "mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-lg font-semibold leading-none tracking-tight sm:text-xl",
+          NUMERIC_DISPLAY_CLASS,
+          valueClassName
+        )}
+        title={valueTitle}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -233,64 +251,76 @@ function RewardRiskCard({
         )
       : "—";
 
-  const columnLabelClass =
-    "pb-0.5 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70 @[12rem]/reward-risk:text-[11px]";
-  const gridColumnClass = showLiveColumn ? "grid-cols-2" : "grid-cols-1";
+  const lossTone: MetricTone =
+    plannedLoss >= 0 ? "profit" : plannedLoss < 0 ? "loss" : "neutral";
+  const liveLossTone: MetricTone =
+    accumulatedRisk >= 0 ? "profit" : accumulatedRisk < 0 ? "loss" : "neutral";
+  const profitValueClass = "text-emerald-600 dark:text-emerald-400";
+  const plannedLossValueClass =
+    plannedLoss >= 0 ? profitValueClass : "text-rose-600 dark:text-rose-400";
+  const liveLossValueClass =
+    accumulatedRisk >= 0
+      ? profitValueClass
+      : "text-rose-600 dark:text-rose-400";
 
   return (
     <div
-      className="@container/reward-risk flex min-w-0 flex-col items-center justify-center bg-card px-3 py-1.5 text-center sm:px-4 sm:py-2 lg:col-start-5 lg:row-start-1 lg:row-span-2"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-card lg:col-start-5 lg:row-start-1 lg:row-span-2"
     >
-      <MetricLabel
-        label="Reward / Risk"
-        labelShort="Reward / Risk"
-        hint="Planned reward at target and risk at stop across open positions. Live columns show unrealized gains and losses accumulated so far."
-        tone={plannedTone}
-      />
+      <div className="shrink-0 border-b border-border/60 px-3 py-1.5 text-center sm:px-4 sm:py-2">
+        <MetricLabel
+          label="Reward / Risk"
+          labelShort="Reward / Risk"
+          hint="Planned reward at target and risk at stop across open positions. Live columns show unrealized gains and losses accumulated so far."
+          tone={plannedTone}
+        />
+      </div>
 
       <div
         className={cn(
-          "mt-2 grid min-w-[8.5rem] w-full min-w-0 gap-x-2 gap-y-1.5 overflow-x-auto",
-          gridColumnClass
+          "grid min-h-0 flex-1 gap-px bg-border/60",
+          showLiveColumn ? "grid-cols-2 grid-rows-2" : "grid-cols-1 grid-rows-2"
         )}
       >
-        <div className={columnLabelClass}>Planned</div>
-        {showLiveColumn ? <div className={columnLabelClass}>Live</div> : null}
-        <RewardRiskAmount
-          className="text-emerald-600 dark:text-emerald-400"
-          title={plannedProfitTitle}
-        >
-          {plannedProfitValue}
-        </RewardRiskAmount>
+        <RewardRiskCell
+          label="Planned reward"
+          labelShort="Plan reward"
+          hint="Total profit if all open positions reach their targets."
+          tone="profit"
+          value={plannedProfitValue}
+          valueTitle={plannedProfitTitle}
+          valueClassName={profitValueClass}
+        />
         {showLiveColumn ? (
-          <RewardRiskAmount
-            className="text-emerald-600 dark:text-emerald-400"
-            title={showAccumulated ? accumulatedRewardTitle : undefined}
-          >
-            {liveRewardValue}
-          </RewardRiskAmount>
+          <RewardRiskCell
+            label="Live reward"
+            labelShort="Live reward"
+            hint="Unrealized gains accumulated so far on open positions."
+            tone="profit"
+            value={liveRewardValue}
+            valueTitle={showAccumulated ? accumulatedRewardTitle : undefined}
+            valueClassName={profitValueClass}
+          />
         ) : null}
-        <RewardRiskAmount
-          className={
-            plannedLoss >= 0
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-rose-600 dark:text-rose-400"
-          }
-          title={plannedLossTitle}
-        >
-          {plannedLossValue}
-        </RewardRiskAmount>
+        <RewardRiskCell
+          label="Planned risk"
+          labelShort="Plan risk"
+          hint="Total loss if all open positions hit their stop losses."
+          tone={lossTone}
+          value={plannedLossValue}
+          valueTitle={plannedLossTitle}
+          valueClassName={plannedLossValueClass}
+        />
         {showLiveColumn ? (
-          <RewardRiskAmount
-            className={
-              accumulatedRisk >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-rose-600 dark:text-rose-400"
-            }
-            title={showAccumulated ? accumulatedRiskTitle : undefined}
-          >
-            {liveRiskValue}
-          </RewardRiskAmount>
+          <RewardRiskCell
+            label="Live risk"
+            labelShort="Live risk"
+            hint="Unrealized losses accumulated so far on open positions."
+            tone={liveLossTone}
+            value={liveRiskValue}
+            valueTitle={showAccumulated ? accumulatedRiskTitle : undefined}
+            valueClassName={liveLossValueClass}
+          />
         ) : null}
       </div>
     </div>
@@ -450,7 +480,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
   return (
     <div className="space-y-5">
       <SummarySection title="Performance">
-        <div className="grid min-w-0 grid-cols-1 gap-px overflow-hidden rounded-xl border border-border/80 bg-border/70 shadow-sm ring-1 ring-foreground/[0.04] sm:grid-cols-2 dark:ring-foreground/[0.06] lg:grid-cols-5 lg:grid-rows-2">
+        <div className="grid min-w-0 auto-rows-fr grid-cols-1 gap-px overflow-hidden rounded-xl border border-border/80 bg-border/70 shadow-sm ring-1 ring-foreground/[0.04] sm:grid-cols-2 dark:ring-foreground/[0.06] lg:grid-cols-5 lg:grid-rows-2 lg:items-stretch">
           <HeroMetric
             className="lg:col-start-1 lg:row-start-1"
             label="Daily P/L"
