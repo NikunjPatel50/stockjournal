@@ -146,7 +146,7 @@ function HeroMetric({
 
 const REWARD_RISK_AMOUNT_CLASS = cn(
   "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-right font-semibold leading-tight",
-  "text-[length:clamp(0.625rem,1.1cqi+0.35rem,0.875rem)]",
+  "text-[length:clamp(0.8125rem,1.35cqi+0.45rem,1.125rem)]",
   NUMERIC_DISPLAY_CLASS
 );
 
@@ -234,9 +234,9 @@ function RewardRiskCard({
       : "—";
 
   const rowLabelClass =
-    "min-w-0 py-0.5 text-left text-[length:clamp(0.6875rem,1cqi+0.4rem,0.9375rem)] leading-tight text-muted-foreground";
+    "min-w-0 shrink-0 py-0.5 pr-2 text-left text-[length:clamp(0.8125rem,1.15cqi+0.5rem,1.0625rem)] leading-tight text-muted-foreground";
   const columnLabelClass =
-    "pb-1 text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 @[12rem]/reward-risk:text-xs";
+    "pb-1 text-right text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 @[12rem]/reward-risk:text-sm";
 
   return (
     <div
@@ -314,9 +314,9 @@ function RewardRiskCard({
           className={cn(
             "hidden min-w-[9.5rem] @[11rem]/reward-risk:grid",
             showLiveColumn
-              ? "grid-cols-[minmax(0,auto)_minmax(0,1fr)_minmax(0,1fr)]"
-              : "grid-cols-[minmax(0,auto)_minmax(0,1fr)]",
-            "w-full gap-x-1.5 gap-y-1"
+              ? "grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)_minmax(0,1fr)]"
+              : "grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)]",
+            "w-full items-center gap-x-2 gap-y-1.5"
           )}
         >
           <div className="sr-only">Metric</div>
