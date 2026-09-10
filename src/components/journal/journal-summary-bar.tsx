@@ -233,10 +233,9 @@ function RewardRiskCard({
         )
       : "—";
 
-  const rowLabelClass =
-    "min-w-0 shrink-0 py-0.5 pr-2 text-left text-[length:clamp(0.8125rem,1.15cqi+0.5rem,1.0625rem)] leading-tight text-muted-foreground";
   const columnLabelClass =
     "pb-1 text-right text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 @[12rem]/reward-risk:text-sm";
+  const gridColumnClass = showLiveColumn ? "grid-cols-2" : "grid-cols-1";
 
   return (
     <div
@@ -249,122 +248,50 @@ function RewardRiskCard({
         tone={plannedTone}
       />
 
-      <div className="mt-2 w-full min-w-0 overflow-x-auto">
-        <div className="@[11rem]/reward-risk:hidden min-w-[8.5rem] space-y-2.5 text-left">
-          {[
-            {
-              label: "Reward",
-              planned: plannedProfitValue,
-              plannedTitle: plannedProfitTitle,
-              plannedClass: "text-emerald-600 dark:text-emerald-400",
-              live: liveRewardValue,
-              liveTitle: showAccumulated ? accumulatedRewardTitle : undefined,
-              liveClass: "text-emerald-600 dark:text-emerald-400",
-            },
-            {
-              label: "Risk",
-              planned: plannedLossValue,
-              plannedTitle: plannedLossTitle,
-              plannedClass:
-                plannedLoss >= 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-rose-600 dark:text-rose-400",
-              live: liveRiskValue,
-              liveTitle: showAccumulated ? accumulatedRiskTitle : undefined,
-              liveClass:
-                accumulatedRisk >= 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-rose-600 dark:text-rose-400",
-            },
-          ].map((row) => (
-            <div key={row.label} className="min-w-0">
-              <p className={rowLabelClass}>{row.label}</p>
-              <div
-                className={cn(
-                  "mt-1 grid min-w-0 gap-x-2 gap-y-1",
-                  showLiveColumn ? "grid-cols-2" : "grid-cols-1"
-                )}
-              >
-                <div className="min-w-0">
-                  <p className={columnLabelClass}>Planned</p>
-                  <RewardRiskAmount
-                    className={row.plannedClass}
-                    title={row.plannedTitle}
-                  >
-                    {row.planned}
-                  </RewardRiskAmount>
-                </div>
-                {showLiveColumn ? (
-                  <div className="min-w-0">
-                    <p className={columnLabelClass}>Live</p>
-                    <RewardRiskAmount
-                      className={row.liveClass}
-                      title={row.liveTitle}
-                    >
-                      {row.live}
-                    </RewardRiskAmount>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div
-          className={cn(
-            "hidden min-w-[9.5rem] @[11rem]/reward-risk:grid",
-            showLiveColumn
-              ? "grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)_minmax(0,1fr)]"
-              : "grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)]",
-            "w-full items-center gap-x-2 gap-y-1.5"
-          )}
+      <div
+        className={cn(
+          "mt-2 grid min-w-[8.5rem] w-full min-w-0 gap-x-2 gap-y-1.5 overflow-x-auto",
+          gridColumnClass
+        )}
+      >
+        <div className={columnLabelClass}>Planned</div>
+        {showLiveColumn ? <div className={columnLabelClass}>Live</div> : null}
+        <RewardRiskAmount
+          className="text-emerald-600 dark:text-emerald-400"
+          title={plannedProfitTitle}
         >
-          <div className="sr-only">Metric</div>
-          <div className={columnLabelClass}>Planned</div>
-          {showLiveColumn ? (
-            <div className={columnLabelClass}>Live</div>
-          ) : null}
-
-          <div className={rowLabelClass}>Reward</div>
+          {plannedProfitValue}
+        </RewardRiskAmount>
+        {showLiveColumn ? (
           <RewardRiskAmount
             className="text-emerald-600 dark:text-emerald-400"
-            title={plannedProfitTitle}
+            title={showAccumulated ? accumulatedRewardTitle : undefined}
           >
-            {plannedProfitValue}
+            {liveRewardValue}
           </RewardRiskAmount>
-          {showLiveColumn ? (
-            <RewardRiskAmount
-              className="text-emerald-600 dark:text-emerald-400"
-              title={showAccumulated ? accumulatedRewardTitle : undefined}
-            >
-              {liveRewardValue}
-            </RewardRiskAmount>
-          ) : null}
-
-          <div className={rowLabelClass}>Risk</div>
+        ) : null}
+        <RewardRiskAmount
+          className={
+            plannedLoss >= 0
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-rose-600 dark:text-rose-400"
+          }
+          title={plannedLossTitle}
+        >
+          {plannedLossValue}
+        </RewardRiskAmount>
+        {showLiveColumn ? (
           <RewardRiskAmount
             className={
-              plannedLoss >= 0
+              accumulatedRisk >= 0
                 ? "text-emerald-600 dark:text-emerald-400"
                 : "text-rose-600 dark:text-rose-400"
             }
-            title={plannedLossTitle}
+            title={showAccumulated ? accumulatedRiskTitle : undefined}
           >
-            {plannedLossValue}
+            {liveRiskValue}
           </RewardRiskAmount>
-          {showLiveColumn ? (
-            <RewardRiskAmount
-              className={
-                accumulatedRisk >= 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-rose-600 dark:text-rose-400"
-              }
-              title={showAccumulated ? accumulatedRiskTitle : undefined}
-            >
-              {liveRiskValue}
-            </RewardRiskAmount>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </div>
   );
