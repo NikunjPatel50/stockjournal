@@ -1511,17 +1511,25 @@ function ReportSectionMock({
   );
 }
 
-function ResultsVsRiskMock() {
+function WeekdayWinLossMock() {
+  const days = [
+    { label: "Mon", win: 58, loss: 42 },
+    { label: "Tue", win: 35, loss: 65 },
+    { label: "Wed", win: 72, loss: 28 },
+    { label: "Thu", win: 44, loss: 56 },
+    { label: "Fri", win: 51, loss: 49 },
+  ];
+
   return (
     <div className={mockCard}>
-      <p className="text-[11px] font-semibold text-foreground">Results vs risk</p>
+      <p className="text-[11px] font-semibold text-foreground">Win rate by weekday</p>
       <p className="mt-0.5 text-[10px] text-muted-foreground">
-        How trades performed against the risk you planned
+        Share of winning vs losing trades closed each day
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {[
-          { label: "Typical result", value: "+0.17× risk" },
-          { label: "Hit target", value: "21.1%" },
+          { label: "Best day", value: "Wed · 72%" },
+          { label: "Avg win rate", value: "52.0%" },
         ].map((item) => (
           <div
             key={item.label}
@@ -1534,18 +1542,20 @@ function ResultsVsRiskMock() {
           </div>
         ))}
       </div>
-      <div className="mt-3 flex h-16 items-end gap-2">
-        {[
-          { label: "Losses", h: 52, color: "bg-rose-500/80" },
-          { label: "Small wins", h: 28, color: "bg-muted-foreground/35" },
-          { label: "Target hit", h: 40, color: "bg-emerald-500/80" },
-        ].map((bar) => (
-          <div key={bar.label} className="flex flex-1 flex-col items-center gap-1">
-            <div
-              className={cn("w-full rounded-t-sm", bar.color)}
-              style={{ height: `${bar.h}%` }}
-            />
-            <span className="text-[8px] text-muted-foreground">{bar.label}</span>
+      <div className="mt-3 flex h-16 items-end gap-1.5">
+        {days.map((day) => (
+          <div key={day.label} className="flex flex-1 flex-col items-center gap-1">
+            <div className="flex h-full w-full flex-col justify-end overflow-hidden rounded-t-sm">
+              <div
+                className="w-full bg-emerald-500/80"
+                style={{ height: `${day.win}%` }}
+              />
+              <div
+                className="w-full bg-rose-500/80"
+                style={{ height: `${day.loss}%` }}
+              />
+            </div>
+            <span className="text-[8px] text-muted-foreground">{day.label}</span>
           </div>
         ))}
       </div>
@@ -1677,10 +1687,10 @@ function AnalyticsPreview() {
       <ReportSectionMock
         index="03"
         title="Risk and results"
-        description="How wins compare to losses, and results vs planned risk"
+        description="How wins compare to losses, and win rate by weekday"
       >
         <div className="grid gap-2 lg:grid-cols-2">
-          <ResultsVsRiskMock />
+          <WeekdayWinLossMock />
           <WinsVsLossesMock />
         </div>
       </ReportSectionMock>

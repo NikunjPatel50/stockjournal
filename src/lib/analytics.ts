@@ -965,6 +965,63 @@ export function computeHeatmap(trades: JournalTrade[]): HeatCell[] {
   });
 }
 
+export interface WeekdayWinLossPoint {
+  day: (typeof DAYS)[number];
+  total: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  winPct: number;
+  lossPct: number;
+  breakevenPct: number;
+}
+
+/** Win/loss share by weekday (Mon–Fri) using each trade's close date. */
+export function computeWeekdayWinLoss(
+  trades: JournalTrade[]
+): WeekdayWinLossPoint[] {
+  const counts = new Map<
+    (typeof DAYS)[number],
+    { wins: number; losses: number; breakeven: number }
+  >();
+  for (const day of DAYS) {
+    counts.set(day, { wins: 0, losses: 0, breakeven: 0 });
+  }
+
+  for (const trade of trades) {
+    const dayIdx = tradeTime(trade).getDay();
+    if (dayIdx === 0 || dayIdx === 6) continue;
+    const day = DAYS[dayIdx - 1];
+    const bucket = counts.get(day)!;
+    if (trade.pnl > 0) {
+      bucket.wins += 1;
+    } else if (trade.pnl < 0) {
+      bucket.losses += 1;
+    } else {
+      bucket.breakeven += 1;
+    }
+  }
+
+  return DAYS.map((day) => {
+    const { wins, losses, breakeven } = counts.get(day)!;
+    const total = wins + losses + breakeven;
+    const winPct = total ? (wins / total) * 100 : 0;
+    const lossPct = total ? (losses / total) * 100 : 0;
+    const breakevenPct = total ? (breakeven / total) * 100 : 0;
+
+    return {
+      day,
+      total,
+      wins,
+      losses,
+      breakeven,
+      winPct: Math.round(winPct * 10) / 10,
+      lossPct: Math.round(lossPct * 10) / 10,
+      breakevenPct: Math.round(breakevenPct * 10) / 10,
+    };
+  });
+}
+
 export interface CalendarDay {
   date: string;
   pnl: number | null;

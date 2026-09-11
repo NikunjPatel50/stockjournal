@@ -53,10 +53,10 @@ const EdgePanel = dynamic(
   { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
 
-const RMultipleSpectrum = dynamic(
+const WeekdayWinLossCard = dynamic(
   () =>
-    import("@/components/analytics-hub/r-multiple-spectrum").then((mod) => ({
-      default: mod.RMultipleSpectrum,
+    import("@/components/analytics-hub/weekday-win-loss-card").then((mod) => ({
+      default: mod.WeekdayWinLossCard,
     })),
   { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
@@ -171,10 +171,10 @@ export default function AnalyticsPage() {
             <ReportSection
               index="03"
               title="Risk and results"
-              description="How wins compare to losses, and results vs planned risk"
+              description="How wins compare to losses, and win rate by weekday"
             >
               <div className={GRID_CLASS}>
-                <RMultipleSpectrum trades={filtered} />
+                <WeekdayWinLossCard trades={filtered} />
                 <EdgePanel trades={filtered} currency={currency} />
               </div>
             </ReportSection>
