@@ -319,6 +319,34 @@ export function isListingMarketNonTradingDay(
   return !isListingMarketTradingDay(cfg, todayYmd);
 }
 
+/** Most recent session that has already closed (today after the close bell, else prior session). */
+export function lastClosedTradingSessionYmd(
+  listingMarket: ListingMarketId,
+  asOf = new Date()
+): string | null {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) return todayYmdForListingMarket(listingMarket, asOf);
+
+  const todayYmd = ymdInTimeZone(asOf, cfg.timeZone);
+  const mins = minutesSinceMidnightInTimeZone(asOf, cfg.timeZone);
+
+  if (
+    isListingMarketTradingDay(cfg, todayYmd) &&
+    mins >= cfg.closeMinutes
+  ) {
+    return todayYmd;
+  }
+
+  let cursor = addCalendarDaysYmd(todayYmd, -1);
+  for (let i = 0; i < 14; i++) {
+    if (isListingMarketTradingDay(cfg, cursor)) {
+      return cursor;
+    }
+    cursor = addCalendarDaysYmd(cursor, -1);
+  }
+  return null;
+}
+
 /** Most recent session date with trading activity (today when open, else prior session). */
 export function lastCompletedTradingSessionYmd(
   listingMarket: ListingMarketId,

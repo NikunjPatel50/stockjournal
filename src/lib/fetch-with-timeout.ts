@@ -1,6 +1,10 @@
+type FetchInit = RequestInit & {
+  next?: { revalidate?: number | false; tags?: string[] };
+};
+
 export async function fetchWithTimeout(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: FetchInit = {},
   timeoutMs = 5000
 ): Promise<Response> {
   const controller = new AbortController();

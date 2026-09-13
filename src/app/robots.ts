@@ -6,6 +6,7 @@ const DISALLOW = [
   "/api/",
   "/login",
   "/admin",
+  "/screener",
   "/dashboard",
   "/journal",
   "/goals",

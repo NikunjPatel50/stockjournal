@@ -24,6 +24,7 @@ export type SeoPageId =
   | "settings"
   | "feedback"
   | "admin"
+  | "screener"
   | "share";
 
 export type SeoPageConfig = {
@@ -351,6 +352,13 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
     title: "Admin",
     description: "SwingTradingLog admin panel.",
     keywords: ["admin"],
+    noIndex: true,
+  },
+  screener: {
+    path: "/screener",
+    title: "Screener",
+    description: "Indian sector and stock performance screener.",
+    keywords: ["screener", "indian sectors"],
     noIndex: true,
   },
   share: {

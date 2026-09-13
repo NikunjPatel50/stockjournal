@@ -9,29 +9,25 @@ import {
   CalendarDays,
   LayoutDashboard,
   MessageSquare,
+  ScanSearch,
   Settings,
 } from "lucide-react";
+import { useIsAdmin } from "@/components/admin/admin-access-provider";
 import { BrandLogo } from "@/components/brand-logo";
 import { MarketIndicesPanel } from "@/components/sidebar/market-indices-panel";
 import { cn } from "@/lib/utils";
 
-const navGroups = [
-  {
-    label: "Trading",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/calendar", label: "Calendar", icon: CalendarDays },
-      { href: "/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/journal", label: "Journal", icon: BookOpen },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
-      { href: "/settings", label: "Settings", icon: Settings },
-      { href: "/feedback", label: "Feedback", icon: MessageSquare },
-    ],
-  },
+const tradingNav = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/screener", label: "Screener", icon: ScanSearch, adminOnly: true },
+  { href: "/journal", label: "Journal", icon: BookOpen },
+] as const;
+
+const accountNav = [
+  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/feedback", label: "Feedback", icon: MessageSquare },
 ] as const;
 
 function isActiveRoute(pathname: string, href: string) {
@@ -44,7 +40,15 @@ function isActiveRoute(pathname: string, href: string) {
 function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
   const pathnameFromRouter = usePathname();
   const pathname = pathnameOverride ?? pathnameFromRouter;
+  const isAdmin = useIsAdmin();
   const reduceMotion = useReducedMotion();
+  const navGroups = [
+    {
+      label: "Trading",
+      items: tradingNav.filter((item) => !("adminOnly" in item && item.adminOnly) || isAdmin),
+    },
+    { label: "Account", items: accountNav },
+  ];
   const navSpring = reduceMotion
     ? { duration: 0 }
     : { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.85 };

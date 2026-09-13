@@ -105,3 +105,41 @@ export function openTradingViewDailyChart(
   window.open(url, "_blank", "noopener,noreferrer");
   return true;
 }
+
+/** Daily NSE equity chart — used by the Indian sector screener. */
+export function openNseTradingViewDailyChart(ticker: string): boolean {
+  return openTradingViewDailyChart(
+    { ticker, assetClass: "Equities", listingMarket: "IN_NSE" },
+    "INR"
+  );
+}
+
+const YAHOO_INDEX_TO_TV: Record<string, string> = {
+  "^NSEI": "NSE:NIFTY",
+  "^NSEBANK": "NSE:BANKNIFTY",
+  "^NSEMDCP50": "NSE:NIFTYMIDSELECT",
+  "^NSMIDCP": "NSE:NIFTYNXT50",
+  "^CNX100": "NSE:NIFTY100",
+};
+
+/** Map a Yahoo index/equity symbol to a TradingView daily chart symbol. */
+export function tradingViewSymbolFromYahoo(yahooSymbol: string): string {
+  const mapped = YAHOO_INDEX_TO_TV[yahooSymbol];
+  if (mapped) return mapped;
+  if (yahooSymbol.startsWith("^")) return `NSE:${yahooSymbol.slice(1)}`;
+  return `NSE:${yahooSymbol.replace(/\.NS$/i, "")}`;
+}
+
+export function tradingViewDailyUrlForSymbol(symbol: string): string {
+  const params = new URLSearchParams({
+    symbol,
+    interval: "D",
+  });
+  return `https://www.tradingview.com/chart/?${params.toString()}`;
+}
+
+export function openTradingViewDailySymbol(symbol: string): boolean {
+  if (!symbol || typeof window === "undefined") return false;
+  window.open(tradingViewDailyUrlForSymbol(symbol), "_blank", "noopener,noreferrer");
+  return true;
+}

@@ -9,9 +9,11 @@ import {
   LayoutDashboard,
   MessageSquare,
   MoreHorizontal,
+  ScanSearch,
   Settings,
   Target,
 } from "lucide-react";
+import { useIsAdmin } from "@/components/admin/admin-access-provider";
 import {
   Sheet,
   SheetContent,
@@ -30,6 +32,7 @@ const primaryTabs = [
 const moreLinks = [
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/screener", label: "Screener", icon: ScanSearch, adminOnly: true },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/feedback", label: "Feedback", icon: MessageSquare },
 ] as const;
@@ -41,13 +44,15 @@ function isActiveRoute(pathname: string, href: string) {
   );
 }
 
-function isMoreRouteActive(pathname: string) {
-  return moreLinks.some((link) => isActiveRoute(pathname, link.href));
-}
-
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const moreActive = isMoreRouteActive(pathname ?? "");
+  const isAdmin = useIsAdmin();
+  const visibleMoreLinks = moreLinks.filter(
+    (link) => !("adminOnly" in link && link.adminOnly) || isAdmin
+  );
+  const moreActive = visibleMoreLinks.some((link) =>
+    isActiveRoute(pathname ?? "", link.href)
+  );
 
   return (
     <nav
@@ -91,7 +96,7 @@ export function MobileBottomNav() {
               <SheetTitle>More</SheetTitle>
             </SheetHeader>
             <div className="grid grid-cols-2 gap-2 px-4 pb-2">
-              {moreLinks.map((link) => {
+              {visibleMoreLinks.map((link) => {
                 const Icon = link.icon;
                 const active = isActiveRoute(pathname ?? "", link.href);
                 return (
