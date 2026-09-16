@@ -44,6 +44,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useJournalMarket } from "@/components/journal/journal-market-provider";
@@ -96,13 +97,6 @@ const EXPAND_COL_WIDTH = "1.75rem";
 /** Room for the action control group (chart / edit / duplicate / delete ± partial). */
 const ACTIONS_COL_WIDTH = "11.5rem";
 const DEFAULT_CLOSED_TABLE_PAGE_SIZE = 10;
-/** Desktop body height tracks visible rows; header stays sticky. */
-function journalTableBodyMaxHeight(visibleRows: number) {
-  return `calc(2rem + ${visibleRows} * 3.35rem)`;
-}
-function journalCompactListMaxHeight(visibleRows: number) {
-  return `calc(${visibleRows} * 9.5rem)`;
-}
 const NARROW_COLUMN_WIDTHS: Record<string, string> = {
   quantity: "2.75rem",
   riskReward: "3.5rem",
@@ -2358,7 +2352,6 @@ function JournalTableInner({
   const pageSize = table.getState().pagination.pageSize;
   const totalRows = trades.length;
   const pageRows = table.getRowModel().rows;
-  const visibleRowCount = Math.max(pageRows.length, 1);
   const rowsSelectValue =
     userPageSizeRef.current === "all" ? "all" : String(pageSize);
   const staticRowLegendCounts = useMemo(() => {
@@ -2412,18 +2405,23 @@ function JournalTableInner({
           <Select
             value={rowsSelectValue}
             onValueChange={(v) => {
-              if (!v) return;
+              if (v == null || v === "") return;
               if (v === "all") {
                 userPageSizeRef.current = "all";
-                table.setPageSize(Math.max(totalRows, 1));
+                setPagination({
+                  pageIndex: 0,
+                  pageSize: Math.max(totalRows, 1),
+                });
                 return;
               }
-              userPageSizeRef.current = Number(v);
-              table.setPageSize(Number(v));
+              const nextSize = Number(v);
+              if (!Number.isFinite(nextSize) || nextSize < 1) return;
+              userPageSizeRef.current = nextSize;
+              setPagination({ pageIndex: 0, pageSize: nextSize });
             }}
           >
-            <SelectTrigger className="h-7 w-[3.25rem] border-0 bg-transparent text-xs font-medium shadow-none hover:bg-background/80">
-              <span>{rowsSelectValue === "all" ? "All" : pageSize}</span>
+            <SelectTrigger className="h-7 min-w-[3.75rem] border-0 bg-transparent text-xs font-medium shadow-none hover:bg-background/80">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent align="end">
               <SelectItem value="all">All</SelectItem>
@@ -2494,10 +2492,7 @@ function JournalTableInner({
               : "No active trades yet. Log a trade with status Active."}
         </div>
       ) : isCompact ? (
-        <ul
-          className="divide-y divide-border/80 overflow-y-auto overscroll-contain"
-          style={{ maxHeight: journalCompactListMaxHeight(visibleRowCount) }}
-        >
+        <ul className="divide-y divide-border/80">
           {pageRows.map((row) => (
             <MemoLiveCompactTradeCard
               key={row.id}
@@ -2519,10 +2514,7 @@ function JournalTableInner({
           ))}
         </ul>
       ) : (
-        <div
-          className="overflow-auto overscroll-contain"
-          style={{ maxHeight: journalTableBodyMaxHeight(visibleRowCount) }}
-        >
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[74rem] table-fixed border-separate border-spacing-0 text-center text-sm">
             <colgroup>
               {visibleColumns.map((col) => (
@@ -2534,7 +2526,7 @@ function JournalTableInner({
                 />
               ))}
             </colgroup>
-            <thead className="sticky top-0 z-20 bg-muted/55 backdrop-blur-sm supports-[backdrop-filter]:bg-muted/45">
+            <thead className="bg-muted/55">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr
                   key={headerGroup.id}
