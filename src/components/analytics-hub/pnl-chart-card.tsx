@@ -29,6 +29,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-media-query";
+import { useFrozenDailyPnl } from "@/hooks/use-frozen-daily-pnl";
 import { useMarketQuotes } from "@/hooks/use-market-quotes";
 import {
   activePositionTodayPnl,
@@ -37,6 +38,7 @@ import {
   patchTodayDailyFromQuotes,
   toActivePositionPnlInput,
 } from "@/lib/active-position-daily-pnl";
+import { withClosedSessionLiveSnapshot } from "@/lib/frozen-daily-pnl";
 import {
   buildDailyPnlChartSeries,
   emptyAnalyticsFilters,
@@ -47,11 +49,16 @@ import {
   type DailyPnlPoint,
 } from "@/lib/analytics";
 import {
+  activePositionPnlCacheKey,
+  loadActivePositionPnl,
   readActivePositionPnlCache,
-  writeActivePositionPnlCache,
 } from "@/lib/active-position-pnl-cache";
 import { defaultListingMarketForCurrency } from "@/lib/equity-listing-markets";
-import { sessionCloseDescription } from "@/lib/listing-market-hours";
+import {
+  isExchangeSessionClosedForDate,
+  sessionCloseDescription,
+  todayYmdForListingMarket,
+} from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
 import type { JournalTrade } from "@/lib/journal-types";
 import { cn } from "@/lib/utils";
@@ -140,20 +147,9 @@ export const PnlChartCard = memo(function PnlChartCard({
     [trades]
   );
 
-  const activeTradesKey = useMemo(
-    () =>
-      activeTrades
-        .map(
-          (trade) =>
-            `${trade.id}:${trade.quantity}:${trade.entryPrice}:${trade.entryDate}`
-        )
-        .join("|"),
-    [activeTrades]
-  );
-
   const pnlCacheKey = useMemo(
-    () => `${currency}:${activeTradesKey}`,
-    [currency, activeTradesKey]
+    () => activePositionPnlCacheKey(activeTrades, currency),
+    [activeTrades, currency]
   );
 
   useLayoutEffect(() => {
@@ -209,34 +205,13 @@ export const PnlChartCard = memo(function PnlChartCard({
       setError(null);
 
       try {
-        const res = await fetch("/api/market-data/active-position-pnl", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            trades: activeTrades,
-            currency,
-          }),
-          signal,
-        });
-        const data = (await res.json()) as {
-          error?: string;
-          daily?: DailyPnlPoint[];
-          priorSessionBarByTradeId?: Record<string, boolean>;
-        };
-        if (!res.ok) {
-          throw new Error(data.error ?? "Could not load active position P&L");
-        }
-
-        const nextDaily = data.daily ?? [];
-        const nextPrior = data.priorSessionBarByTradeId ?? {};
-        setDaily(nextDaily);
-        setPriorSessionBarByTradeId(nextPrior);
-        hasCachedDailyRef.current = nextDaily.length > 0;
-        writeActivePositionPnlCache(pnlCacheKey, {
-          daily: nextDaily,
-          priorSessionBarByTradeId: nextPrior,
-        });
+        const payload = await loadActivePositionPnl(activeTrades, currency);
+        if (signal?.aborted) return;
+        setDaily(payload.daily);
+        setPriorSessionBarByTradeId(payload.priorSessionBarByTradeId);
+        hasCachedDailyRef.current = payload.daily.length > 0;
       } catch (err) {
+        if (signal?.aborted) return;
         if (err instanceof Error && err.name === "AbortError") return;
         if (!hasCachedDailyRef.current) {
           setError(
@@ -249,14 +224,14 @@ export const PnlChartCard = memo(function PnlChartCard({
         setRefreshing(false);
       }
     },
-    [activeTrades, currency, pnlCacheKey]
+    [activeTrades, currency]
   );
 
   useEffect(() => {
     const controller = new AbortController();
     void fetchDailyPnl(controller.signal);
     return () => controller.abort();
-  }, [fetchDailyPnl, activeTradesKey]);
+  }, [fetchDailyPnl, pnlCacheKey]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -268,11 +243,19 @@ export const PnlChartCard = memo(function PnlChartCard({
     return () => window.clearInterval(timer);
   }, [todayPending, activeTrades.length, fetchDailyPnl]);
 
+  const sessionClosed = isExchangeSessionClosedForDate(
+    primaryListingMarket,
+    todayYmdForListingMarket(primaryListingMarket, now),
+    now
+  );
+
   const quotesByTradeIdRef = useRef<Record<
     string,
     { price: number; changePercent?: number | null }
   >>({});
   const quotesByTradeId = useMemo(() => {
+    if (sessionClosed) return quotesByTradeIdRef.current;
+
     const map: Record<
       string,
       { price: number; changePercent?: number | null }
@@ -303,10 +286,10 @@ export const PnlChartCard = memo(function PnlChartCard({
     }
     quotesByTradeIdRef.current = map;
     return map;
-  }, [activePool, getQuote, quoteRevision]);
+  }, [activePool, getQuote, sessionClosed ? 0 : quoteRevision, sessionClosed]);
 
   const dailyWithQuotes = useMemo(() => {
-    if (activeTrades.length === 0) return daily;
+    if (activeTrades.length === 0 || sessionClosed) return daily;
 
     return patchTodayDailyFromQuotes(
       daily,
@@ -323,16 +306,47 @@ export const PnlChartCard = memo(function PnlChartCard({
     now,
     priorSessionBarByTradeId,
     quotesByTradeId,
+    sessionClosed,
   ]);
 
+  const todayLivePnl = useMemo(
+    () =>
+      computeTodayDailyPnlFromQuotes(
+        activeTrades,
+        quotesByTradeId,
+        currency,
+        now,
+        priorSessionBarByTradeId
+      ),
+    [activeTrades, currency, now, priorSessionBarByTradeId, quotesByTradeId]
+  );
+
+  const closedSessionDaily = useMemo(
+    () =>
+      withClosedSessionLiveSnapshot(
+        dailyWithQuotes,
+        todayLivePnl,
+        primaryListingMarket,
+        now
+      ),
+    [dailyWithQuotes, now, primaryListingMarket, todayLivePnl]
+  );
+
+  const { daily: frozenDaily } = useFrozenDailyPnl(
+    closedSessionDaily,
+    currency,
+    primaryListingMarket,
+    now
+  );
+
   const filteredDaily = useMemo(
-    () => filterDailyPnlByTimeframe(dailyWithQuotes, filters, now),
-    [dailyWithQuotes, filters, now]
+    () => filterDailyPnlByTimeframe(frozenDaily, filters, now),
+    [frozenDaily, filters, now]
   );
 
   const chartSeries = useMemo(
-    () => buildDailyPnlChartSeries(dailyWithQuotes, filters, now),
-    [dailyWithQuotes, filters, now]
+    () => buildDailyPnlChartSeries(frozenDaily, filters, now),
+    [frozenDaily, filters, now]
   );
 
   const netPnl = useMemo(
@@ -351,24 +365,15 @@ export const PnlChartCard = memo(function PnlChartCard({
   }, [filteredDaily.length, netPnl]);
 
   const todayPnl = useMemo(
-    () => activePositionTodayPnl(dailyWithQuotes, activeTrades, currency, now),
-    [dailyWithQuotes, activeTrades, currency, now]
+    () => activePositionTodayPnl(frozenDaily, activeTrades, currency, now),
+    [frozenDaily, activeTrades, currency, now]
   );
 
-  const todayLivePnl = useMemo(
-    () =>
-      computeTodayDailyPnlFromQuotes(
-        activeTrades,
-        quotesByTradeId,
-        currency,
-        now,
-        priorSessionBarByTradeId
-      ),
-    [activeTrades, currency, now, priorSessionBarByTradeId, quotesByTradeId]
-  );
-
-  const todayDisplayPnl =
-    todayLivePnl.pricedCount > 0 ? todayLivePnl.totalPnl : todayPnl;
+  const todayDisplayPnl = sessionClosed
+    ? todayPnl
+    : todayLivePnl.pricedCount > 0
+      ? todayLivePnl.totalPnl
+      : todayPnl;
 
   const marketCloseHint = useMemo(
     () => sessionCloseDescription(primaryListingMarket),

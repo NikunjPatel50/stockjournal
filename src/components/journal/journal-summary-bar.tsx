@@ -484,7 +484,7 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
           <HeroMetric
             className="lg:col-start-1 lg:row-start-1"
             label="Daily P/L"
-            hint="Combined price change today across open positions vs prior close (or from entry on day one). Updates live during market hours."
+            hint="Combined price change today across open positions vs prior close (or from entry on day one). Live during market hours, then locked at the close so yesterday never changes."
             value={
               <AnimatedValue
                 value={liveValue}

@@ -1,30 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   computeTodayDailyPnlFromQuotes,
   enrichTodayDailyPnlWithPriorSession,
   toActivePositionPnlInput,
-  type ActivePositionPnlInput,
   type TodayDailyPnlSummary,
 } from "@/lib/active-position-daily-pnl";
 import {
+  activePositionPnlCacheKey,
+  loadActivePositionPnl,
   readActivePositionPnlCache,
-  writeActivePositionPnlCache,
 } from "@/lib/active-position-pnl-cache";
 import type { DailyPnlPoint } from "@/lib/analytics";
+import { defaultListingMarketForCurrency } from "@/lib/equity-listing-markets";
+import {
+  readFrozenDailyPnl,
+  withClosedSessionLiveSnapshot,
+} from "@/lib/frozen-daily-pnl";
+import { useFrozenDailyPnl } from "@/hooks/use-frozen-daily-pnl";
 import { useMarketQuotes } from "@/hooks/use-market-quotes";
+import {
+  isExchangeSessionClosedForDate,
+  todayYmdForListingMarket,
+} from "@/lib/listing-market-hours";
 import type { JournalTrade } from "@/lib/journal-types";
 import type { CurrencyCode } from "@/lib/settings";
-
-function buildActiveTradesKey(trades: ActivePositionPnlInput[]) {
-  return trades
-    .map(
-      (trade) =>
-        `${trade.id}:${trade.quantity}:${trade.entryPrice}:${trade.entryDate}`
-    )
-    .join("|");
-}
 
 /** Live today's daily P&L for all open positions (matches Analytics P&L chart). */
 export function useTodayDailyPnl(
@@ -48,8 +49,8 @@ export function useTodayDailyPnl(
   );
 
   const pnlCacheKey = useMemo(
-    () => `${currency}:${buildActiveTradesKey(activeTrades)}`,
-    [currency, activeTrades]
+    () => activePositionPnlCacheKey(activeTrades, currency),
+    [activeTrades, currency]
   );
 
   const [priorSessionBarByTradeId, setPriorSessionBarByTradeId] = useState<
@@ -74,52 +75,59 @@ export function useTodayDailyPnl(
       return;
     }
 
-    const controller = new AbortController();
+    let cancelled = false;
     setPriorBarsLoading(true);
 
-    void fetch("/api/market-data/active-position-pnl", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        trades: activeTrades,
-        currency,
-      }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        const data = (await res.json()) as {
-          error?: string;
-          daily?: DailyPnlPoint[];
-          priorSessionBarByTradeId?: Record<string, boolean>;
-        };
-        if (!res.ok) {
-          throw new Error(data.error ?? "Could not load active position P&L");
-        }
-
-        const nextPrior = data.priorSessionBarByTradeId ?? {};
-        const nextDaily = Array.isArray(data.daily) ? data.daily : [];
-        setPriorSessionBarByTradeId(nextPrior);
-        setDailyPoints(nextDaily);
-        writeActivePositionPnlCache(pnlCacheKey, {
-          daily: nextDaily,
-          priorSessionBarByTradeId: nextPrior,
-        });
+    void loadActivePositionPnl(activeTrades, currency)
+      .then((payload) => {
+        if (cancelled) return;
+        setPriorSessionBarByTradeId(payload.priorSessionBarByTradeId);
+        setDailyPoints(payload.daily);
       })
       .catch((err) => {
+        if (cancelled) return;
         if (err instanceof Error && err.name === "AbortError") return;
         setPriorSessionBarByTradeId({});
         setDailyPoints([]);
       })
       .finally(() => {
-        setPriorBarsLoading(false);
+        if (!cancelled) setPriorBarsLoading(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [activeTrades, currency, pnlCacheKey]);
 
+  const listingMarket =
+    activeTrades[0]?.listingMarket ??
+    defaultListingMarketForCurrency(currency);
   const { getQuote, loading: quotesLoading, quoteRevision } = useMarketQuotes();
+  const asOf = useMemo(
+    () => new Date(),
+    [dailyPoints, pnlCacheKey, quoteRevision]
+  );
+  const todayYmd = todayYmdForListingMarket(listingMarket, asOf);
+  const sessionClosed = isExchangeSessionClosedForDate(
+    listingMarket,
+    todayYmd,
+    asOf
+  );
+  const skipLiveRef = useRef(
+    sessionClosed && Boolean(readFrozenDailyPnl(currency)[todayYmd])
+  );
+  if (!sessionClosed) skipLiveRef.current = false;
+  const skipLiveQuotes = skipLiveRef.current;
 
-  const summary = useMemo(() => {
+  const liveSummary = useMemo(() => {
+    if (skipLiveQuotes) {
+      return {
+        totalPnl: 0,
+        activeCount: activeTrades.length,
+        pricedCount: 0,
+      };
+    }
+
     const quotesByTradeId: Record<
       string,
       { price: number; changePercent?: number | null }
@@ -135,30 +143,63 @@ export function useTodayDailyPnl(
       }
     }
 
-    return enrichTodayDailyPnlWithPriorSession(
-      computeTodayDailyPnlFromQuotes(
-        activeTrades,
-        quotesByTradeId,
-        currency,
-        new Date(),
-        priorSessionBarByTradeId
-      ),
-      dailyPoints,
-      currency
+    return computeTodayDailyPnlFromQuotes(
+      activeTrades,
+      quotesByTradeId,
+      currency,
+      asOf,
+      priorSessionBarByTradeId
     );
   }, [
     activePool,
     activeTrades,
+    asOf,
     currency,
-    dailyPoints,
     getQuote,
     priorSessionBarByTradeId,
+    skipLiveQuotes,
     quoteRevision,
   ]);
+
+  const closedSessionDaily = useMemo(
+    () =>
+      withClosedSessionLiveSnapshot(
+        dailyPoints,
+        liveSummary,
+        listingMarket,
+        asOf
+      ),
+    [asOf, dailyPoints, listingMarket, liveSummary]
+  );
+
+  const { daily: frozenDaily, todayFrozen } = useFrozenDailyPnl(
+    closedSessionDaily,
+    currency,
+    listingMarket,
+    asOf
+  );
+  if (todayFrozen) skipLiveRef.current = true;
+
+  const summary = useMemo(() => {
+    const displayLive = sessionClosed
+      ? {
+          totalPnl: 0,
+          activeCount: liveSummary.activeCount,
+          pricedCount: 0,
+        }
+      : liveSummary;
+
+    return enrichTodayDailyPnlWithPriorSession(
+      displayLive,
+      frozenDaily,
+      currency,
+      asOf
+    );
+  }, [asOf, currency, frozenDaily, liveSummary, sessionClosed]);
 
   return {
     ...summary,
     loading: priorBarsLoading,
-    quotesLoading,
+    quotesLoading: skipLiveQuotes ? false : quotesLoading,
   };
 }
