@@ -7,6 +7,7 @@ const DISALLOW = [
   "/login",
   "/admin",
   "/screener",
+  "/paper-trading",
   "/dashboard",
   "/journal",
   "/goals",

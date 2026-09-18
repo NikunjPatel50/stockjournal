@@ -2,6 +2,7 @@ import { getScreenerCache } from "@/lib/screener/cache";
 import { computeEmaSupport, toWeeklyCloses } from "@/lib/screener/ema";
 import { EMA_QUALITY_RULES } from "@/lib/screener/ema-rules";
 import { findPrimarySectorLabel } from "@/lib/screener/indian-sectors";
+import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 import type { EmaSetupRow, EmaSetupsPayload } from "@/lib/screener/load-ema-setups";
 import type {
   TurtleBreakoutRow,
@@ -15,11 +16,32 @@ import {
   type UniverseSnapshot,
 } from "@/lib/screener/yahoo-store";
 
-export const EMA_SETUPS_CACHE_KEY = "ema-setups:ema200-3";
+export const EMA_SETUPS_CACHE_KEY = "ema-setups:ema200-4";
 export const TURTLE_BREAKOUTS_CACHE_KEY = "turtle-breakouts:tech";
 
 function formatPct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
+}
+
+function emaNearestDist200(row: EmaSetupRow): number {
+  return Math.min(
+    row.daily.holding ? (row.daily.dist200 ?? 99) : 99,
+    row.weekly.holding ? (row.weekly.dist200 ?? 99) : 99
+  );
+}
+
+export function dedupeEmaSetupsByTicker(setups: EmaSetupRow[]): EmaSetupRow[] {
+  const byTicker = new Map<string, EmaSetupRow>();
+
+  for (const row of setups) {
+    const key = normalizeEquityTicker(row.ticker);
+    const existing = byTicker.get(key);
+    if (!existing || emaNearestDist200(row) < emaNearestDist200(existing)) {
+      byTicker.set(key, row);
+    }
+  }
+
+  return Array.from(byTicker.values());
 }
 
 function describeEmaWhy(row: EmaSetupRow): string {
@@ -113,8 +135,12 @@ export function buildEmaSetupsFromSnapshots(
       return leftDist - rightDist;
     });
 
+  const deduped = dedupeEmaSetupsByTicker(setups).sort(
+    (left, right) => emaNearestDist200(left) - emaNearestDist200(right)
+  );
+
   return {
-    setups,
+    setups: deduped,
     scanned: snapshots.length,
     asOf: new Date().toISOString(),
     timeframe: "both",

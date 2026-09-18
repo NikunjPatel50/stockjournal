@@ -25,6 +25,7 @@ export type SeoPageId =
   | "feedback"
   | "admin"
   | "screener"
+  | "paperTrading"
   | "share";
 
 export type SeoPageConfig = {
@@ -359,6 +360,13 @@ export const SEO_PAGES: Record<SeoPageId, SeoPageConfig> = {
     title: "Screener",
     description: "Indian sector and stock performance screener.",
     keywords: ["screener", "indian sectors"],
+    noIndex: true,
+  },
+  paperTrading: {
+    path: "/paper-trading",
+    title: "Paper Trading",
+    description: "Private paper trading workspace for simulated trades.",
+    keywords: ["paper trading", "simulated trades"],
     noIndex: true,
   },
   share: {

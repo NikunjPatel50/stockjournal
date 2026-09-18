@@ -115,27 +115,33 @@ export function finalizeSymbolSearchResults(
     exchangeMatchesMarket(row.exchange, allowed)
   );
 
-  return attachBadges(
-    marketRows
-      .map((row) => ({
-        row,
-        score:
-          100 +
-          queryMatchScore(
-            {
-              code: row.code,
-              name: row.name,
-              exchange: row.exchange,
-              type: "",
-              currency: null,
-            },
-            query
-          ),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .map(({ row }) => row),
-    listingMarket
-  );
+  const seen = new Set<string>();
+  const uniqueRows = marketRows
+    .map((row) => ({
+      row,
+      score:
+        100 +
+        queryMatchScore(
+          {
+            code: row.code,
+            name: row.name,
+            exchange: row.exchange,
+            type: "",
+            currency: null,
+          },
+          query
+        ),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map(({ row }) => row)
+    .filter((row) => {
+      const key = `${row.exchange}:${normalizeEquityTicker(row.code)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  return attachBadges(uniqueRows, listingMarket);
 }
 
 export function filterSymbolSearchResultsForMarket(

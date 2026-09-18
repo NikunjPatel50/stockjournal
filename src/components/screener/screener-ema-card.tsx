@@ -166,11 +166,11 @@ export function ScreenerEmaCard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => {
+              {rows.map((row, index) => {
                 const dist = nearestDist200(row, timeframe);
                 return (
                   <TableRow
-                    key={row.ticker}
+                    key={`${row.ticker}-${index}`}
                     className="cursor-pointer"
                     onClick={() =>
                       router.push(

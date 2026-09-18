@@ -451,7 +451,10 @@ export const TickerSearchInput = forwardRef<
             ) : (
               <ul role="listbox" className="max-h-64 overflow-auto py-1">
                 {suggestions.map((result, index) => (
-                  <li key={`${result.exchange}-${result.code}`} role="option">
+                  <li
+                    key={`${result.exchange}-${result.code}-${index}`}
+                    role="option"
+                  >
                     <button
                       type="button"
                       className={cn(
