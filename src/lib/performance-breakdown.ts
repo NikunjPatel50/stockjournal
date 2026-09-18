@@ -2,6 +2,8 @@ import { tradeRMultiple } from "@/lib/analytics";
 import type { JournalTrade } from "@/lib/journal-types";
 import {
   fundamentalsLookupKey,
+  isKnownMarketCapBucket,
+  resolvedMarketCapBucket,
   type TickerFundamentals,
 } from "@/lib/yahoo-fundamentals";
 import { lookupTickerSectorOverride, lookupTickerMarketCapBucketOverride } from "@/lib/ticker-sector-overrides";
@@ -65,9 +67,21 @@ function groupLabel(
     trade.assetClass
   );
   if (marketCapOverride) return marketCapOverride;
-  if (trade.marketCapBucket?.trim()) return trade.marketCapBucket.trim();
+  if (isKnownMarketCapBucket(trade.marketCapBucket)) {
+    return trade.marketCapBucket!.trim();
+  }
 
-  return profile?.marketCapBucket ?? "Unknown";
+  return (
+    resolvedMarketCapBucket(
+      profile?.marketCapBucket,
+      profile?.marketCap,
+      profile?.currency ??
+        (resolveListingMarket(trade, currency) === "IN_NSE" ||
+        resolveListingMarket(trade, currency) === "IN_BSE"
+          ? "INR"
+          : currency)
+    ) ?? "Unknown"
+  );
 }
 
 function resolveBreakdownGroupLabel(

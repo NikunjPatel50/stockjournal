@@ -10,7 +10,9 @@ import {
 } from "@/lib/ticker-sector-overrides";
 import {
   fundamentalsLookupKey,
+  isKnownMarketCapBucket,
   isUsableFundamentals,
+  resolvedMarketCapBucket,
   type TickerFundamentals,
 } from "@/lib/yahoo-fundamentals";
 import { writeFundamentalsCache } from "@/lib/fundamentals-cache";
@@ -28,9 +30,24 @@ export function resolveTradeFundamentalsKey(
   );
 }
 
+function listingCurrencyForTrade(
+  trade: JournalTrade,
+  fallback: CurrencyCode
+): CurrencyCode {
+  const listingMarket = trade.listingMarket;
+  if (listingMarket === "IN_NSE" || listingMarket === "IN_BSE") return "INR";
+  return fallback;
+}
+
+export function tradeNeedsFundamentalsBackfill(trade: JournalTrade): boolean {
+  if (trade.assetClass !== "Equities") return false;
+  return !trade.sector?.trim() || !isKnownMarketCapBucket(trade.marketCapBucket);
+}
+
 export function mergeFundamentalsIntoTrade(
   trade: JournalTrade,
-  profile: TickerFundamentals | null
+  profile: TickerFundamentals | null,
+  currency: CurrencyCode = "USD"
 ): JournalTrade {
   if (trade.assetClass !== "Equities") return trade;
 
@@ -40,30 +57,40 @@ export function mergeFundamentalsIntoTrade(
     trade.assetClass
   );
 
+  const currentSector = trade.sector?.trim() || undefined;
+  const currentBucket = isKnownMarketCapBucket(trade.marketCapBucket)
+    ? trade.marketCapBucket!.trim()
+    : undefined;
+
   const resolvedSector =
     sectorOverride ?? profile?.sector?.trim() ?? null;
   const resolvedBucket =
     marketCapOverride ??
-    (profile?.marketCapBucket && profile.marketCapBucket !== "Unknown"
-      ? profile.marketCapBucket
-      : null);
+    resolvedMarketCapBucket(
+      profile?.marketCapBucket,
+      profile?.marketCap,
+      profile?.currency ?? listingCurrencyForTrade(trade, currency)
+    );
 
-  const nextSector = trade.sector?.trim() || resolvedSector || undefined;
-  const nextBucket =
-    trade.marketCapBucket?.trim() || resolvedBucket || undefined;
+  const nextSector = currentSector || resolvedSector || undefined;
+  const nextBucket = currentBucket || resolvedBucket || undefined;
+
+  const next: JournalTrade = { ...trade };
+  if (nextSector) next.sector = nextSector;
+  if (nextBucket) {
+    next.marketCapBucket = nextBucket;
+  } else {
+    delete next.marketCapBucket;
+  }
 
   if (
-    nextSector === trade.sector &&
-    nextBucket === trade.marketCapBucket
+    next.sector === trade.sector &&
+    next.marketCapBucket === trade.marketCapBucket
   ) {
     return trade;
   }
 
-  return {
-    ...trade,
-    ...(nextSector ? { sector: nextSector } : {}),
-    ...(nextBucket ? { marketCapBucket: nextBucket } : {}),
-  };
+  return next;
 }
 
 /** Persist sector / market-cap snapshots on trades once fundamentals resolve. */
@@ -75,14 +102,11 @@ export function backfillTradeFundamentals(
   let changed = false;
 
   const next = trades.map((trade) => {
-    if (trade.assetClass !== "Equities") return trade;
-    if (trade.sector && trade.marketCapBucket) return trade;
+    if (!tradeNeedsFundamentalsBackfill(trade)) return trade;
 
     const key = resolveTradeFundamentalsKey(trade, currency);
     const profile = fundamentals[key] ?? null;
-    if (!isUsableFundamentals(profile)) return trade;
-
-    const merged = mergeFundamentalsIntoTrade(trade, profile);
+    const merged = mergeFundamentalsIntoTrade(trade, profile, currency);
     if (merged !== trade) changed = true;
     return merged;
   });
@@ -95,8 +119,7 @@ export async function enrichSavedTradeFundamentals(
   currency: CurrencyCode,
   setTrades: (updater: (prev: JournalTrade[]) => JournalTrade[]) => void
 ): Promise<void> {
-  if (trade.assetClass !== "Equities") return;
-  if (trade.sector && trade.marketCapBucket) return;
+  if (!tradeNeedsFundamentalsBackfill(trade)) return;
 
   const listingMarket = normalizeListingMarket(
     trade.listingMarket ?? defaultListingMarketForCurrency(currency)
@@ -135,7 +158,7 @@ export async function enrichSavedTradeFundamentals(
     setTrades((prev) => {
       const index = prev.findIndex((row) => row.id === trade.id);
       if (index === -1) return prev;
-      const merged = mergeFundamentalsIntoTrade(prev[index], profile);
+      const merged = mergeFundamentalsIntoTrade(prev[index], profile, currency);
       if (merged === prev[index]) return prev;
       const next = [...prev];
       next[index] = merged;

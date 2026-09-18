@@ -9,6 +9,8 @@ import { lookupTickerSectorOverride, lookupTickerMarketCapBucketOverride } from 
 
 const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; SwingTradingLog/1.0)";
 const YAHOO_FETCH_TIMEOUT_MS = 6000;
+const QUOTE_SUMMARY_MODULES =
+  "assetProfile,summaryDetail,price,defaultKeyStatistics";
 
 export type TickerFundamentals = {
   sector: string | null;
@@ -17,13 +19,40 @@ export type TickerFundamentals = {
   currency: CurrencyCode | null;
 };
 
+export function isKnownMarketCapBucket(
+  bucket: string | null | undefined
+): boolean {
+  const value = bucket?.trim();
+  return Boolean(value && value !== "Unknown");
+}
+
+export function hasUsableMarketCapBucket(
+  data: TickerFundamentals | null | undefined
+): boolean {
+  if (!data) return false;
+  if (isKnownMarketCapBucket(data.marketCapBucket)) return true;
+  return (
+    data.marketCap != null &&
+    Number.isFinite(data.marketCap) &&
+    data.marketCap > 0
+  );
+}
+
 export function isUsableFundamentals(
   data: TickerFundamentals | null | undefined
 ): boolean {
   if (!data) return false;
-  const sector = data.sector?.trim();
-  const bucket = data.marketCapBucket?.trim();
-  return Boolean(sector || (bucket && bucket !== "Unknown"));
+  return Boolean(data.sector?.trim()) || hasUsableMarketCapBucket(data);
+}
+
+export function resolvedMarketCapBucket(
+  bucket: string | null | undefined,
+  marketCap: number | null | undefined,
+  currency: CurrencyCode | string | null
+): string | null {
+  if (isKnownMarketCapBucket(bucket)) return bucket!.trim();
+  const classified = classifyMarketCapBucket(marketCap ?? null, currency);
+  return isKnownMarketCapBucket(classified) ? classified : null;
 }
 
 export function fundamentalsLookupKey(
@@ -58,17 +87,22 @@ export function classifyMarketCapBucket(
   return "Micro cap";
 }
 
-type YahooNumeric = number | { raw?: number } | null | undefined;
+type YahooNumeric =
+  | number
+  | string
+  | { raw?: number | string }
+  | null
+  | undefined;
 
 export function parseYahooNumeric(value: YahooNumeric): number | null {
   if (value == null) return null;
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (
-    typeof value === "object" &&
-    typeof value.raw === "number" &&
-    Number.isFinite(value.raw)
-  ) {
-    return value.raw;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value === "object") {
+    return parseYahooNumeric(value.raw);
   }
   return null;
 }
@@ -78,6 +112,164 @@ type YahooFundamentalsRequest = {
   assetClass: AssetClass;
   listingMarket: ListingMarketId;
 };
+
+type YahooQuoteSummaryRow = {
+  assetProfile?: { sector?: string; industry?: string };
+  summaryDetail?: { marketCap?: YahooNumeric; currency?: string };
+  price?: {
+    marketCap?: YahooNumeric;
+    currency?: string;
+    regularMarketPrice?: YahooNumeric;
+  };
+  defaultKeyStatistics?: {
+    marketCap?: YahooNumeric;
+    sharesOutstanding?: YahooNumeric;
+    impliedSharesOutstanding?: YahooNumeric;
+  };
+};
+
+function listingCurrency(marketId: ListingMarketId): CurrencyCode {
+  return marketId === "IN_NSE" || marketId === "IN_BSE" ? "INR" : "USD";
+}
+
+function firstPositiveNumeric(
+  ...values: Array<YahooNumeric | number | null | undefined>
+): number | null {
+  for (const value of values) {
+    const parsed = parseYahooNumeric(value as YahooNumeric);
+    if (parsed != null && parsed > 0) return parsed;
+  }
+  return null;
+}
+
+function marketCapFromQuoteSummary(row: YahooQuoteSummaryRow): number | null {
+  const direct = firstPositiveNumeric(
+    row.summaryDetail?.marketCap,
+    row.price?.marketCap,
+    row.defaultKeyStatistics?.marketCap
+  );
+  if (direct != null) return direct;
+
+  const price = firstPositiveNumeric(row.price?.regularMarketPrice);
+  const shares = firstPositiveNumeric(
+    row.defaultKeyStatistics?.sharesOutstanding,
+    row.defaultKeyStatistics?.impliedSharesOutstanding
+  );
+  if (price == null || shares == null) return null;
+  const implied = price * shares;
+  return Number.isFinite(implied) && implied > 0 ? implied : null;
+}
+
+function indianYahooSymbolFallbacks(
+  yahooSymbol: string,
+  marketId: ListingMarketId
+): string[] {
+  const symbols = [yahooSymbol];
+  if (marketId !== "IN_NSE" && marketId !== "IN_BSE") return symbols;
+  if (yahooSymbol.endsWith(".NS")) {
+    symbols.push(`${yahooSymbol.slice(0, -3)}.BO`);
+  } else if (yahooSymbol.endsWith(".BO")) {
+    symbols.push(`${yahooSymbol.slice(0, -3)}.NS`);
+  }
+  return symbols;
+}
+
+async function fetchYahooQuoteSummaryRow(
+  yahooSymbol: string,
+  auth: { cookie: string; crumb: string }
+): Promise<YahooQuoteSummaryRow | null> {
+  const url = new URL(
+    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSymbol)}`
+  );
+  url.searchParams.set("modules", QUOTE_SUMMARY_MODULES);
+  url.searchParams.set("crumb", auth.crumb);
+
+  const res = await fetchWithTimeout(
+    url.toString(),
+    {
+      cache: "no-store",
+      headers: {
+        "User-Agent": YAHOO_USER_AGENT,
+        Cookie: auth.cookie,
+        Accept: "application/json",
+      },
+    },
+    YAHOO_FETCH_TIMEOUT_MS
+  );
+  if (!res.ok) return null;
+
+  const payload = (await res.json()) as {
+    quoteSummary?: { result?: YahooQuoteSummaryRow[] };
+  };
+  return payload.quoteSummary?.result?.[0] ?? null;
+}
+
+async function fetchYahooQuoteMarketCap(
+  yahooSymbol: string,
+  auth: { cookie: string; crumb: string }
+): Promise<number | null> {
+  const url = new URL("https://query2.finance.yahoo.com/v7/finance/quote");
+  url.searchParams.set("symbols", yahooSymbol);
+  url.searchParams.set("crumb", auth.crumb);
+  url.searchParams.set("fields", "marketCap,sharesOutstanding,regularMarketPrice");
+
+  const res = await fetchWithTimeout(
+    url.toString(),
+    {
+      cache: "no-store",
+      headers: {
+        "User-Agent": YAHOO_USER_AGENT,
+        Cookie: auth.cookie,
+        Accept: "application/json",
+      },
+    },
+    YAHOO_FETCH_TIMEOUT_MS
+  );
+  if (!res.ok) return null;
+
+  const payload = (await res.json()) as {
+    quoteResponse?: {
+      result?: Array<{
+        marketCap?: YahooNumeric;
+        sharesOutstanding?: YahooNumeric;
+        regularMarketPrice?: YahooNumeric;
+      }>;
+    };
+  };
+  const quote = payload.quoteResponse?.result?.[0];
+  if (!quote) return null;
+
+  const direct = firstPositiveNumeric(quote.marketCap);
+  if (direct != null) return direct;
+
+  const price = firstPositiveNumeric(quote.regularMarketPrice);
+  const shares = firstPositiveNumeric(quote.sharesOutstanding);
+  if (price == null || shares == null) return null;
+  const implied = price * shares;
+  return Number.isFinite(implied) && implied > 0 ? implied : null;
+}
+
+function fundamentalsResult(input: {
+  sector: string | null;
+  marketCap: number | null;
+  marketCapBucketOverride: string | null;
+  currency: CurrencyCode;
+}): TickerFundamentals | null {
+  const marketCapBucket =
+    input.marketCapBucketOverride ??
+    resolvedMarketCapBucket(null, input.marketCap, input.currency);
+
+  if (!input.sector && !marketCapBucket && input.marketCap == null) {
+    return null;
+  }
+
+  return {
+    sector: input.sector,
+    marketCap: input.marketCap,
+    marketCapBucket,
+    currency: input.currency,
+  };
+}
 
 export async function fetchYahooFundamentals(
   request: YahooFundamentalsRequest,
@@ -94,78 +286,59 @@ export async function fetchYahooFundamentals(
   const resolvedAuth = auth ?? (await getYahooAuth());
   if (!resolvedAuth) return null;
 
-  const url = new URL(
-    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSymbol)}`
+  const sectorOverride = lookupTickerSectorOverride(
+    request.ticker,
+    request.assetClass
   );
-  url.searchParams.set("modules", "assetProfile,summaryDetail");
-  url.searchParams.set("crumb", resolvedAuth.crumb);
+  const marketCapBucketOverride = lookupTickerMarketCapBucketOverride(
+    request.ticker,
+    request.assetClass
+  );
+  const currency = listingCurrency(request.listingMarket);
+  const symbolsToTry = indianYahooSymbolFallbacks(
+    yahooSymbol,
+    request.listingMarket
+  );
 
-  try {
-    const res = await fetchWithTimeout(
-      url.toString(),
-      {
-        cache: "no-store",
-        headers: {
-          "User-Agent": YAHOO_USER_AGENT,
-          Cookie: resolvedAuth.cookie,
-          Accept: "application/json",
-        },
-      },
-      YAHOO_FETCH_TIMEOUT_MS
-    );
-    if (!res.ok) return null;
+  let row: YahooQuoteSummaryRow | null = null;
+  let marketCap: number | null = null;
 
-    const payload = (await res.json()) as {
-      quoteSummary?: {
-        result?: Array<{
-          assetProfile?: { sector?: string; industry?: string };
-          summaryDetail?: { marketCap?: YahooNumeric };
-        }>;
-      };
-    };
-
-    const row = payload.quoteSummary?.result?.[0];
-    const sectorOverride = lookupTickerSectorOverride(
-      request.ticker,
-      request.assetClass
-    );
-    const marketCapBucketOverride = lookupTickerMarketCapBucketOverride(
-      request.ticker,
-      request.assetClass
-    );
-
-    if (!row) {
-      if (!sectorOverride && !marketCapBucketOverride) return null;
-      const currency =
-        request.listingMarket === "IN_NSE" || request.listingMarket === "IN_BSE"
-          ? "INR"
-          : "USD";
-      return {
-        sector: sectorOverride,
-        marketCap: null,
-        marketCapBucket: marketCapBucketOverride ?? "Unknown",
-        currency,
-      };
+  for (const symbol of symbolsToTry) {
+    try {
+      const nextRow = await fetchYahooQuoteSummaryRow(symbol, resolvedAuth);
+      if (!nextRow) continue;
+      if (!row) row = nextRow;
+      const nextCap = marketCapFromQuoteSummary(nextRow);
+      if (nextCap != null) {
+        row = nextRow;
+        marketCap = nextCap;
+        break;
+      }
+    } catch {
+      // Try the next listing suffix / quote endpoint.
     }
-
-    const sector = sectorOverride || row.assetProfile?.sector?.trim() || null;
-    const currency =
-      request.listingMarket === "IN_NSE" || request.listingMarket === "IN_BSE"
-        ? "INR"
-        : "USD";
-    const marketCap = parseYahooNumeric(row.summaryDetail?.marketCap);
-
-    return {
-      sector,
-      marketCap,
-      marketCapBucket:
-        marketCapBucketOverride ??
-        classifyMarketCapBucket(marketCap, currency),
-      currency,
-    };
-  } catch {
-    return null;
   }
+
+  if (marketCap == null) {
+    for (const symbol of symbolsToTry) {
+      try {
+        marketCap = await fetchYahooQuoteMarketCap(symbol, resolvedAuth);
+        if (marketCap != null) break;
+      } catch {
+        marketCap = null;
+      }
+    }
+  }
+
+  const sector =
+    sectorOverride || row?.assetProfile?.sector?.trim() || null;
+
+  return fundamentalsResult({
+    sector,
+    marketCap,
+    marketCapBucketOverride,
+    currency,
+  });
 }
 
 const SERVER_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -239,7 +412,9 @@ export async function fetchFundamentalsBatch(
       data,
       expiresAt:
         Date.now() +
-        (isUsableFundamentals(data) ? SERVER_CACHE_TTL_MS : 5 * 60 * 1000),
+        (hasUsableMarketCapBucket(data)
+          ? SERVER_CACHE_TTL_MS
+          : 5 * 60 * 1000),
     });
     result[key] = data;
   });

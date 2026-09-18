@@ -1,12 +1,13 @@
 import type { AssetClass } from "@/lib/journal-types";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
-import { isUsableFundamentals } from "@/lib/yahoo-fundamentals";
 import {
   fundamentalsLookupKey,
+  hasUsableMarketCapBucket,
+  isUsableFundamentals,
   type TickerFundamentals,
 } from "@/lib/yahoo-fundamentals";
 
-const STORAGE_KEY = "stl-fundamentals-v2";
+const STORAGE_KEY = "stl-fundamentals-v3";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 type CacheEntry = {
@@ -61,7 +62,7 @@ export function writeFundamentalsCache(
   const fetchedAt = Date.now();
 
   for (const [key, data] of Object.entries(entries)) {
-    if (!data || !isUsableFundamentals(data)) continue;
+    if (!data || !hasUsableMarketCapBucket(data)) continue;
     store[key] = { data, fetchedAt };
   }
 
@@ -88,5 +89,5 @@ export function missingFundamentalsCacheKeys(
   keys: string[],
   cached: Record<string, TickerFundamentals | null>
 ): string[] {
-  return keys.filter((key) => !isUsableFundamentals(cached[key]));
+  return keys.filter((key) => !hasUsableMarketCapBucket(cached[key]));
 }
