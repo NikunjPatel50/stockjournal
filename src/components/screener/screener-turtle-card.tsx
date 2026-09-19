@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerChartButton } from "@/components/screener/screener-chart-button";
-import { Button } from "@/components/ui/button";
+import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -16,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useScreenerJson } from "@/hooks/use-screener-json";
+import { useScreenerStream } from "@/hooks/use-screener-stream";
 import { formatPercent } from "@/lib/analytics";
 import { formatMarketPrice } from "@/lib/journal-types";
 import { formatScreenerStamp } from "@/lib/screener/format";
@@ -24,6 +23,7 @@ import {
   matchesTurtleSystem,
   type TurtleSystem,
 } from "@/lib/screener/turtle-rules";
+import { dedupeRowsByTicker } from "@/lib/screener/dedupe-rows";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 type TurtleRow = {
@@ -55,13 +55,12 @@ export function ScreenerTurtleCard() {
   const router = useRouter();
   const [system, setSystem] = useState<TurtleSystem>("s1");
   const [query, setQuery] = useState("");
-  const { data, error, loading, reload } = useScreenerJson<TurtlePayload>(
-    "/api/screener/turtle-breakouts?v=tech"
-  );
+  const { data, error, loading, progress, reload } =
+    useScreenerStream<TurtlePayload>("/api/screener/turtle-breakouts?v=tech");
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return (data?.setups ?? []).filter((row) => {
+    return dedupeRowsByTicker(data?.setups ?? []).filter((row) => {
       if (!matchesTurtleSystem(system, row.system)) return false;
       if (!needle) return true;
       return (
@@ -79,7 +78,9 @@ export function ScreenerTurtleCard() {
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`
-          : undefined
+          : loading && progress != null
+            ? `Loading turtle breakouts · ${progress}%`
+            : undefined
       }
       flush
     >
@@ -92,16 +93,11 @@ export function ScreenerTurtleCard() {
               placeholder="Search stocks"
               className="h-9 max-w-xs"
             />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void reload()}
-              disabled={loading}
-              className="h-9"
-            >
-              <RefreshCw className={loading ? "animate-spin" : undefined} />
-              Refresh
-            </Button>
+            <ScreenerRefreshButton
+              loading={loading}
+              progress={progress}
+              onRefresh={() => void reload()}
+            />
           </div>
           <Tabs
             value={system}
@@ -170,9 +166,9 @@ export function ScreenerTurtleCard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <TableRow
-                  key={`${row.ticker}-${row.system}`}
+                  key={`${row.ticker}-${row.system}-${index}`}
                   className="cursor-pointer"
                   onClick={() =>
                     router.push(

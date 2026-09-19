@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerChartButton } from "@/components/screener/screener-chart-button";
-import { Button } from "@/components/ui/button";
+import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -16,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useScreenerJson } from "@/hooks/use-screener-json";
+import { useScreenerStream } from "@/hooks/use-screener-stream";
 import { formatPercent } from "@/lib/analytics";
 import { formatMarketPrice } from "@/lib/journal-types";
 import { formatScreenerStamp } from "@/lib/screener/format";
@@ -25,6 +24,7 @@ import {
   passesEmaTimeframe,
   type EmaTimeframe,
 } from "@/lib/screener/ema-rules";
+import { dedupeRowsByTicker } from "@/lib/screener/dedupe-rows";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
 type EmaSetupRow = {
@@ -60,13 +60,13 @@ export function ScreenerEmaCard() {
   const router = useRouter();
   const [timeframe, setTimeframe] = useState<EmaTimeframe>("daily");
   const [query, setQuery] = useState("");
-  const { data, error, loading, reload } = useScreenerJson<EmaPayload>(
-    "/api/screener/ema-setups?v=ema200"
+  const { data, error, loading, progress, reload } = useScreenerStream<EmaPayload>(
+    "/api/screener/ema-setups?v=ema200-5"
   );
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return (data?.setups ?? []).filter((row) => {
+    return dedupeRowsByTicker(data?.setups ?? []).filter((row) => {
       if (!passesEmaTimeframe(timeframe, row.daily.holding, row.weekly.holding)) {
         return false;
       }
@@ -82,11 +82,13 @@ export function ScreenerEmaCard() {
   return (
     <DataPanel
       title="EMA support"
-      subtitle="Names sitting on 200 EMA support — price is above the 200 EMA and no more than 3% away, on daily and/or weekly."
+      subtitle="Names sitting on 200 EMA support. Price is above the 200 EMA and no more than 3% away, on daily and/or weekly."
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`
-          : undefined
+          : loading && progress != null
+            ? `Loading EMA support · ${progress}%`
+            : undefined
       }
       flush
     >
@@ -99,16 +101,11 @@ export function ScreenerEmaCard() {
               placeholder="Search stocks"
               className="h-9 max-w-xs"
             />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void reload()}
-              disabled={loading}
-              className="h-9"
-            >
-              <RefreshCw className={loading ? "animate-spin" : undefined} />
-              Refresh
-            </Button>
+            <ScreenerRefreshButton
+              loading={loading}
+              progress={progress}
+              onRefresh={() => void reload()}
+            />
           </div>
           <Tabs
             value={timeframe}

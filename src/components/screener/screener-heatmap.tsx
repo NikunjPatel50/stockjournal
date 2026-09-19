@@ -97,9 +97,9 @@ export function ScreenerHeatmap({
         <div className="bg-muted/40 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Why
         </div>
-        {rows.map((row) => (
+        {rows.map((row, index) => (
           <HeatmapRow
-            key={row.id}
+            key={`${row.id}-${index}`}
             row={row}
             maxAbs={maxAbs}
             onClick={onRowClick ? () => onRowClick(row.id) : undefined}

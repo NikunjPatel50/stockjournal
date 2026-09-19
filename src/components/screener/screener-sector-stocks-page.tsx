@@ -26,6 +26,7 @@ import type {
   SectorStockRow,
 } from "@/lib/screener/types";
 import { formatScreenerStamp } from "@/lib/screener/format";
+import { dedupeRowsByTicker } from "@/lib/screener/dedupe-rows";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 
 type StocksPayload = {
@@ -57,7 +58,7 @@ export function ScreenerSectorStocksPage({ sectorId }: { sectorId: string }) {
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return (data?.stocks ?? [])
+    return dedupeRowsByTicker(data?.stocks ?? [])
       .filter((row) => {
         const ticker = normalizeEquityTicker(row.ticker);
         if (mineOnly && !tradedTickers.has(ticker)) return false;

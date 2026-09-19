@@ -34,10 +34,16 @@ export function BlogPostingJsonLd({ post }: { post: BlogPost }) {
     wordCount: post.readMinutes * 200,
   };
 
-  return <JsonLd data={schema} />;
+  return <JsonLd id={`blog-posting-json-ld-${post.slug}`} data={schema} />;
 }
 
-export function BlogFaqJsonLd({ faqs }: { faqs: BlogFaqItem[] }) {
+export function BlogFaqJsonLd({
+  faqs,
+  slug,
+}: {
+  faqs: BlogFaqItem[];
+  slug: string;
+}) {
   if (faqs.length === 0) return null;
 
   const schema = {
@@ -53,5 +59,5 @@ export function BlogFaqJsonLd({ faqs }: { faqs: BlogFaqItem[] }) {
     })),
   };
 
-  return <JsonLd data={schema} />;
+  return <JsonLd id={`blog-faq-json-ld-${slug}`} data={schema} />;
 }

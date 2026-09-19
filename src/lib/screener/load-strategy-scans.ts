@@ -16,7 +16,7 @@ import {
   type UniverseSnapshot,
 } from "@/lib/screener/yahoo-store";
 
-export const EMA_SETUPS_CACHE_KEY = "ema-setups:ema200-4";
+export const EMA_SETUPS_CACHE_KEY = "ema-setups:ema200-5";
 export const TURTLE_BREAKOUTS_CACHE_KEY = "turtle-breakouts:tech";
 
 function formatPct(value: number): string {
@@ -242,7 +242,10 @@ export function buildTurtleBreakoutsFromSnapshots(
 
 let scanInflight: Promise<void> | null = null;
 
-export async function refreshStrategyCaches(fresh = false) {
+export async function refreshStrategyCaches(
+  fresh = false,
+  onProgress?: (progress: { loaded: number; total: number }) => void
+) {
   if (!fresh) {
     const ema = getScreenerCache<EmaSetupsPayload>(EMA_SETUPS_CACHE_KEY);
     const turtle = getScreenerCache<TurtleBreakoutsPayload>(
@@ -253,7 +256,7 @@ export async function refreshStrategyCaches(fresh = false) {
   }
 
   const pending = (async () => {
-    const snapshots = await loadUniverseSnapshots(fresh);
+    const snapshots = await loadUniverseSnapshots(fresh, onProgress);
     const ema = buildEmaSetupsFromSnapshots(snapshots);
     const turtle = buildTurtleBreakoutsFromSnapshots(snapshots);
     await Promise.all([

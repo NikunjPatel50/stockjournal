@@ -31,7 +31,7 @@ export function LandingHero() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            A free trading journal app with live analytics — not just a PDF template.
+            A free trading journal app with live analytics, not just a PDF template.
             Log stock and day trades, review P&amp;L on the dashboard, export CSV,
             and track overnight gap risk. Full access free, no credit card.
           </p>

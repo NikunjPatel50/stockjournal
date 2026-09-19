@@ -81,11 +81,13 @@ export default function RootLayout({
       className={`${inter.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <SiteJsonLd />
+      </head>
       <body className="min-h-dvh w-full overflow-x-hidden bg-background text-foreground">
         <Script src="/theme-init.js" strategy="beforeInteractive" />
         <Providers>{children}</Providers>
         <MicrosoftClarity />
-        <SiteJsonLd />
       </body>
     </html>
   );

@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
 import { AppPageHeader } from "@/components/app-page-header";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerHeatmap } from "@/components/screener/screener-heatmap";
 import { ScreenerPeriodTable } from "@/components/screener/screener-period-table";
+import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { ScreenerToolbar } from "@/components/screener/screener-toolbar";
-import { Button } from "@/components/ui/button";
-import { prefetchScreenerJson, useScreenerJson } from "@/hooks/use-screener-json";
+import { prefetchScreenerJson } from "@/hooks/use-screener-json";
+import { useScreenerSectors } from "@/hooks/use-screener-sectors";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import { formatScreenerStamp } from "@/lib/screener/format";
 import {
@@ -22,13 +22,6 @@ import {
   relativePeriodChanges,
 } from "@/lib/screener/strength";
 import { tradingViewSymbolForSectorId } from "@/lib/screener/indian-sectors";
-import type { SectorScreenerRow } from "@/lib/screener/types";
-
-type SectorsPayload = {
-  sectors: SectorScreenerRow[];
-  asOf: string;
-  sessionDate?: string;
-};
 
 export function ScreenerSectorsPage({
   embedded = false,
@@ -36,17 +29,15 @@ export function ScreenerSectorsPage({
   embedded?: boolean;
 }) {
   const router = useRouter();
-  const { data, error, loading, reload } = useScreenerJson<SectorsPayload>(
-    "/api/screener/sectors"
-  );
+  const { data, error, loading, progress, reload } = useScreenerSectors();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"table" | "heatmap">("table");
-  const [sort, setSort] = useState(defaultScreenerSort("1m"));
+  const [sort, setSort] = useState(defaultScreenerSort("1w"));
 
   useEffect(() => {
     if (!embedded || !data) return;
     const id = window.setTimeout(() => {
-      void prefetchScreenerJson("/api/screener/ema-setups?v=ema200");
+      void prefetchScreenerJson("/api/screener/ema-setups?v=ema200-5");
       void prefetchScreenerJson("/api/screener/turtle-breakouts?v=tech");
     }, 400);
     return () => window.clearTimeout(id);
@@ -89,15 +80,17 @@ export function ScreenerSectorsPage({
     return benchmark ? [benchmark, ...rest] : rest;
   }, [data?.sectors, query, sort]);
 
-  const body = error ? (
-    <PanelEmpty title="Could not load sectors" hint={error} />
-  ) : loading && !data ? (
-    <div className="min-h-[14rem] animate-pulse rounded-xl bg-muted/40" />
-  ) : (
+  const body = (
     <DataPanel
       title="Sectors"
-      subtitle="Indian sector returns as of the last NSE close. Open a row to research the stocks inside."
-      meta={`${rows.length} sectors · ${formatScreenerStamp(data?.sessionDate, data?.asOf)}`}
+      subtitle="Official NSE sector & thematic index returns as of the last close — same universe as NSE All Sectors scanners. Open a row to research constituent stocks."
+      meta={
+        data
+          ? `${rows.length} sectors · ${formatScreenerStamp(data.sessionDate, data.asOf)}`
+          : loading && progress != null
+            ? `Loading sectors · ${progress}%`
+            : undefined
+      }
       flush
     >
       <div className="space-y-4 p-4 sm:p-5">
@@ -108,19 +101,24 @@ export function ScreenerSectorsPage({
           onViewChange={setView}
           searchPlaceholder="Search sectors"
           extra={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void reload()}
-              disabled={loading}
-              className="h-9"
-            >
-              <RefreshCw className={loading ? "animate-spin" : undefined} />
-              Refresh
-            </Button>
+            <ScreenerRefreshButton
+              loading={loading}
+              progress={progress}
+              onRefresh={() => void reload()}
+            />
           }
         />
-        {rows.length === 0 ? (
+
+        {error ? (
+          <PanelEmpty title="Could not load sectors" hint={error} />
+        ) : loading && !data ? (
+          <div className="space-y-3">
+            <div className="min-h-[14rem] animate-pulse rounded-xl bg-muted/40" />
+            <p className="text-center text-xs text-muted-foreground">
+              Fetching {progress ?? 0}% of 53 NSE sector indices…
+            </p>
+          </div>
+        ) : rows.length === 0 ? (
           <PanelEmpty
             title="No matching sectors"
             hint="Try a different search."
@@ -172,7 +170,7 @@ export function ScreenerSectorsPage({
       <AppPageHeader
         eyebrow="Private"
         title="Screener"
-        description="Indian sector returns as of the last NSE close."
+        description="Official NSE sector & thematic index returns as of the last close."
       />
       {body}
     </div>

@@ -4,5 +4,6 @@ export const MARKETING_NAV_LINKS = [
   { href: "/preview", label: "Analytics" },
   { href: "/pricing", label: "Pricing" },
   { href: "/roadmap", label: "Roadmap" },
+  { href: "/blog", label: "Blogs" },
   { href: "/faq", label: "FAQ" },
 ] as const;

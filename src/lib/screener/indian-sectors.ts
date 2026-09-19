@@ -945,6 +945,83 @@ export const INDIAN_SECTORS: IndianSector[] = [
     ],
   },
   {
+    id: "railways-psu",
+    label: "Nifty RailwaysPSU",
+    yahooSymbol: "NIFTY_RAILWAYSPSU.NS",
+    stocks: [
+      { ticker: "IRCTC", name: "IRCTC" },
+      { ticker: "IRFC", name: "IRFC" },
+      { ticker: "RVNL", name: "Rail Vikas Nigam" },
+      { ticker: "IRCON", name: "IRCON International" },
+      { ticker: "RAILTEL", name: "RailTel" },
+      { ticker: "CONCOR", name: "Container Corporation" },
+      { ticker: "TITAGARH", name: "Titagarh Rail Systems" },
+      { ticker: "BEML", name: "BEML" },
+      { ticker: "TEXRAIL", name: "Texmaco Rail" },
+      { ticker: "RITES", name: "RITES" },
+    ],
+  },
+  {
+    id: "fin-services-25-50",
+    label: "Nifty Financial Services 25/50",
+    yahooSymbol: "NIFTY_FIN_SERVICE_25_50.NS",
+    stocks: [],
+  },
+  {
+    id: "nifty500-healthcare",
+    label: "Nifty500 Health",
+    yahooSymbol: "NIFTY500_HEALTHCARE.NS",
+    stocks: [],
+  },
+  {
+    id: "midsmall-healthcare",
+    label: "Nifty MidSml Hlth",
+    yahooSymbol: "NIFTY_MIDSMALL_HEALTHCARE.NS",
+    stocks: [],
+  },
+  {
+    id: "midsmall-financial",
+    label: "Nifty MidSml Fin Services",
+    yahooSymbol: "NIFTY_MIDSMALL_FINANCIAL_SERVICES.NS",
+    stocks: [],
+  },
+  {
+    id: "midsmall-it-telecom",
+    label: "Nifty MidSml IT & Telecom",
+    yahooSymbol: "NIFTY_MIDSMALL_IT_TELECOM.NS",
+    stocks: [],
+  },
+  {
+    id: "midsmall-consumption",
+    label: "Nifty MidSml Consumption",
+    yahooSymbol: "NIFTY_MIDSMALL_INDIA_CONSUMPTION.NS",
+    stocks: [],
+  },
+  {
+    id: "india-new-age-consumption",
+    label: "Nifty India New Age Consumption",
+    yahooSymbol: "NIFTY_INDIA_NEW_AGE_CONSUMPTION.NS",
+    stocks: [],
+  },
+  {
+    id: "india-infra-logistics",
+    label: "Nifty India Infra & Logistics",
+    yahooSymbol: "NIFTY_INDIA_INFRA_LOGISTICS.NS",
+    stocks: [],
+  },
+  {
+    id: "consumer-services",
+    label: "Nifty Consumer Services",
+    yahooSymbol: "NIFTY_CONSUMER_SERVICES.NS",
+    stocks: [],
+  },
+  {
+    id: "commercial-transport",
+    label: "Nifty Comm & Transport",
+    yahooSymbol: "NIFTY_COMM_TRANSPORT.NS",
+    stocks: [],
+  },
+  {
     id: "textiles",
     label: "Textiles",
     yahooSymbol: "NIFTY_TEXTILES.NS",
@@ -1145,4 +1222,28 @@ export function findStockInSectors(ticker: string): IndianSectorStock | null {
     if (match) return match;
   }
   return null;
+}
+
+/** When an NSE index has no Yahoo history, synthesize returns from a related basket. */
+const SECTOR_RETURN_STOCK_FALLBACK_ID: Record<string, string> = {
+  "fin-services-25-50": "financials",
+  "nifty500-healthcare": "healthcare",
+  "midsmall-healthcare": "healthcare",
+  "midsmall-financial": "financials",
+  "midsmall-it-telecom": "it",
+  "midsmall-consumption": "consumption",
+  "india-new-age-consumption": "consumption",
+  "india-infra-logistics": "construction",
+  "consumer-services": "services",
+  "commercial-transport": "logistics",
+};
+
+export function sectorReturnStockTickers(sector: IndianSector): string[] {
+  if (sector.stocks.length > 0) {
+    return sector.stocks.map((stock) => stock.ticker);
+  }
+  const fallbackId = SECTOR_RETURN_STOCK_FALLBACK_ID[sector.id];
+  if (!fallbackId) return [];
+  const fallback = getIndianSector(fallbackId);
+  return fallback?.stocks.map((stock) => stock.ticker) ?? [];
 }

@@ -7,14 +7,28 @@ import {
   screenerCacheTtlMs,
   setScreenerCache,
 } from "@/lib/screener/cache";
+import { dedupeRowsByTicker } from "@/lib/screener/dedupe-rows";
 import {
   findSectorsForTicker,
   findStockInSectors,
   getBenchmarkSector,
   getIndianSector,
-  getResearchSectors,
   INDIAN_SECTORS,
+  sectorReturnStockTickers,
 } from "@/lib/screener/indian-sectors";
+import {
+  getNseSectorCatalog,
+  getNseSectorLabel,
+  NSE_ALL_SECTOR_IDS,
+} from "@/lib/screener/nse-all-sectors";
+import {
+  loadNseIndexDirectory,
+  mergeNseWithSupplementalChanges,
+  needsSupplementalSectorPeriods,
+  nseQuoteForSectorId,
+  periodChangesFromNseQuote,
+  type NseIndexQuote,
+} from "@/lib/screener/nse-index-returns";
 import {
   emptyPeriodChanges,
   SCREENER_PERIODS,
@@ -44,8 +58,9 @@ import {
 } from "@/lib/screener/yahoo-returns";
 
 const BASKET_SYNTH_LIMIT = 10;
-const SECTORS_SNAPSHOT_KEY = "sectors:all";
-const SECTOR_CATALOG_IDS = new Set(INDIAN_SECTORS.map((sector) => sector.id));
+const SECTORS_SNAPSHOT_KEY = "sectors:nse-all-v6";
+const SECTOR_CATALOG = getNseSectorCatalog();
+const SECTOR_CATALOG_IDS = new Set<string>(NSE_ALL_SECTOR_IDS);
 
 export type SectorRowsPayload = {
   sectors: SectorScreenerRow[];
@@ -88,7 +103,7 @@ async function loadSnapshot(
 
 async function loadBasketChanges(
   tickers: string[],
-  fresh = false
+  fresh: boolean
 ): Promise<PeriodChanges> {
   const sample = tickers.slice(0, BASKET_SYNTH_LIMIT);
   const snapshots = await mapWithConcurrency(
@@ -99,22 +114,68 @@ async function loadBasketChanges(
   return averagePeriodChanges(snapshots.map((snapshot) => snapshot.changes));
 }
 
+async function fillMissingLongerPeriods(
+  sector: (typeof INDIAN_SECTORS)[number],
+  changes: PeriodChanges,
+  fresh: boolean,
+  yahooChangesBySymbol: Map<string, PeriodChanges>
+): Promise<PeriodChanges> {
+  if (!needsSupplementalSectorPeriods(changes)) return changes;
+
+  let supplemental = yahooChangesBySymbol.get(sector.yahooSymbol);
+  if (!supplemental) {
+    const snapshot = await loadSnapshot(sector.yahooSymbol, fresh);
+    supplemental = snapshot.changes;
+    yahooChangesBySymbol.set(sector.yahooSymbol, supplemental);
+  }
+  let next = mergeNseWithSupplementalChanges(changes, supplemental);
+  if (!needsSupplementalSectorPeriods(next)) return next;
+
+  const tickers = sectorReturnStockTickers(sector);
+  if (tickers.length === 0) return next;
+
+  const basket = await loadBasketChanges(tickers, fresh);
+  return mergeNseWithSupplementalChanges(next, basket);
+}
+
 async function fetchOneSectorRow(
   sector: (typeof INDIAN_SECTORS)[number],
-  fresh: boolean
+  fresh: boolean,
+  nseDirectory: Map<string, NseIndexQuote>,
+  yahooChangesBySymbol: Map<string, PeriodChanges>
 ): Promise<SectorScreenerRow> {
-  const snapshot = await loadSnapshot(sector.yahooSymbol, fresh);
-  let changes = snapshot.changes;
-  if (hasSparsePeriodHistory(changes) && sector.stocks.length > 0) {
-    const basket = await loadBasketChanges(
-      sector.stocks.map((stock) => stock.ticker),
-      fresh
+  const nseQuote = nseQuoteForSectorId(sector.id, nseDirectory);
+
+  if (nseQuote) {
+    const changes = await fillMissingLongerPeriods(
+      sector,
+      periodChangesFromNseQuote(nseQuote),
+      fresh,
+      yahooChangesBySymbol
     );
-    changes = mergeIndexAndBasketChanges(changes, basket);
+
+    return {
+      id: sector.id,
+      label: getNseSectorLabel(sector.id) ?? sector.label,
+      symbol: sector.yahooSymbol,
+      isBenchmark: Boolean(sector.isBenchmark),
+      lastPrice: nseQuote.last,
+      changes,
+    };
   }
+
+  const snapshot = await loadSnapshot(sector.yahooSymbol, fresh);
+  yahooChangesBySymbol.set(sector.yahooSymbol, snapshot.changes);
+  const changes = await fillMissingLongerPeriods(
+    sector,
+    snapshot.changes,
+    fresh,
+    yahooChangesBySymbol
+  );
+
   return {
     id: sector.id,
-    label: sector.label,
+    label: getNseSectorLabel(sector.id) ?? sector.label,
     symbol: sector.yahooSymbol,
     isBenchmark: Boolean(sector.isBenchmark),
     lastPrice: snapshot.lastPrice,
@@ -122,24 +183,88 @@ async function fetchOneSectorRow(
   };
 }
 
-async function fetchSectorRows(fresh: boolean): Promise<SectorScreenerRow[]> {
-  return mapWithConcurrency(INDIAN_SECTORS, 8, (sector) =>
-    fetchOneSectorRow(sector, fresh)
-  );
+async function applyNseQuotesToRows(
+  rows: SectorScreenerRow[],
+  fresh: boolean
+): Promise<SectorScreenerRow[]> {
+  const nseDirectory = await loadNseIndexDirectory(fresh);
+  if (nseDirectory.size === 0) return rows;
+
+  const yahooChangesBySymbol = new Map<string, PeriodChanges>();
+  return mapWithConcurrency(rows, 8, async (row) => {
+    const nseQuote = nseQuoteForSectorId(row.id, nseDirectory);
+    if (!nseQuote) return row;
+
+    const sector = getIndianSector(row.id);
+    if (!sector) return { ...row, lastPrice: nseQuote.last };
+
+    const changes = await fillMissingLongerPeriods(
+      sector,
+      periodChangesFromNseQuote(nseQuote),
+      fresh,
+      yahooChangesBySymbol
+    );
+
+    return {
+      ...row,
+      lastPrice: nseQuote.last,
+      changes,
+    };
+  });
+}
+
+export type SectorLoadProgress = {
+  loaded: number;
+  total: number;
+};
+
+async function fetchSectorRows(
+  fresh: boolean,
+  onProgress?: (progress: SectorLoadProgress) => void
+): Promise<SectorScreenerRow[]> {
+  const total = SECTOR_CATALOG.length;
+  let loaded = 0;
+  onProgress?.({ loaded, total });
+
+  const nseDirectory = await loadNseIndexDirectory(fresh);
+  const yahooChangesBySymbol = new Map<string, PeriodChanges>();
+
+  const rows = await mapWithConcurrency(SECTOR_CATALOG, 8, async (sector) => {
+    const row = await fetchOneSectorRow(
+      sector,
+      fresh,
+      nseDirectory,
+      yahooChangesBySymbol
+    );
+    loaded += 1;
+    onProgress?.({ loaded, total });
+    return row;
+  });
+
+  return rows;
 }
 
 function orderCatalogSectors(rows: SectorScreenerRow[]): SectorScreenerRow[] {
   const byId = new Map(rows.map((row) => [row.id, row]));
-  return INDIAN_SECTORS.flatMap((sector) => {
-    const row = byId.get(sector.id);
+  return NSE_ALL_SECTOR_IDS.flatMap((sectorId) => {
+    const row = byId.get(sectorId);
     return row ? [row] : [];
   });
 }
 
+function normalizeSectorPayload(
+  payload: SectorRowsPayload
+): SectorRowsPayload {
+  return {
+    ...payload,
+    sectors: orderCatalogSectors(payload.sectors),
+  };
+}
+
 function isCompleteSectorCatalog(rows: SectorScreenerRow[]): boolean {
-  if (rows.length < INDIAN_SECTORS.length) return false;
+  if (rows.length !== SECTOR_CATALOG.length) return false;
   const ids = new Set(rows.map((row) => row.id));
-  return INDIAN_SECTORS.every((sector) => ids.has(sector.id));
+  return SECTOR_CATALOG.every((sector) => ids.has(sector.id));
 }
 
 async function completeSectorPayload(
@@ -148,19 +273,27 @@ async function completeSectorPayload(
 ): Promise<SectorRowsPayload> {
   const known = payload.sectors.filter((row) => SECTOR_CATALOG_IDS.has(row.id));
   const have = new Set(known.map((row) => row.id));
-  const missing = INDIAN_SECTORS.filter((sector) => !have.has(sector.id));
+  const missing = SECTOR_CATALOG.filter((sector) => !have.has(sector.id));
+  const nseDirectory = await loadNseIndexDirectory(fresh);
+  const yahooChangesBySymbol = new Map<string, PeriodChanges>();
   const extras =
     missing.length > 0
       ? await mapWithConcurrency(missing, 8, (sector) =>
-          fetchOneSectorRow(sector, fresh)
+          fetchOneSectorRow(sector, fresh, nseDirectory, yahooChangesBySymbol)
         )
       : [];
 
-  return {
+  const merged = orderCatalogSectors([...known, ...extras]);
+  const sectors = await applyNseQuotesToRows(merged, fresh);
+
+  return normalizeSectorPayload({
     ...payload,
-    sectors: orderCatalogSectors([...known, ...extras]),
-    asOf: extras.length > 0 ? new Date().toISOString() : payload.asOf,
-  };
+    sectors,
+    asOf:
+      extras.length > 0 || sectors !== merged
+        ? new Date().toISOString()
+        : payload.asOf,
+  });
 }
 
 async function fetchSectorStocks(
@@ -199,14 +332,16 @@ async function fetchSectorStocks(
       lastPrice: sectorSnap.lastPrice,
       changes: sectorChanges,
     },
-    stocks: stockSnaps.map(({ stock, snapshot }) => ({
-      ticker: stock.ticker,
-      name: stock.name,
-      lastPrice: snapshot.lastPrice,
-      changes: snapshot.changes,
-      vsSector: subtractPeriodChanges(snapshot.changes, sectorChanges),
-      vsNifty: subtractPeriodChanges(snapshot.changes, niftySnap.changes),
-    })),
+    stocks: dedupeRowsByTicker(
+      stockSnaps.map(({ stock, snapshot }) => ({
+        ticker: stock.ticker,
+        name: stock.name,
+        lastPrice: snapshot.lastPrice,
+        changes: snapshot.changes,
+        vsSector: subtractPeriodChanges(snapshot.changes, sectorChanges),
+        vsNifty: subtractPeriodChanges(snapshot.changes, niftySnap.changes),
+      }))
+    ),
     asOf: new Date().toISOString(),
     sessionDate,
   };
@@ -231,14 +366,20 @@ async function persistYahooSnapshots(sessionDate: string, symbols: string[]) {
   });
 }
 
-export async function loadSectorRows(fresh = false): Promise<SectorRowsPayload> {
+export async function loadSectorRows(
+  fresh = false,
+  onProgress?: (progress: SectorLoadProgress) => void
+): Promise<SectorRowsPayload> {
   const sessionDate = getNseScreenerSessionDate();
   const marketOpen = isListingMarketOpen("IN_NSE");
-  const shouldRefresh = fresh && !marketOpen;
 
-  if (!shouldRefresh) {
+  if (!fresh) {
     const cached = getScreenerCache<SectorRowsPayload>(SECTORS_SNAPSHOT_KEY);
-    if (cached && isCompleteSectorCatalog(cached.sectors)) return cached;
+    if (cached && isCompleteSectorCatalog(cached.sectors)) {
+      const normalized = normalizeSectorPayload(cached);
+      const sectors = await applyNseQuotesToRows(normalized.sectors, false);
+      return { ...normalized, sectors };
+    }
 
     const stored = await readScreenerSnapshot<SectorRowsPayload>(
       SECTORS_SNAPSHOT_KEY
@@ -263,11 +404,13 @@ export async function loadSectorRows(fresh = false): Promise<SectorRowsPayload> 
     }
   }
 
-  const payload: SectorRowsPayload = {
-    sectors: await fetchSectorRows(shouldRefresh || fresh),
+  const rows = await fetchSectorRows(fresh, onProgress);
+  const sectors = await applyNseQuotesToRows(rows, fresh);
+  const payload = normalizeSectorPayload({
+    sectors,
     asOf: new Date().toISOString(),
     sessionDate,
-  };
+  });
   await persistPayload(SECTORS_SNAPSHOT_KEY, payload, marketOpen);
   return payload;
 }
@@ -334,7 +477,7 @@ export async function refreshScreenerDailySnapshot(): Promise<{
 
   let stockLists = 0;
   let stockListsOk = true;
-  for (const sector of getResearchSectors()) {
+  for (const sector of SECTOR_CATALOG.filter((row) => !row.isBenchmark)) {
     const pack = await fetchSectorStocks(sector.id, false);
     if (!pack) continue;
     const written = await writeScreenerSnapshot(

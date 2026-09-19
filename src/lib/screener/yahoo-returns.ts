@@ -56,12 +56,28 @@ function computeChanges(
       ? periodReturnPercent(previousClose, lastPrice)
       : null;
 
-  const lastTs = bars[bars.length - 1]?.ts ?? Date.now();
+  const tradingOffsets: Partial<Record<string, number>> = {
+    "1w": 5,
+    "1m": 21,
+    "3m": 63,
+    "6m": 126,
+    "1y": 252,
+    "3y": 756,
+  };
 
   for (const period of SCREENER_PERIODS) {
     if (period === "1d") continue;
-    const lookback = SCREENER_PERIOD_LOOKBACK_DAYS[period];
-    const start = closeAtOrBefore(bars, subDays(new Date(lastTs), lookback).getTime());
+    const offset = tradingOffsets[period];
+    const start =
+      offset != null && bars.length > offset
+        ? bars[bars.length - 1 - offset]?.close ?? null
+        : closeAtOrBefore(
+            bars,
+            subDays(
+              new Date(bars[bars.length - 1]?.ts ?? Date.now()),
+              SCREENER_PERIOD_LOOKBACK_DAYS[period]
+            ).getTime()
+          );
     changes[period] = start != null ? periodReturnPercent(start, lastPrice) : null;
   }
 
@@ -176,7 +192,7 @@ export async function fetchYahooReturnSnapshot(
         ? result.meta.regularMarketPrice
         : lastClose;
 
-    const previousClose =
+    const metaPrevious =
       (typeof result.meta?.chartPreviousClose === "number" &&
       result.meta.chartPreviousClose > 0
         ? result.meta.chartPreviousClose
@@ -184,9 +200,14 @@ export async function fetchYahooReturnSnapshot(
       (typeof result.meta?.previousClose === "number" &&
       result.meta.previousClose > 0
         ? result.meta.previousClose
-        : null) ??
-      bars[bars.length - 2]?.close ??
-      null;
+        : null);
+    const barPrevious = bars[bars.length - 2]?.close ?? null;
+    const previousClose =
+      metaPrevious != null &&
+      lastPrice != null &&
+      Math.abs(metaPrevious - lastPrice) / lastPrice > 0.25
+        ? barPrevious
+        : metaPrevious ?? barPrevious;
 
     if (lastPrice == null || lastPrice <= 0) return empty;
 
@@ -238,6 +259,26 @@ export function mergeIndexAndBasketChanges(
     next[period] = indexChanges[period] ?? basketChanges[period];
   }
   return next;
+}
+
+/** Prefer constituent basket when Yahoo index history is too thin to trust. */
+export function preferBasketWhenIndexThin(
+  indexChanges: PeriodChanges,
+  basketChanges: PeriodChanges
+): PeriodChanges {
+  const next = emptyPeriodChanges();
+  for (const period of SCREENER_PERIODS) {
+    const basket = basketChanges[period];
+    const index = indexChanges[period];
+    next[period] = basket ?? index;
+  }
+  return next;
+}
+
+export function hasThinIndexHistory(snapshot: SymbolReturnSnapshot): boolean {
+  return (
+    snapshot.chart.length < 10 || hasSparsePeriodHistory(snapshot.changes)
+  );
 }
 
 export function averagePeriodChanges(list: PeriodChanges[]): PeriodChanges {

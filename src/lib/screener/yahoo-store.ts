@@ -73,19 +73,29 @@ export async function loadYahooSnapshot(
 }
 
 export async function loadUniverseSnapshots(
-  fresh = false
+  fresh = false,
+  onProgress?: (progress: { loaded: number; total: number }) => void
 ): Promise<UniverseSnapshot[]> {
   if (!fresh && universeInflight) return universeInflight;
 
   const pending = (async () => {
     const universe = getUniqueIndianStocks();
-    return mapWithConcurrency(universe, YAHOO_FETCH_CONCURRENCY, async (stock) => ({
-      stock,
-      snapshot: await loadYahooSnapshot(
-        yahooSymbolForNseTicker(stock.ticker),
-        fresh
-      ),
-    }));
+    const total = universe.length;
+    let loaded = 0;
+    onProgress?.({ loaded, total });
+
+    return mapWithConcurrency(universe, YAHOO_FETCH_CONCURRENCY, async (stock) => {
+      const row = {
+        stock,
+        snapshot: await loadYahooSnapshot(
+          yahooSymbolForNseTicker(stock.ticker),
+          fresh
+        ),
+      };
+      loaded += 1;
+      onProgress?.({ loaded, total });
+      return row;
+    });
   })();
 
   universeInflight = pending;

@@ -94,9 +94,9 @@ export function ScreenerPeriodTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((row) => (
+        {rows.map((row, index) => (
           <TableRow
-            key={row.id}
+            key={`${row.id}-${index}`}
             className={cn(
               onRowClick && "cursor-pointer",
               row.muted && "bg-muted/20"

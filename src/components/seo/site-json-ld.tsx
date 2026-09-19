@@ -61,7 +61,7 @@ export function buildSiteJsonLdSchema() {
 
 /** Brand + site graph for search engines (homepage and marketing). */
 export function SiteJsonLd() {
-  return <JsonLd data={buildSiteJsonLdSchema()} />;
+  return <JsonLd id="site-json-ld" data={buildSiteJsonLdSchema()} />;
 }
 
 export function siteJsonLdScriptHtml() {

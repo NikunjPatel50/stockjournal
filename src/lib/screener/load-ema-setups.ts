@@ -57,7 +57,8 @@ function filterPayload(
 }
 
 export async function loadAllEmaSetups(
-  fresh = false
+  fresh = false,
+  onProgress?: (progress: { loaded: number; total: number }) => void
 ): Promise<EmaSetupsPayload> {
   if (!fresh) {
     const cached = getScreenerCache<EmaSetupsPayload>(EMA_SETUPS_CACHE_KEY);
@@ -68,7 +69,7 @@ export async function loadAllEmaSetups(
     if (stored) return normalizeEmaPayload(stored);
   }
 
-  await refreshStrategyCaches(fresh);
+  await refreshStrategyCaches(fresh, onProgress);
   const payload =
     getScreenerCache<EmaSetupsPayload>(EMA_SETUPS_CACHE_KEY) ?? {
       setups: [],

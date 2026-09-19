@@ -15,5 +15,5 @@ export function FaqJsonLd() {
     })),
   };
 
-  return <JsonLd data={schema} />;
+  return <JsonLd id="faq-json-ld" data={schema} />;
 }

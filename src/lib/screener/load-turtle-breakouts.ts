@@ -42,7 +42,8 @@ function filterPayload(
 }
 
 export async function loadAllTurtleBreakouts(
-  fresh = false
+  fresh = false,
+  onProgress?: (progress: { loaded: number; total: number }) => void
 ): Promise<TurtleBreakoutsPayload> {
   if (!fresh) {
     const cached = getScreenerCache<TurtleBreakoutsPayload>(
@@ -55,7 +56,7 @@ export async function loadAllTurtleBreakouts(
     if (stored) return stored;
   }
 
-  await refreshStrategyCaches(fresh);
+  await refreshStrategyCaches(fresh, onProgress);
   return (
     getScreenerCache<TurtleBreakoutsPayload>(TURTLE_BREAKOUTS_CACHE_KEY) ?? {
       setups: [],

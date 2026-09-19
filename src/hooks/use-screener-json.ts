@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 const CLIENT_TTL_MS = 20 * 60 * 1000;
-const STORAGE_PREFIX = "sj.screener.";
+const STORAGE_PREFIX = "sj.screener.v6.";
 
 type CacheEntry<T> = {
   data: T;
@@ -87,12 +87,10 @@ export function prefetchScreenerJson(url: string) {
 
 export function useScreenerJson<T>(url: string | null) {
   const key = url ? cacheKey(url) : null;
-  const [data, setData] = useState<T | null>(() => {
-    if (!key) return null;
-    return readStored<T>(key)?.data ?? null;
-  });
+  // Keep the first render identical on server and client; hydrate cache in useEffect.
+  const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(() => Boolean(url) && !data);
+  const [loading, setLoading] = useState(() => Boolean(url));
 
   const load = useCallback(
     async (fresh = false) => {
@@ -139,11 +137,11 @@ export function useScreenerJson<T>(url: string | null) {
     const hit = readStored<T>(key);
     if (hit && Date.now() - hit.at < CLIENT_TTL_MS) {
       setData(hit.data);
+      setError(null);
       setLoading(false);
-    } else {
-      setData(null);
-      setLoading(true);
+      return;
     }
+
     void load(false);
   }, [key, load]);
 

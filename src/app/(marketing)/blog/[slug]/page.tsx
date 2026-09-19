@@ -48,7 +48,9 @@ export default async function BlogPostPage({ params }: PageProps) {
   return (
     <>
       <BlogPostingJsonLd post={post} />
-      {faqs.length > 0 ? <BlogFaqJsonLd faqs={faqs} /> : null}
+      {faqs.length > 0 ? (
+        <BlogFaqJsonLd faqs={faqs} slug={post.slug} />
+      ) : null}
       <LandingNavbar />
       <MarketingBreadcrumbs
         items={[
