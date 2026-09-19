@@ -139,6 +139,8 @@ export async function fetchYahooReturnSnapshot(
   const url = new URL(`${YAHOO_CHART}/${encodeURIComponent(symbol)}`);
   url.searchParams.set("interval", "1d");
   url.searchParams.set("range", "5y");
+  url.searchParams.set("includePrePost", "false");
+  url.searchParams.set("events", "div,split");
 
   try {
     const res = await fetchWithTimeout(

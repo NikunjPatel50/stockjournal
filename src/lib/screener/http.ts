@@ -27,7 +27,17 @@ export function screenerNdjsonStream<T>(
       };
 
       try {
+        let lastProgressAt = 0;
         const payload = await run(({ loaded, total }) => {
+          const now = Date.now();
+          if (
+            loaded !== 0 &&
+            loaded !== total &&
+            now - lastProgressAt < 200
+          ) {
+            return;
+          }
+          lastProgressAt = now;
           send({ type: "progress", loaded, total });
         });
         send({ type: "complete", data: payload });

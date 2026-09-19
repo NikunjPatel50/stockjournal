@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerChartButton } from "@/components/screener/screener-chart-button";
@@ -51,12 +51,113 @@ function systemLabel(system: TurtleRow["system"]): string {
   return "20-week";
 }
 
+const TurtleSetupTable = memo(function TurtleSetupTable({
+  rows,
+  onOpen,
+}: {
+  rows: TurtleRow[];
+  onOpen: (ticker: string) => void;
+}) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="hover:bg-transparent">
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Stock
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Sector
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            System
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Price
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Channel
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Break
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Why
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, index) => (
+          <TableRow
+            key={`${row.ticker}-${row.system}-${index}`}
+            className="cursor-pointer"
+            onClick={() => onOpen(row.ticker)}
+          >
+            <TableCell className="px-2.5 py-2.5">
+              <div className="flex min-w-0 items-start gap-1.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {row.ticker}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {row.name}
+                  </p>
+                </div>
+                <ScreenerChartButton ticker={row.ticker} label={row.name} />
+              </div>
+            </TableCell>
+            <TableCell className="px-2.5 py-2.5 text-sm text-muted-foreground">
+              {row.sectorLabel ?? "—"}
+            </TableCell>
+            <TableCell className="px-2.5 py-2.5 text-sm">
+              {systemLabel(row.system)}
+            </TableCell>
+            <TableCell
+              className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
+            >
+              {row.lastPrice != null
+                ? formatMarketPrice(row.lastPrice, "INR")
+                : "—"}
+            </TableCell>
+            <TableCell
+              className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
+            >
+              {row.channelHigh != null
+                ? formatMarketPrice(row.channelHigh, "INR")
+                : "—"}
+            </TableCell>
+            <TableCell
+              className={cn(
+                "px-2.5 py-2.5 text-right text-sm text-emerald-600 dark:text-emerald-400",
+                NUMERIC_CLASS
+              )}
+            >
+              {row.extension != null
+                ? `+${formatPercent(row.extension * 100, 1)}`
+                : "—"}
+            </TableCell>
+            <TableCell className="max-w-[16rem] px-2.5 py-2.5 text-[11px] leading-snug text-muted-foreground">
+              {row.why}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+});
+
 export function ScreenerTurtleCard() {
   const router = useRouter();
   const [system, setSystem] = useState<TurtleSystem>("s1");
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, reload } =
     useScreenerStream<TurtlePayload>("/api/screener/turtle-breakouts?v=tech");
+
+  const openStock = useCallback(
+    (ticker: string) => {
+      router.push(`/screener/stock/${encodeURIComponent(ticker)}?from=turtle`);
+    },
+    [router]
+  );
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -86,17 +187,18 @@ export function ScreenerTurtleCard() {
     >
       <div className="space-y-4 p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full min-w-0 items-center gap-2 sm:max-w-md">
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search stocks"
-              className="h-9 max-w-xs"
+              className="h-9 min-w-0 flex-1"
             />
             <ScreenerRefreshButton
               loading={loading}
               progress={progress}
               onRefresh={() => void reload()}
+              className="shrink-0"
             />
           </div>
           <Tabs
@@ -139,96 +241,7 @@ export function ScreenerTurtleCard() {
             hint="Nothing in the Indian catalog is breaking a Donchian high right now."
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Stock
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Sector
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  System
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Price
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Channel
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Break
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Why
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, index) => (
-                <TableRow
-                  key={`${row.ticker}-${row.system}-${index}`}
-                  className="cursor-pointer"
-                  onClick={() =>
-                    router.push(
-                      `/screener/stock/${encodeURIComponent(row.ticker)}?from=turtle`
-                    )
-                  }
-                >
-                  <TableCell className="px-2.5 py-2.5">
-                    <div className="flex min-w-0 items-start gap-1.5">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {row.ticker}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {row.name}
-                        </p>
-                      </div>
-                      <ScreenerChartButton
-                        ticker={row.ticker}
-                        label={row.name}
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-2.5 py-2.5 text-sm text-muted-foreground">
-                    {row.sectorLabel ?? "—"}
-                  </TableCell>
-                  <TableCell className="px-2.5 py-2.5 text-sm">
-                    {systemLabel(row.system)}
-                  </TableCell>
-                  <TableCell
-                    className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
-                  >
-                    {row.lastPrice != null
-                      ? formatMarketPrice(row.lastPrice, "INR")
-                      : "—"}
-                  </TableCell>
-                  <TableCell
-                    className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
-                  >
-                    {row.channelHigh != null
-                      ? formatMarketPrice(row.channelHigh, "INR")
-                      : "—"}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "px-2.5 py-2.5 text-right text-sm text-emerald-600 dark:text-emerald-400",
-                      NUMERIC_CLASS
-                    )}
-                  >
-                    {row.extension != null
-                      ? `+${formatPercent(row.extension * 100, 1)}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="max-w-[16rem] px-2.5 py-2.5 text-[11px] leading-snug text-muted-foreground">
-                    {row.why}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <TurtleSetupTable rows={rows} onOpen={openStock} />
         )}
       </div>
     </DataPanel>

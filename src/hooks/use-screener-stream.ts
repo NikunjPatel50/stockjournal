@@ -44,6 +44,18 @@ function writeStored<T>(key: string, data: T) {
   }
 }
 
+async function fetchScreenerJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { cache: "default" });
+  if (!res.ok) {
+    throw new Error(
+      res.status === 403
+        ? "This screener is private."
+        : "Could not load screener data."
+    );
+  }
+  return (await res.json()) as T;
+}
+
 async function streamScreenerPayload<T>(
   url: string,
   onProgress: (percent: number) => void
@@ -123,12 +135,14 @@ export function useScreenerStream<T>(url: string) {
 
         setLoading(true);
         setError(null);
-        setProgress(0);
+        setProgress(fresh ? 0 : null);
 
         try {
-          const next = await streamScreenerPayload<T>(url, (percent) => {
-            setProgress(percent);
-          });
+          const next = fresh
+            ? await streamScreenerPayload<T>(url, (percent) => {
+                setProgress(percent);
+              })
+            : await fetchScreenerJson<T>(url);
           setData(next);
           writeStored(key, next);
         } catch (err) {

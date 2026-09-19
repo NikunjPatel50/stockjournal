@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerChartButton } from "@/components/screener/screener-chart-button";
@@ -44,6 +44,90 @@ type EmaPayload = {
   timeframe: EmaTimeframe;
 };
 
+const EmaSetupTable = memo(function EmaSetupTable({
+  rows,
+  timeframe,
+  onOpen,
+}: {
+  rows: EmaSetupRow[];
+  timeframe: EmaTimeframe;
+  onOpen: (ticker: string) => void;
+}) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="hover:bg-transparent">
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Stock
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Sector
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Timeframe
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Price
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            200 Dist
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Why
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, index) => {
+          const dist = nearestDist200(row, timeframe);
+          return (
+            <TableRow
+              key={`${row.ticker}-${index}`}
+              className="cursor-pointer"
+              onClick={() => onOpen(row.ticker)}
+            >
+              <TableCell className="px-2.5 py-2.5">
+                <div className="flex min-w-0 items-start gap-1.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {row.ticker}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {row.name}
+                    </p>
+                  </div>
+                  <ScreenerChartButton ticker={row.ticker} label={row.name} />
+                </div>
+              </TableCell>
+              <TableCell className="px-2.5 py-2.5 text-sm text-muted-foreground">
+                {row.sectorLabel ?? "—"}
+              </TableCell>
+              <TableCell className="px-2.5 py-2.5 text-sm">
+                {ema200TimeframeLabel(row.daily.holding, row.weekly.holding)}
+              </TableCell>
+              <TableCell
+                className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
+              >
+                {row.lastPrice != null
+                  ? formatMarketPrice(row.lastPrice, "INR")
+                  : "—"}
+              </TableCell>
+              <TableCell
+                className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
+              >
+                {dist != null ? `+${formatPercent(dist * 100, 1)}` : "—"}
+              </TableCell>
+              <TableCell className="max-w-[16rem] px-2.5 py-2.5 text-[11px] leading-snug text-muted-foreground">
+                {row.why}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+});
+
 function nearestDist200(
   row: EmaSetupRow,
   timeframe: EmaTimeframe
@@ -62,6 +146,13 @@ export function ScreenerEmaCard() {
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, reload } = useScreenerStream<EmaPayload>(
     "/api/screener/ema-setups?v=ema200-5"
+  );
+
+  const openStock = useCallback(
+    (ticker: string) => {
+      router.push(`/screener/stock/${encodeURIComponent(ticker)}?from=ema`);
+    },
+    [router]
   );
 
   const rows = useMemo(() => {
@@ -94,17 +185,18 @@ export function ScreenerEmaCard() {
     >
       <div className="space-y-4 p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full min-w-0 items-center gap-2 sm:max-w-md">
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search stocks"
-              className="h-9 max-w-xs"
+              className="h-9 min-w-0 flex-1"
             />
             <ScreenerRefreshButton
               loading={loading}
               progress={progress}
               onRefresh={() => void reload()}
+              className="shrink-0"
             />
           </div>
           <Tabs
@@ -139,90 +231,7 @@ export function ScreenerEmaCard() {
             hint="Nothing in the Indian catalog is within 3% of 200 EMA support on this timeframe."
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Stock
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Sector
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Timeframe
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Price
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  200 Dist
-                </TableHead>
-                <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Why
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, index) => {
-                const dist = nearestDist200(row, timeframe);
-                return (
-                  <TableRow
-                    key={`${row.ticker}-${index}`}
-                    className="cursor-pointer"
-                    onClick={() =>
-                      router.push(
-                        `/screener/stock/${encodeURIComponent(row.ticker)}?from=ema`
-                      )
-                    }
-                  >
-                    <TableCell className="px-2.5 py-2.5">
-                      <div className="flex min-w-0 items-start gap-1.5">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground">
-                            {row.ticker}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {row.name}
-                          </p>
-                        </div>
-                        <ScreenerChartButton
-                          ticker={row.ticker}
-                          label={row.name}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-2.5 py-2.5 text-sm text-muted-foreground">
-                      {row.sectorLabel ?? "—"}
-                    </TableCell>
-                    <TableCell className="px-2.5 py-2.5 text-sm">
-                      {ema200TimeframeLabel(row.daily.holding, row.weekly.holding)}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "px-2.5 py-2.5 text-right text-sm",
-                        NUMERIC_CLASS
-                      )}
-                    >
-                      {row.lastPrice != null
-                        ? formatMarketPrice(row.lastPrice, "INR")
-                        : "—"}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "px-2.5 py-2.5 text-right text-sm",
-                        NUMERIC_CLASS
-                      )}
-                    >
-                      {dist != null ? `+${formatPercent(dist * 100, 1)}` : "—"}
-                    </TableCell>
-                    <TableCell className="max-w-[16rem] px-2.5 py-2.5 text-[11px] leading-snug text-muted-foreground">
-                      {row.why}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <EmaSetupTable rows={rows} timeframe={timeframe} onOpen={openStock} />
         )}
       </div>
     </DataPanel>

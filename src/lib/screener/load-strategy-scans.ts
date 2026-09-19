@@ -241,6 +241,13 @@ export function buildTurtleBreakoutsFromSnapshots(
 }
 
 let scanInflight: Promise<void> | null = null;
+const scanProgressListeners = new Set<
+  (progress: { loaded: number; total: number }) => void
+>();
+
+function emitScanProgress(progress: { loaded: number; total: number }) {
+  for (const listener of scanProgressListeners) listener(progress);
+}
 
 export async function refreshStrategyCaches(
   fresh = false,
@@ -252,11 +259,21 @@ export async function refreshStrategyCaches(
       TURTLE_BREAKOUTS_CACHE_KEY
     );
     if (ema && turtle) return;
-    if (scanInflight) return scanInflight;
+  }
+
+  if (onProgress) scanProgressListeners.add(onProgress);
+
+  if (scanInflight) {
+    try {
+      await scanInflight;
+    } finally {
+      if (onProgress) scanProgressListeners.delete(onProgress);
+    }
+    return;
   }
 
   const pending = (async () => {
-    const snapshots = await loadUniverseSnapshots(fresh, onProgress);
+    const snapshots = await loadUniverseSnapshots(fresh, emitScanProgress);
     const ema = buildEmaSetupsFromSnapshots(snapshots);
     const turtle = buildTurtleBreakoutsFromSnapshots(snapshots);
     await Promise.all([
@@ -270,6 +287,7 @@ export async function refreshStrategyCaches(
     await pending;
   } finally {
     if (scanInflight === pending) scanInflight = null;
+    if (onProgress) scanProgressListeners.delete(onProgress);
   }
 }
 

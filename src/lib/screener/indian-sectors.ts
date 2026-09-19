@@ -1199,7 +1199,11 @@ export function tradingViewSymbolForSectorId(sectorId: string): string | null {
   return tradingViewSymbolFromYahoo(sector.yahooSymbol);
 }
 
+let uniqueIndianStocks: IndianSectorStock[] | null = null;
+
 export function getUniqueIndianStocks(): IndianSectorStock[] {
+  if (uniqueIndianStocks) return uniqueIndianStocks;
+
   const seen = new Set<string>();
   const stocks: IndianSectorStock[] = [];
   for (const sector of INDIAN_SECTORS) {
@@ -1210,6 +1214,7 @@ export function getUniqueIndianStocks(): IndianSectorStock[] {
       stocks.push(stock);
     }
   }
+  uniqueIndianStocks = stocks;
   return stocks;
 }
 

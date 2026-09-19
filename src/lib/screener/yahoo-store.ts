@@ -30,6 +30,7 @@ export type UniverseSnapshot = {
 
 const inflight = new Map<string, Promise<SymbolReturnSnapshot>>();
 let universeInflight: Promise<UniverseSnapshot[]> | null = null;
+let universePending = false;
 
 function persistTtlMs() {
   return isListingMarketOpen("IN_NSE")
@@ -76,13 +77,22 @@ export async function loadUniverseSnapshots(
   fresh = false,
   onProgress?: (progress: { loaded: number; total: number }) => void
 ): Promise<UniverseSnapshot[]> {
-  if (!fresh && universeInflight) return universeInflight;
+  if (universeInflight && (!fresh || universePending)) {
+    return universeInflight;
+  }
 
   const pending = (async () => {
     const universe = getUniqueIndianStocks();
     const total = universe.length;
     let loaded = 0;
-    onProgress?.({ loaded, total });
+    let lastProgressAt = 0;
+    const emit = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastProgressAt < 200) return;
+      lastProgressAt = now;
+      onProgress?.({ loaded, total });
+    };
+    emit(true);
 
     return mapWithConcurrency(universe, YAHOO_FETCH_CONCURRENCY, async (stock) => {
       const row = {
@@ -93,17 +103,20 @@ export async function loadUniverseSnapshots(
         ),
       };
       loaded += 1;
-      onProgress?.({ loaded, total });
+      emit(loaded === total);
       return row;
     });
   })();
 
   universeInflight = pending;
+  universePending = true;
   try {
     return await pending;
   } catch (error) {
     if (universeInflight === pending) universeInflight = null;
     throw error;
+  } finally {
+    if (universeInflight === pending) universePending = false;
   }
 }
 

@@ -183,34 +183,37 @@ async function fetchOneSectorRow(
   };
 }
 
-async function applyNseQuotesToRows(
+function overlayNseQuotes(
   rows: SectorScreenerRow[],
-  fresh: boolean
-): Promise<SectorScreenerRow[]> {
-  const nseDirectory = await loadNseIndexDirectory(fresh);
-  if (nseDirectory.size === 0) return rows;
+  directory: Map<string, NseIndexQuote>
+): SectorScreenerRow[] {
+  if (directory.size === 0) return rows;
 
-  const yahooChangesBySymbol = new Map<string, PeriodChanges>();
-  return mapWithConcurrency(rows, 8, async (row) => {
-    const nseQuote = nseQuoteForSectorId(row.id, nseDirectory);
+  return rows.map((row) => {
+    const nseQuote = nseQuoteForSectorId(row.id, directory);
     if (!nseQuote) return row;
 
-    const sector = getIndianSector(row.id);
-    if (!sector) return { ...row, lastPrice: nseQuote.last };
-
-    const changes = await fillMissingLongerPeriods(
-      sector,
-      periodChangesFromNseQuote(nseQuote),
-      fresh,
-      yahooChangesBySymbol
-    );
-
+    const nse = periodChangesFromNseQuote(nseQuote);
     return {
       ...row,
       lastPrice: nseQuote.last,
-      changes,
+      changes: {
+        ...row.changes,
+        "1d": nse["1d"] ?? row.changes["1d"],
+        "1w": nse["1w"] ?? row.changes["1w"],
+        "1m": nse["1m"] ?? row.changes["1m"],
+        "1y": nse["1y"] ?? row.changes["1y"],
+      },
     };
   });
+}
+
+async function overlayNseQuotesOnRows(
+  rows: SectorScreenerRow[],
+  fresh: boolean
+): Promise<SectorScreenerRow[]> {
+  const directory = await loadNseIndexDirectory(fresh);
+  return overlayNseQuotes(rows, directory);
 }
 
 export type SectorLoadProgress = {
@@ -284,7 +287,7 @@ async function completeSectorPayload(
       : [];
 
   const merged = orderCatalogSectors([...known, ...extras]);
-  const sectors = await applyNseQuotesToRows(merged, fresh);
+  const sectors = await overlayNseQuotesOnRows(merged, fresh);
 
   return normalizeSectorPayload({
     ...payload,
@@ -377,7 +380,7 @@ export async function loadSectorRows(
     const cached = getScreenerCache<SectorRowsPayload>(SECTORS_SNAPSHOT_KEY);
     if (cached && isCompleteSectorCatalog(cached.sectors)) {
       const normalized = normalizeSectorPayload(cached);
-      const sectors = await applyNseQuotesToRows(normalized.sectors, false);
+      const sectors = await overlayNseQuotesOnRows(normalized.sectors, false);
       return { ...normalized, sectors };
     }
 
@@ -405,9 +408,8 @@ export async function loadSectorRows(
   }
 
   const rows = await fetchSectorRows(fresh, onProgress);
-  const sectors = await applyNseQuotesToRows(rows, fresh);
   const payload = normalizeSectorPayload({
-    sectors,
+    sectors: rows,
     asOf: new Date().toISOString(),
     sessionDate,
   });
