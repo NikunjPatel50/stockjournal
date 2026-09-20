@@ -60,6 +60,25 @@ function stripLegacyDemoTrades(trades: JournalTrade[]): JournalTrade[] {
   return trades.filter((t) => !isLegacyDemoTrade(t));
 }
 
+/** Keep every lot; only assign a new id when two trades share the same id. */
+function ensureUniqueTradeIds(trades: JournalTrade[]): JournalTrade[] {
+  const seen = new Set<string>();
+  let changed = false;
+  const next = trades.map((trade) => {
+    const id = trade.id?.trim() ?? "";
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      return trade;
+    }
+    changed = true;
+    let unique = crypto.randomUUID();
+    while (seen.has(unique)) unique = crypto.randomUUID();
+    seen.add(unique);
+    return { ...trade, id: unique };
+  });
+  return changed ? next : trades;
+}
+
 function resolveTradesKey(): string | null {
   const userId = getActiveStorageUserId();
   return userId ? tradesStorageKey(userId) : null;
@@ -92,8 +111,9 @@ export function loadJournalTrades(userId?: string | null): JournalTrade[] {
     const normalized = Array.isArray(parsed)
       ? parsed.map((t) => normalizeJournalTrade(t))
       : [];
-    const cleaned = stripLegacyDemoTrades(normalized);
-    if (cleaned.length !== normalized.length) {
+    const stripped = stripLegacyDemoTrades(normalized);
+    const cleaned = ensureUniqueTradeIds(stripped);
+    if (cleaned !== stripped || stripped.length !== normalized.length) {
       localStorage.setItem(key, JSON.stringify(cleaned));
     }
     return cleaned;
@@ -107,9 +127,10 @@ export function saveJournalTrades(trades: JournalTrade[]) {
   const key = resolveTradesKey();
   const userId = getActiveStorageUserId();
   if (!key || !userId) return;
-  localStorage.setItem(key, JSON.stringify(trades));
+  const unique = ensureUniqueTradeIds(trades);
+  localStorage.setItem(key, JSON.stringify(unique));
   setLocalTradesSyncTime(userId, Date.now());
-  scheduleCloudPush(userId, trades);
+  scheduleCloudPush(userId, unique);
   queueMicrotask(() => {
     window.dispatchEvent(new Event(TRADES_UPDATED_EVENT));
   });
@@ -148,11 +169,12 @@ export function useJournalTradesState() {
     let cancelled = false;
     void syncJournalTradesWithCloud(userId, local).then((merged) => {
       if (cancelled) return;
-      if (JSON.stringify(merged) !== JSON.stringify(local)) {
+      const unique = ensureUniqueTradeIds(merged);
+      if (JSON.stringify(unique) !== JSON.stringify(local)) {
         const key = tradesStorageKey(userId);
-        localStorage.setItem(key, JSON.stringify(merged));
+        localStorage.setItem(key, JSON.stringify(unique));
         setLocalTradesSyncTime(userId, Date.now());
-        setTradesState(merged);
+        setTradesState(unique);
       }
     });
 
@@ -162,10 +184,11 @@ export function useJournalTradesState() {
       if (again.length === 0) {
         void syncJournalTradesWithCloud(userId, again).then((merged) => {
           if (cancelled || merged.length === 0) return;
+          const unique = ensureUniqueTradeIds(merged);
           const key = tradesStorageKey(userId);
-          localStorage.setItem(key, JSON.stringify(merged));
+          localStorage.setItem(key, JSON.stringify(unique));
           setLocalTradesSyncTime(userId, Date.now());
-          setTradesState(merged);
+          setTradesState(unique);
         });
       }
     }, 2500);
@@ -187,8 +210,9 @@ export function useJournalTradesState() {
   const setTrades = useCallback(
     (updater: JournalTrade[] | ((prev: JournalTrade[]) => JournalTrade[])) => {
       setTradesState((prev) => {
-        const next =
-          typeof updater === "function" ? updater(prev) : updater;
+        const next = ensureUniqueTradeIds(
+          typeof updater === "function" ? updater(prev) : updater
+        );
         queueMicrotask(() => saveJournalTrades(next));
         return next;
       });

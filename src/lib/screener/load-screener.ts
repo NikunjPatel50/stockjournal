@@ -58,7 +58,7 @@ import {
 } from "@/lib/screener/yahoo-returns";
 
 const BASKET_SYNTH_LIMIT = 10;
-const SECTORS_SNAPSHOT_KEY = "sectors:nse-all-v6";
+const SECTORS_SNAPSHOT_KEY = "sectors:nse-all-v7";
 const SECTOR_CATALOG = getNseSectorCatalog();
 const SECTOR_CATALOG_IDS = new Set<string>(NSE_ALL_SECTOR_IDS);
 
@@ -216,6 +216,25 @@ async function overlayNseQuotesOnRows(
   return overlayNseQuotes(rows, directory);
 }
 
+async function fillSparseSectorRows(
+  rows: SectorScreenerRow[],
+  fresh: boolean
+): Promise<SectorScreenerRow[]> {
+  const yahooChangesBySymbol = new Map<string, PeriodChanges>();
+  return mapWithConcurrency(rows, 8, async (row) => {
+    if (!needsSupplementalSectorPeriods(row.changes)) return row;
+    const sector = getIndianSector(row.id);
+    if (!sector) return row;
+    const changes = await fillMissingLongerPeriods(
+      sector,
+      row.changes,
+      fresh,
+      yahooChangesBySymbol
+    );
+    return { ...row, changes };
+  });
+}
+
 export type SectorLoadProgress = {
   loaded: number;
   total: number;
@@ -287,7 +306,10 @@ async function completeSectorPayload(
       : [];
 
   const merged = orderCatalogSectors([...known, ...extras]);
-  const sectors = await overlayNseQuotesOnRows(merged, fresh);
+  let sectors = await overlayNseQuotesOnRows(merged, fresh);
+  if (sectors.some((row) => needsSupplementalSectorPeriods(row.changes))) {
+    sectors = await fillSparseSectorRows(sectors, fresh);
+  }
 
   return normalizeSectorPayload({
     ...payload,
@@ -380,7 +402,13 @@ export async function loadSectorRows(
     const cached = getScreenerCache<SectorRowsPayload>(SECTORS_SNAPSHOT_KEY);
     if (cached && isCompleteSectorCatalog(cached.sectors)) {
       const normalized = normalizeSectorPayload(cached);
-      const sectors = await overlayNseQuotesOnRows(normalized.sectors, false);
+      let sectors = await overlayNseQuotesOnRows(normalized.sectors, false);
+      if (sectors.some((row) => needsSupplementalSectorPeriods(row.changes))) {
+        sectors = await fillSparseSectorRows(sectors, false);
+        const payload = { ...normalized, sectors };
+        await persistPayload(SECTORS_SNAPSHOT_KEY, payload, marketOpen);
+        return payload;
+      }
       return { ...normalized, sectors };
     }
 

@@ -1,6 +1,7 @@
 import { fetchWithTimeout, extractResponseCookies } from "@/lib/fetch-with-timeout";
 import {
   emptyPeriodChanges,
+  SCREENER_PERIODS,
   type PeriodChanges,
 } from "@/lib/screener/types";
 import {
@@ -19,8 +20,8 @@ const NSE_FETCH_HEADERS = {
   "User-Agent": NSE_USER_AGENT,
   Accept: "application/json, text/plain, */*",
   "Accept-Language": "en-US,en;q=0.9",
-  Referer: "https://www.nseindia.com/",
-  Connection: "keep-alive",
+  Referer: "https://www.nseindia.com/market-data/live-equity-market",
+  "X-Requested-With": "XMLHttpRequest",
 };
 
 export type NseIndexQuote = {
@@ -54,9 +55,12 @@ async function getNseCookie(force = false): Promise<string | null> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const res = await fetchWithTimeout(
-        "https://www.nseindia.com/",
+        "https://www.nseindia.com/market-data/live-equity-market",
         {
-          headers: NSE_FETCH_HEADERS,
+          headers: {
+            ...NSE_FETCH_HEADERS,
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          },
           cache: "no-store",
         },
         NSE_FETCH_TIMEOUT_MS
@@ -110,22 +114,15 @@ export function mergeNseWithSupplementalChanges(
   nse: PeriodChanges,
   supplemental: PeriodChanges
 ): PeriodChanges {
-  return {
-    ...nse,
-    "3m": nse["3m"] ?? supplemental["3m"],
-    "6m": nse["6m"] ?? supplemental["6m"],
-    "1y": nse["1y"] ?? supplemental["1y"],
-    "3y": nse["3y"] ?? supplemental["3y"],
-  };
+  const next = emptyPeriodChanges();
+  for (const period of SCREENER_PERIODS) {
+    next[period] = nse[period] ?? supplemental[period];
+  }
+  return next;
 }
 
 export function needsSupplementalSectorPeriods(changes: PeriodChanges): boolean {
-  return (
-    changes["3m"] == null ||
-    changes["6m"] == null ||
-    changes["1y"] == null ||
-    changes["3y"] == null
-  );
+  return SCREENER_PERIODS.some((period) => changes[period] == null);
 }
 
 function parseNseIndexRow(row: Record<string, unknown>): NseIndexQuote | null {

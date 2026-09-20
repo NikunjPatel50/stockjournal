@@ -211,8 +211,11 @@ function ExposureTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.tradeId} className="border-border/60">
+          {rows.map((row, index) => (
+            <TableRow
+              key={`${row.tradeId}-${index}`}
+              className="border-border/60"
+            >
               <TableCell className={cellClass}>
                 <span className="flex flex-wrap items-center gap-1.5">
                   <span className="font-semibold text-foreground">
@@ -270,7 +273,10 @@ function ExposureLegendPanel({
           </TableHeader>
           <TableBody>
             {rows.map((row, index) => (
-              <TableRow key={row.tradeId} className="border-border/40">
+              <TableRow
+                key={`${row.tradeId}-${index}`}
+                className="border-border/40"
+              >
                 <TableCell className={legendCellFirst}>
                   <span className="flex items-center gap-2">
                     <span
@@ -316,24 +322,39 @@ function ExposurePieChart({
   rows: RowWithShare[];
   currency: CurrencyCode;
 }) {
-  const chartData = useMemo(
-    () =>
-      rows.map((row, index) => ({
-        name: row.ticker,
+  const chartData = useMemo(() => {
+    const tickerCounts = new Map<string, number>();
+    for (const row of rows) {
+      tickerCounts.set(row.ticker, (tickerCounts.get(row.ticker) ?? 0) + 1);
+    }
+    const tickerSeen = new Map<string, number>();
+
+    return rows.map((row, index) => {
+      const count = tickerCounts.get(row.ticker) ?? 1;
+      const seen = (tickerSeen.get(row.ticker) ?? 0) + 1;
+      tickerSeen.set(row.ticker, seen);
+      const name =
+        count > 1
+          ? `${row.ticker} · ${row.quantity} @ ${row.priceUsed.toFixed(2)}`
+          : row.ticker;
+
+      return {
+        id: `${row.tradeId}-${index}`,
+        name,
         value: row.notionalAtRisk,
         share: row.share,
         quantity: row.quantity,
         priceUsed: row.priceUsed,
         gapRisk: row.gapRisk,
         fill: SLICE_COLORS[index % SLICE_COLORS.length],
-      })),
-    [rows]
-  );
+      };
+    });
+  }, [rows]);
 
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {};
     for (const row of chartData) {
-      config[row.name] = { label: row.name, color: row.fill };
+      config[row.id] = { label: row.name, color: row.fill };
     }
     return config;
   }, [chartData]);
@@ -396,7 +417,7 @@ function ExposurePieChart({
               labelLine={false}
             >
               {chartData.map((entry) => (
-                <Cell key={entry.name} fill={entry.fill} />
+                <Cell key={entry.id} fill={entry.fill} />
               ))}
             </Pie>
           </PieChart>

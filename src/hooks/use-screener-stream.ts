@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const CLIENT_TTL_MS = 20 * 60 * 1000;
-const STORAGE_PREFIX = "sj.screener.v6.";
+const STORAGE_PREFIX = "sj.screener.v7.";
 
 type CacheEntry<T> = {
   data: T;
