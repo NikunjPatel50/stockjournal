@@ -13,7 +13,7 @@ import { ScreenerPeriodTable } from "@/components/screener/screener-period-table
 import { ScreenerToolbar } from "@/components/screener/screener-toolbar";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableHead } from "@/components/ui/table";
-import { useScreenerJson } from "@/hooks/use-screener-json";
+import { useScreenerSectorStocks } from "@/hooks/use-screener-sector-stocks";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import {
   compareScreenerRows,
@@ -21,27 +21,18 @@ import {
   toggleScreenerSort,
 } from "@/lib/screener/sort";
 import { computeScreenerStrength } from "@/lib/screener/strength";
-import type {
-  SectorScreenerRow,
-  SectorStockRow,
-} from "@/lib/screener/types";
+import type { SectorStockRow } from "@/lib/screener/types";
 import { formatScreenerStamp } from "@/lib/screener/format";
 import { dedupeRowsByTicker } from "@/lib/screener/dedupe-rows";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 
-type StocksPayload = {
-  sector: SectorScreenerRow;
-  stocks: SectorStockRow[];
-  asOf: string;
-  sessionDate?: string;
-};
-
 export function ScreenerSectorStocksPage({ sectorId }: { sectorId: string }) {
   const router = useRouter();
   const { trades } = useJournalTrades();
-  const { data, error, loading, reload } = useScreenerJson<StocksPayload>(
-    `/api/screener/sectors/${sectorId}/stocks`
-  );
+  const { data, error, loading, loaded, total, reload } =
+    useScreenerSectorStocks(
+      `/api/screener/sectors/${sectorId}/stocks?v=constituents`
+    );
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"table" | "heatmap">("table");
   const [sort, setSort] = useState(defaultScreenerSort("1m"));
@@ -122,7 +113,11 @@ export function ScreenerSectorStocksPage({ sectorId }: { sectorId: string }) {
         <DataPanel
           title="Stock returns"
           subtitle="Strength blends momentum, trend direction, recent price action, and performance versus the sector and Nifty 50."
-          meta={`${rows.length} stocks · ${formatScreenerStamp(data?.sessionDate, data?.asOf)}`}
+          meta={
+            loading && total > 0 && loaded < total
+              ? `${loaded} of ${total} stocks`
+              : `${rows.length} stocks · ${formatScreenerStamp(data?.sessionDate, data?.asOf)}`
+          }
           flush
         >
           <div className="space-y-4 p-4 sm:p-5">
@@ -146,14 +141,18 @@ export function ScreenerSectorStocksPage({ sectorId }: { sectorId: string }) {
               }
             />
             {rows.length === 0 ? (
-              <PanelEmpty
-                title="No matching stocks"
-                hint={
-                  mineOnly
-                    ? "None of these constituents appear in your journal."
-                    : "Try a different search."
-                }
-              />
+              loading ? (
+                <div className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40" />
+              ) : (
+                <PanelEmpty
+                  title="No matching stocks"
+                  hint={
+                    mineOnly
+                      ? "None of these constituents appear in your journal."
+                      : "Try a different search."
+                  }
+                />
+              )
             ) : view === "heatmap" ? (
               <ScreenerHeatmap
                 rows={rows.map((row) => ({

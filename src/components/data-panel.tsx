@@ -69,7 +69,7 @@ export function DataPanel({
 
 export function PanelMeta({ children }: { children: ReactNode }) {
   return (
-    <span className="shrink-0 whitespace-nowrap rounded-md border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+    <span className="inline-block max-w-full whitespace-normal break-words rounded-md border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground sm:whitespace-nowrap">
       {children}
     </span>
   );

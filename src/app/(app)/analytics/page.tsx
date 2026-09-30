@@ -171,7 +171,7 @@ export default function AnalyticsPage() {
             <ReportSection
               index="03"
               title="Risk and results"
-              description="How wins compare to losses, and win rate by weekday"
+              description="Win rate by weekday, and where your edge leaks"
             >
               <div className={GRID_CLASS}>
                 <WeekdayWinLossCard trades={filtered} />

@@ -45,6 +45,7 @@ import {
 } from "@/lib/screener/snapshot-store";
 import { getNseScreenerSessionDate } from "@/lib/screener/session";
 import {
+  loadYahooReturnsSnapshot,
   loadYahooSnapshot,
   YAHOO_FETCH_CONCURRENCY,
 } from "@/lib/screener/yahoo-store";
@@ -73,6 +74,11 @@ export type SectorStocksPayload = {
   stocks: SectorStockRow[];
   asOf: string;
   sessionDate: string;
+};
+
+export type SectorStocksListener = {
+  onMeta?: (payload: SectorStocksPayload) => void;
+  onStock?: (stock: SectorStockRow, loaded: number, total: number) => void;
 };
 
 function ttlMs() {
@@ -321,32 +327,99 @@ async function completeSectorPayload(
   });
 }
 
+function blankStockRow(stock: { ticker: string; name: string }): SectorStockRow {
+  return {
+    ticker: stock.ticker,
+    name: stock.name,
+    lastPrice: null,
+    changes: emptyPeriodChanges(),
+    vsSector: emptyPeriodChanges(),
+    vsNifty: emptyPeriodChanges(),
+  };
+}
+
+function stockRowFromSnapshot(
+  stock: { ticker: string; name: string },
+  snapshot: SymbolReturnSnapshot,
+  sectorChanges: PeriodChanges,
+  niftyChanges: PeriodChanges
+): SectorStockRow {
+  return {
+    ticker: stock.ticker,
+    name: stock.name,
+    lastPrice: snapshot.lastPrice,
+    changes: snapshot.changes,
+    vsSector: subtractPeriodChanges(snapshot.changes, sectorChanges),
+    vsNifty: subtractPeriodChanges(snapshot.changes, niftyChanges),
+  };
+}
+
 async function fetchSectorStocks(
   sectorId: string,
-  fresh: boolean
+  fresh: boolean,
+  listener?: SectorStocksListener
 ): Promise<SectorStocksPayload | null> {
   const sector = getIndianSector(sectorId);
   if (!sector || sector.isBenchmark) return null;
 
   const sessionDate = getNseScreenerSessionDate();
-  const [sectorSnap, niftySnap, stockSnaps] = await Promise.all([
-    loadSnapshot(sector.yahooSymbol, fresh),
-    loadSnapshot(getBenchmarkSector().yahooSymbol, fresh),
-    mapWithConcurrency(sector.stocks, YAHOO_FETCH_CONCURRENCY, async (stock) => {
-      const snapshot = await loadSnapshot(
-        yahooSymbolForNseTicker(stock.ticker),
-        fresh
-      );
-      return { stock, snapshot };
-    }),
+  const total = sector.stocks.length;
+  listener?.onMeta?.({
+    sector: {
+      id: sector.id,
+      label: sector.label,
+      symbol: sector.yahooSymbol,
+      isBenchmark: false,
+      lastPrice: null,
+      changes: emptyPeriodChanges(),
+    },
+    stocks: sector.stocks.map(blankStockRow),
+    asOf: new Date().toISOString(),
+    sessionDate,
+  });
+
+  const headerReady = Promise.all([
+    loadYahooReturnsSnapshot(sector.yahooSymbol, fresh),
+    loadYahooReturnsSnapshot(getBenchmarkSector().yahooSymbol, fresh),
   ]);
 
-  const sectorChanges = hasSparsePeriodHistory(sectorSnap.changes)
-    ? mergeIndexAndBasketChanges(
+  let loaded = 0;
+  const stockSnaps = await mapWithConcurrency(
+    sector.stocks,
+    YAHOO_FETCH_CONCURRENCY,
+    async (stock) => {
+      const [snapshot, [sectorSnap, niftySnap]] = await Promise.all([
+        loadYahooReturnsSnapshot(yahooSymbolForNseTicker(stock.ticker), fresh),
+        headerReady,
+      ]);
+      loaded += 1;
+      const preliminary = stockRowFromSnapshot(
+        stock,
+        snapshot,
         sectorSnap.changes,
+        niftySnap.changes
+      );
+      listener?.onStock?.(preliminary, loaded, total);
+      return { stock, snapshot, sectorSnap, niftySnap };
+    }
+  );
+
+  const sectorSnap = stockSnaps[0]?.sectorSnap;
+  const niftySnap = stockSnaps[0]?.niftySnap;
+  const resolvedHeader =
+    sectorSnap && niftySnap
+      ? { sectorSnap, niftySnap }
+      : {
+          sectorSnap: (await headerReady)[0],
+          niftySnap: (await headerReady)[1],
+        };
+
+  const sectorChanges = hasSparsePeriodHistory(resolvedHeader.sectorSnap.changes)
+    ? mergeIndexAndBasketChanges(
+        resolvedHeader.sectorSnap.changes,
         averagePeriodChanges(stockSnaps.map(({ snapshot }) => snapshot.changes))
       )
-    : sectorSnap.changes;
+    : resolvedHeader.sectorSnap.changes;
 
   return {
     sector: {
@@ -354,18 +427,18 @@ async function fetchSectorStocks(
       label: sector.label,
       symbol: sector.yahooSymbol,
       isBenchmark: false,
-      lastPrice: sectorSnap.lastPrice,
+      lastPrice: resolvedHeader.sectorSnap.lastPrice,
       changes: sectorChanges,
     },
     stocks: dedupeRowsByTicker(
-      stockSnaps.map(({ stock, snapshot }) => ({
-        ticker: stock.ticker,
-        name: stock.name,
-        lastPrice: snapshot.lastPrice,
-        changes: snapshot.changes,
-        vsSector: subtractPeriodChanges(snapshot.changes, sectorChanges),
-        vsNifty: subtractPeriodChanges(snapshot.changes, niftySnap.changes),
-      }))
+      stockSnaps.map(({ stock, snapshot }) =>
+        stockRowFromSnapshot(
+          stock,
+          snapshot,
+          sectorChanges,
+          resolvedHeader.niftySnap.changes
+        )
+      )
     ),
     asOf: new Date().toISOString(),
     sessionDate,
@@ -445,23 +518,41 @@ export async function loadSectorRows(
   return payload;
 }
 
+export function readCachedSectorStocks(
+  sectorId: string
+): SectorStocksPayload | null {
+  const sector = getIndianSector(sectorId);
+  if (!sector || sector.isBenchmark) return null;
+  const cached = getScreenerCache<SectorStocksPayload>(
+    `sector-stocks:v8:${sectorId}`
+  );
+  if (!cached) return null;
+  if (sector.stocks.length > 0 && cached.stocks.length === 0) return null;
+  return cached;
+}
+
 export async function loadSectorStocks(
   sectorId: string,
-  fresh = false
+  fresh = false,
+  listener?: SectorStocksListener
 ): Promise<SectorStocksPayload | null> {
   const sector = getIndianSector(sectorId);
   if (!sector || sector.isBenchmark) return null;
 
   const marketOpen = isListingMarketOpen("IN_NSE");
   const shouldRefresh = fresh && !marketOpen;
-  const cacheKey = `sector-stocks:${sectorId}`;
+  const cacheKey = `sector-stocks:v8:${sectorId}`;
+
+  const catalogHasStocks = sector.stocks.length > 0;
+  const usable = (payload: SectorStocksPayload | null | undefined) =>
+    Boolean(payload) && !(catalogHasStocks && payload!.stocks.length === 0);
 
   if (!shouldRefresh) {
     const cached = getScreenerCache<SectorStocksPayload>(cacheKey);
-    if (cached) return cached;
+    if (usable(cached)) return cached!;
 
     const stored = await readScreenerSnapshot<SectorStocksPayload>(cacheKey);
-    if (stored) {
+    if (stored && usable(stored.payload)) {
       const payload = {
         ...stored.payload,
         sessionDate: stored.sessionDate,
@@ -472,7 +563,11 @@ export async function loadSectorStocks(
     }
   }
 
-  const payload = await fetchSectorStocks(sectorId, shouldRefresh || fresh);
+  const payload = await fetchSectorStocks(
+    sectorId,
+    shouldRefresh || fresh,
+    listener
+  );
   if (!payload) return null;
   await persistPayload(cacheKey, payload, marketOpen);
   return payload;
@@ -511,11 +606,11 @@ export async function refreshScreenerDailySnapshot(): Promise<{
     const pack = await fetchSectorStocks(sector.id, false);
     if (!pack) continue;
     const written = await writeScreenerSnapshot(
-      `sector-stocks:${sector.id}`,
+      `sector-stocks:v8:${sector.id}`,
       sessionDate,
       pack
     );
-    setScreenerCache(`sector-stocks:${sector.id}`, pack, SCREENER_EOD_CACHE_TTL_MS);
+    setScreenerCache(`sector-stocks:v8:${sector.id}`, pack, SCREENER_EOD_CACHE_TTL_MS);
     stockLists += 1;
     stockListsOk = stockListsOk && written;
   }

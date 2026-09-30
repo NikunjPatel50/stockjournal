@@ -8,7 +8,6 @@ import {
   BookOpen,
   CalendarDays,
   LayoutDashboard,
-  LineChart,
   MessageSquare,
   ScanSearch,
   Settings,
@@ -23,12 +22,6 @@ const tradingNav = [
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/screener", label: "Screener", icon: ScanSearch, adminOnly: true },
-  {
-    href: "/paper-trading",
-    label: "Paper Trading",
-    icon: LineChart,
-    adminOnly: true,
-  },
   { href: "/journal", label: "Journal", icon: BookOpen },
 ] as const;
 

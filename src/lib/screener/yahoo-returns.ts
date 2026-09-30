@@ -124,9 +124,34 @@ function mapBars(result: {
   return bars.sort((a, b) => a.ts - b.ts);
 }
 
+const YAHOO_FETCH_SLOTS = 16;
+let yahooFetchActive = 0;
+const yahooFetchWaiters: Array<() => void> = [];
+
+async function withYahooFetchSlot<T>(run: () => Promise<T>): Promise<T> {
+  if (yahooFetchActive >= YAHOO_FETCH_SLOTS) {
+    await new Promise<void>((resolve) => {
+      yahooFetchWaiters.push(() => {
+        yahooFetchActive += 1;
+        resolve();
+      });
+    });
+  } else {
+    yahooFetchActive += 1;
+  }
+
+  try {
+    return await run();
+  } finally {
+    yahooFetchActive -= 1;
+    const resume = yahooFetchWaiters.shift();
+    resume?.();
+  }
+}
+
 export async function fetchYahooReturnSnapshot(
   symbol: string,
-  options?: { fresh?: boolean }
+  options?: { fresh?: boolean; includeChart?: boolean }
 ): Promise<SymbolReturnSnapshot> {
   const empty: SymbolReturnSnapshot = {
     symbol,
@@ -143,7 +168,7 @@ export async function fetchYahooReturnSnapshot(
   url.searchParams.set("events", "div,split");
 
   try {
-    const res = await fetchWithTimeout(
+    const res = await withYahooFetchSlot(() => fetchWithTimeout(
       url.toString(),
       options?.fresh
         ? {
@@ -161,7 +186,7 @@ export async function fetchYahooReturnSnapshot(
             next: { revalidate: 30 * 60, tags: ["screener-yahoo"] },
           },
       FETCH_TIMEOUT_MS
-    );
+    ));
     if (!res.ok) return empty;
 
     const payload = (await res.json()) as {
@@ -213,15 +238,19 @@ export async function fetchYahooReturnSnapshot(
 
     if (lastPrice == null || lastPrice <= 0) return empty;
 
+    const last = Math.round(lastPrice * 100) / 100;
     return {
       symbol,
-      lastPrice: Math.round(lastPrice * 100) / 100,
+      lastPrice: last,
       changes: computeChanges(bars, lastPrice, previousClose),
-      chart: bars.map((bar) => ({
-        date: bar.date,
-        close: Math.round(bar.close * 100) / 100,
-        high: Math.round(bar.high * 100) / 100,
-      })),
+      chart:
+        options?.includeChart === false
+          ? []
+          : bars.map((bar) => ({
+              date: bar.date,
+              close: Math.round(bar.close * 100) / 100,
+              high: Math.round(bar.high * 100) / 100,
+            })),
     };
   } catch {
     return empty;

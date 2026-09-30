@@ -7,7 +7,6 @@ import {
   BookOpen,
   CalendarDays,
   LayoutDashboard,
-  LineChart,
   MessageSquare,
   MoreHorizontal,
   ScanSearch,
@@ -34,12 +33,6 @@ const moreLinks = [
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/screener", label: "Screener", icon: ScanSearch, adminOnly: true },
-  {
-    href: "/paper-trading",
-    label: "Paper Trading",
-    icon: LineChart,
-    adminOnly: true,
-  },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/feedback", label: "Feedback", icon: MessageSquare },
 ] as const;

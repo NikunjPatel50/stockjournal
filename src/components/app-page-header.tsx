@@ -46,8 +46,8 @@ export function AppPageHeader({
             ) : null}
             <h1
               className={cn(
-                "truncate font-semibold tracking-tight text-foreground",
-                eyebrow ? "mt-0.5 text-lg" : "text-lg"
+                "text-balance font-semibold tracking-tight text-foreground",
+                eyebrow ? "mt-0.5 text-lg leading-snug" : "text-lg leading-snug"
               )}
             >
               {title}

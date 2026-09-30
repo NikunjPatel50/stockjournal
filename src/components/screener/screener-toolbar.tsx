@@ -26,7 +26,7 @@ export function ScreenerToolbar({
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         placeholder={searchPlaceholder}
-        className="h-9 max-w-xs"
+        className="h-9 w-full sm:max-w-xs"
       />
       <div className="flex flex-wrap items-center gap-2">
         {extra}

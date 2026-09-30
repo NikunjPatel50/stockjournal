@@ -65,7 +65,7 @@ export function ScreenerPeriodTable({
           <TableHead
             className={cn(
               headClass,
-              "sticky left-0 z-10 min-w-[9rem] bg-muted/80 backdrop-blur-sm"
+              "sticky left-0 z-10 min-w-[7.5rem] bg-muted sm:min-w-[9rem]"
             )}
           >
             {stickyLabel}
@@ -90,7 +90,9 @@ export function ScreenerPeriodTable({
               onClick={() => onSort("strength")}
             />
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-[12rem]")}>Why</TableHead>
+          <TableHead className={cn(headClass, "hidden min-w-[12rem] md:table-cell")}>
+            Why
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -141,7 +143,7 @@ export function ScreenerPeriodTable({
             <TableCell className="px-2.5 py-2.5 text-right">
               <ScreenerStrength score={row.strength} />
             </TableCell>
-            <TableCell className="px-2.5 py-2.5">
+            <TableCell className="hidden px-2.5 py-2.5 md:table-cell">
               <ScreenerWhy why={row.why} />
             </TableCell>
           </TableRow>

@@ -47,12 +47,17 @@ export function ScreenerHeatmap({
 
   return (
     <div className="overflow-x-auto">
-      <div
-        className="grid min-w-[40rem] gap-px rounded-lg bg-border/60"
-        style={{
-          gridTemplateColumns: `minmax(7.5rem, 1.2fr) repeat(${SCREENER_PERIODS.length}, minmax(3.5rem, 1fr)) minmax(4.25rem, 0.85fr) minmax(10rem, 1.3fr)`,
-        }}
-      >
+      <style>{`
+        .screener-heat-grid {
+          grid-template-columns: minmax(6.5rem, 1.15fr) repeat(${SCREENER_PERIODS.length}, minmax(2.6rem, 1fr)) minmax(3.2rem, 0.7fr);
+        }
+        @media (min-width: 768px) {
+          .screener-heat-grid {
+            grid-template-columns: minmax(7.5rem, 1.2fr) repeat(${SCREENER_PERIODS.length}, minmax(3.5rem, 1fr)) minmax(4.25rem, 0.85fr) minmax(10rem, 1.3fr);
+          }
+        }
+      `}</style>
+      <div className="screener-heat-grid grid min-w-[34rem] gap-px rounded-lg bg-border/60 md:min-w-[52rem]">
         <div className="bg-muted/40 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Name
         </div>
@@ -94,7 +99,7 @@ export function ScreenerHeatmap({
             )
           ) : null}
         </button>
-        <div className="bg-muted/40 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <div className="hidden bg-muted/40 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground md:block">
           Why
         </div>
         {rows.map((row, index) => (
@@ -161,7 +166,7 @@ function HeatmapRow({
       >
         <ScreenerStrength score={row.strength} compact />
       </div>
-      <div className="flex items-center bg-card px-2 py-2">
+      <div className="hidden items-center bg-card px-2 py-2 md:flex">
         <ScreenerWhy why={row.why} />
       </div>
     </>

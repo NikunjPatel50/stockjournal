@@ -88,7 +88,7 @@ export const MarketSessionTimer = memo(function MarketSessionTimer({
 
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums"
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground tabular-nums"
       title={isOpen ? "Regular session close countdown" : "Next session open countdown"}
     >
       <span

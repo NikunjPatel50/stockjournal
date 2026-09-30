@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -13,10 +13,25 @@ import { cn } from "@/lib/utils";
 export function LandingNavbar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const headerRef = useRef<HTMLElement>(null);
+  const [spacerHeight, setSpacerHeight] = useState(56);
+
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const sync = () => setSpacerHeight(header.offsetHeight);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [open]);
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-border/80 bg-background/95 text-foreground backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <header
+        ref={headerRef}
+        className="fixed inset-x-0 top-0 z-50 border-b border-border/80 bg-background/95 text-foreground backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      >
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
           <Link href="/" className="inline-flex shrink-0 items-center">
             <BrandLogo
@@ -84,7 +99,7 @@ export function LandingNavbar() {
 
         <div
           className={cn(
-            "border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden",
+            "border-t border-border bg-background lg:hidden",
             open ? "block" : "hidden"
           )}
         >
@@ -124,7 +139,7 @@ export function LandingNavbar() {
           </div>
         </div>
       </header>
-      <div aria-hidden className="h-14 shrink-0 sm:h-16" />
+      <div aria-hidden className="shrink-0" style={{ height: spacerHeight }} />
     </>
   );
 }

@@ -720,8 +720,6 @@ const RowColorLegend = memo(function RowColorLegend({
       labelShort: "Profit",
       count: counts.profit,
       accent: "bg-emerald-500",
-      chip:
-        "border-emerald-500/15 bg-emerald-500/[0.06] dark:border-emerald-500/25 dark:bg-emerald-500/10",
       countClass: "text-emerald-700 dark:text-emerald-400",
     },
     {
@@ -730,7 +728,6 @@ const RowColorLegend = memo(function RowColorLegend({
       labelShort: "Loss",
       count: counts.loss,
       accent: "bg-rose-500",
-      chip: "border-rose-500/15 bg-rose-500/[0.06] dark:border-rose-500/25 dark:bg-rose-500/10",
       countClass: "text-rose-700 dark:text-rose-400",
     },
     {
@@ -739,27 +736,26 @@ const RowColorLegend = memo(function RowColorLegend({
       labelShort: "SL > entry",
       count: counts.stopAboveEntry,
       accent: "bg-sky-600 dark:bg-sky-400",
-      chip: "border-sky-500/15 bg-sky-500/[0.08] dark:border-sky-400/25 dark:bg-sky-500/10",
       countClass: "text-sky-700 dark:text-sky-400",
     },
   ] as const;
 
   return (
     <div
-      className="inline-flex w-max max-w-full flex-nowrap items-center gap-0.5 rounded-lg border border-border/70 bg-muted/20 p-0.5 ring-1 ring-foreground/[0.03] dark:ring-white/[0.04] sm:gap-1"
+      className="flex flex-wrap items-center gap-1.5"
       role="list"
       aria-label="Row color legend"
     >
       {items.map((item) => (
-        <div
+        <button
           key={item.key}
+          type="button"
           role="listitem"
           className={cn(
-            "inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 whitespace-nowrap transition-[box-shadow,transform] duration-150 sm:gap-1.5 sm:px-2 sm:py-1",
-            item.chip,
-            item.count > 0 && "cursor-pointer hover:brightness-110",
+            "inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/60 py-1 pl-2 pr-2.5 text-xs transition-colors",
+            item.count > 0 ? "cursor-pointer hover:bg-muted/50" : "opacity-60",
             highlightedCategory === item.key &&
-              "z-10 shadow-sm ring-1 ring-foreground/15 dark:ring-white/20"
+              "border-foreground/20 bg-muted/70 ring-1 ring-foreground/10"
           )}
           onMouseEnter={() => {
             if (item.count > 0) onCategoryHover(item.key);
@@ -769,27 +765,27 @@ const RowColorLegend = memo(function RowColorLegend({
             if (item.count > 0) onCategoryHover(item.key);
           }}
           onBlur={() => onCategoryHover(null)}
-          tabIndex={item.count > 0 ? 0 : undefined}
+          disabled={item.count === 0}
           aria-label={`${item.label}: ${item.count}`}
         >
           <span
-            className={cn("h-3.5 w-1 shrink-0 rounded-full", item.accent)}
+            className={cn("size-1.5 shrink-0 rounded-full", item.accent)}
             aria-hidden
           />
-          <span className="hidden text-xs font-medium text-muted-foreground min-[480px]:inline">
+          <span className="font-medium text-muted-foreground">
             <span className="sm:hidden">{item.labelShort}</span>
             <span className="hidden sm:inline">{item.label}</span>
           </span>
           <span
             className={cn(
-              "min-w-[1.125rem] text-center text-xs font-semibold tabular-nums",
+              "font-semibold tabular-nums",
               NUMERIC_CLASS,
               item.countClass
             )}
           >
             {item.count}
           </span>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -1742,52 +1738,60 @@ const JournalTableHeader = memo(function JournalTableHeader({
     [trades]
   );
 
+  const legend =
+    totalRows > 0 ? (
+      enableLiveQuotes ? (
+        <LiveRowColorLegend
+          trades={trades}
+          displayCurrency={displayCurrency}
+          highlightedCategory={highlightedRowCategory}
+          onCategoryHover={onCategoryHover}
+        />
+      ) : staticRowLegendCounts ? (
+        <RowColorLegend
+          counts={staticRowLegendCounts}
+          highlightedCategory={highlightedRowCategory}
+          onCategoryHover={onCategoryHover}
+        />
+      ) : null
+    ) : null;
+
   return (
-    <header className="flex flex-col gap-3 border-b border-border/70 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5">
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
-          <h2 className="shrink-0 text-sm font-semibold tracking-tight text-foreground sm:text-base">
+    <header className="flex flex-col gap-3 border-b border-border/70 px-4 py-3.5 sm:px-5">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+          <h2 className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
             {title}
           </h2>
           {totalRows > 0 ? (
-            <span className="shrink-0 rounded-md border border-border/60 bg-background/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            <span className="text-xs tabular-nums text-muted-foreground">
               {totalRows} {totalRows === 1 ? "trade" : "trades"}
             </span>
           ) : null}
           {quotesDelayed && quotesSessionOpen && !quotesError && totalRows > 0 ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
               <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
-              EODHD delayed
+              Delayed
             </span>
           ) : null}
           {!quotesError && hasActiveTrades && enableLiveQuotes ? (
-            <MarketSessionTimer trades={trades} currency={displayCurrency} />
-          ) : null}
-          {totalRows > 0 ? (
-            <div className="min-w-0 max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {enableLiveQuotes ? (
-                <LiveRowColorLegend
-                  trades={trades}
-                  displayCurrency={displayCurrency}
-                  highlightedCategory={highlightedRowCategory}
-                  onCategoryHover={onCategoryHover}
-                />
-              ) : staticRowLegendCounts ? (
-                <RowColorLegend
-                  counts={staticRowLegendCounts}
-                  highlightedCategory={highlightedRowCategory}
-                  onCategoryHover={onCategoryHover}
-                />
-              ) : null}
-            </div>
+            <>
+              <span className="text-border/70" aria-hidden>
+                ·
+              </span>
+              <MarketSessionTimer trades={trades} currency={displayCurrency} />
+            </>
           ) : null}
         </div>
-        {quotesError ? (
-          <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {legend}
+          {showColumnsMenu && !isCompact ? (
+            <JournalColumnsMenu prefs={columnPrefs} onChange={onColumnPrefsChange} />
+          ) : null}
+        </div>
       </div>
-      {showColumnsMenu && !isCompact ? (
-        <JournalColumnsMenu prefs={columnPrefs} onChange={onColumnPrefsChange} />
+      {quotesError ? (
+        <p className="text-xs text-amber-700 dark:text-amber-400">{quotesError}</p>
       ) : null}
     </header>
   );

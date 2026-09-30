@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin";
 import { screenerJson, screenerNdjsonStream } from "@/lib/screener/http";
 import { loadSectorRows } from "@/lib/screener/load-screener";
-import { warmStrategyCaches } from "@/lib/screener/load-strategy-scans";
 import { getCurrentUser } from "@/lib/supabase/server";
 
 export const maxDuration = 120;
@@ -19,13 +18,10 @@ export async function GET(request: Request) {
 
   if (stream && fresh) {
     return screenerNdjsonStream(async (onProgress) => {
-      const payload = await loadSectorRows(true, onProgress);
-      warmStrategyCaches();
-      return payload;
+      return loadSectorRows(true, onProgress);
     });
   }
 
   const payload = await loadSectorRows(fresh);
-  warmStrategyCaches();
   return screenerJson(payload);
 }

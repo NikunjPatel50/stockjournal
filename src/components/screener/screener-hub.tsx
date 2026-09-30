@@ -50,17 +50,19 @@ export function ScreenerHub({
             router.replace(screenerTabHref(value), { scroll: false });
           }}
         >
-          <TabsList className="h-9">
-            <TabsTrigger value="sectors" className="px-3 text-xs">
-              Sectors
-            </TabsTrigger>
-            <TabsTrigger value="ema" className="px-3 text-xs">
-              EMA support
-            </TabsTrigger>
-            <TabsTrigger value="turtle" className="px-3 text-xs">
-              Turtle breakout
-            </TabsTrigger>
-          </TabsList>
+          <div className="max-w-full overflow-x-auto">
+            <TabsList className="h-9 w-max">
+              <TabsTrigger value="sectors" className="px-3 text-xs">
+                Sectors
+              </TabsTrigger>
+              <TabsTrigger value="ema" className="px-3 text-xs">
+                EMA support
+              </TabsTrigger>
+              <TabsTrigger value="turtle" className="px-3 text-xs">
+                Turtle breakout
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </Tabs>
 
         <div className={cn(tab === "sectors" ? undefined : "hidden")}>

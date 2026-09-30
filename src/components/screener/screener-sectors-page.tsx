@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppPageHeader } from "@/components/app-page-header";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
@@ -8,7 +8,6 @@ import { ScreenerHeatmap } from "@/components/screener/screener-heatmap";
 import { ScreenerPeriodTable } from "@/components/screener/screener-period-table";
 import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { ScreenerToolbar } from "@/components/screener/screener-toolbar";
-import { prefetchScreenerJson } from "@/hooks/use-screener-json";
 import { useScreenerSectors } from "@/hooks/use-screener-sectors";
 import { APP_PAGE_SHELL_CLASS } from "@/lib/app-shell";
 import { formatScreenerStamp } from "@/lib/screener/format";
@@ -21,7 +20,7 @@ import {
   computeScreenerStrength,
   relativePeriodChanges,
 } from "@/lib/screener/strength";
-import { tradingViewSymbolForSectorId } from "@/lib/screener/indian-sectors";
+import { tradingViewSymbolFromYahoo } from "@/lib/tradingview";
 
 export function ScreenerSectorsPage({
   embedded = false,
@@ -33,15 +32,6 @@ export function ScreenerSectorsPage({
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"table" | "heatmap">("table");
   const [sort, setSort] = useState(defaultScreenerSort("1w"));
-
-  useEffect(() => {
-    if (!embedded || !data) return;
-    const id = window.setTimeout(() => {
-      void prefetchScreenerJson("/api/screener/ema-setups?v=ema200-5");
-      void prefetchScreenerJson("/api/screener/turtle-breakouts?v=tech");
-    }, 400);
-    return () => window.clearTimeout(id);
-  }, [data, embedded]);
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -112,11 +102,26 @@ export function ScreenerSectorsPage({
         {error ? (
           <PanelEmpty title="Could not load sectors" hint={error} />
         ) : loading && !data ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="min-h-[14rem] animate-pulse rounded-xl bg-muted/40" />
-            <p className="text-center text-xs text-muted-foreground">
-              Fetching {progress ?? 0}% of 53 NSE sector indices…
-            </p>
+            <div className="mx-auto max-w-sm space-y-2">
+              <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                <span>Fetching 53 NSE sector indices…</span>
+                <span className="tabular-nums text-foreground">{progress ?? 0}%</span>
+              </div>
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuenow={progress ?? 0}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
+                  style={{ width: `${Math.min(100, Math.max(0, progress ?? 0))}%` }}
+                />
+              </div>
+            </div>
           </div>
         ) : rows.length === 0 ? (
           <PanelEmpty
@@ -127,7 +132,7 @@ export function ScreenerSectorsPage({
           <ScreenerHeatmap
             rows={rows.map((row) => ({
               ...row,
-              chartSymbol: tradingViewSymbolForSectorId(row.id),
+              chartSymbol: tradingViewSymbolFromYahoo(row.symbol),
             }))}
             sort={sort}
             onSort={(key) => setSort((current) => toggleScreenerSort(current, key))}
@@ -148,7 +153,7 @@ export function ScreenerSectorsPage({
               changes: row.changes,
               strength: row.strength,
               why: row.why,
-              chartSymbol: tradingViewSymbolForSectorId(row.id),
+              chartSymbol: tradingViewSymbolFromYahoo(row.symbol),
             }))}
             sort={sort}
             onSort={(key) => setSort((current) => toggleScreenerSort(current, key))}

@@ -38,6 +38,39 @@ function persistTtlMs() {
     : SCREENER_EOD_CACHE_TTL_MS;
 }
 
+export async function loadYahooReturnsSnapshot(
+  symbol: string,
+  fresh = false
+): Promise<SymbolReturnSnapshot> {
+  const fullKey = `yahoo:${symbol}`;
+  const cacheKey = `yahoo-returns:${symbol}`;
+  if (!fresh) {
+    const full = getScreenerCache<SymbolReturnSnapshot>(fullKey);
+    if (full) return full;
+    const cached = getScreenerCache<SymbolReturnSnapshot>(cacheKey);
+    if (cached) return cached;
+
+    const pending = inflight.get(cacheKey);
+    if (pending) return pending;
+  }
+
+  const request = (async () => {
+    const snapshot = await fetchYahooReturnSnapshot(symbol, {
+      fresh,
+      includeChart: false,
+    });
+    setScreenerCache(cacheKey, snapshot, persistTtlMs());
+    return snapshot;
+  })();
+
+  inflight.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    if (inflight.get(cacheKey) === request) inflight.delete(cacheKey);
+  }
+}
+
 export async function loadYahooSnapshot(
   symbol: string,
   fresh = false
