@@ -165,7 +165,7 @@ export function JournalHeader({
           </ToolbarSection>
 
           <ToolbarSection label="Period" className="min-w-0">
-            <div className="min-w-0 overflow-x-auto overscroll-x-contain">
+            <div className="min-w-0">
               <TimeframeSegmentedControl
                 value={filters.timeframe}
                 onChange={(timeframe: AnalyticsTimeframe) =>
@@ -173,7 +173,6 @@ export function JournalHeader({
                 }
                 trailing={datePicker}
                 compact
-                className="min-w-max"
               />
             </div>
 

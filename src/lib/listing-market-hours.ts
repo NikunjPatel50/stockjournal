@@ -1,6 +1,7 @@
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import { normalizeQuoteAssetClass } from "@/lib/eodhd";
 import type { AssetClass } from "@/lib/journal-types";
+import { isIndiaMarketHoliday } from "@/lib/india-market-calendar";
 import {
   addCalendarDaysYmd,
   dateAtMinutesInTimeZone,
@@ -15,6 +16,7 @@ type SessionConfig = {
   openMinutes: number;
   closeMinutes: number;
   usHolidays?: boolean;
+  indiaHolidays?: boolean;
 };
 
 /** Regular cash session hours per listing market (local exchange time). */
@@ -31,11 +33,13 @@ const LISTING_MARKET_SESSIONS: Partial<
     timeZone: "Asia/Kolkata",
     openMinutes: 9 * 60 + 15,
     closeMinutes: 15 * 60 + 30,
+    indiaHolidays: true,
   },
   IN_BSE: {
     timeZone: "Asia/Kolkata",
     openMinutes: 9 * 60 + 15,
     closeMinutes: 15 * 60 + 30,
+    indiaHolidays: true,
   },
   UK: {
     timeZone: "Europe/London",
@@ -305,7 +309,22 @@ function isListingMarketTradingDay(
   const dow = weekdayInTimeZone(midday, cfg.timeZone);
   if (dow === 0 || dow === 6) return false;
   if (cfg.usHolidays && isUsMarketHoliday(ymd)) return false;
+  if (cfg.indiaHolidays && isIndiaMarketHoliday(ymd)) return false;
   return true;
+}
+
+/** Whether the exchange has a regular cash session on `ymd` (local market calendar). */
+export function isListingMarketTradingSessionYmd(
+  listingMarket: ListingMarketId,
+  ymd: string
+): boolean {
+  const cfg = LISTING_MARKET_SESSIONS[listingMarket];
+  if (!cfg) {
+    const midday = new Date(`${ymd}T12:00:00Z`);
+    const dow = midday.getUTCDay();
+    return dow !== 0 && dow !== 6;
+  }
+  return isListingMarketTradingDay(cfg, ymd);
 }
 
 /** Weekend or exchange holiday for the listing market's local calendar today. */

@@ -61,6 +61,14 @@ const WeekdayWinLossCard = dynamic(
   { loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40" /> }
 );
 
+const AiPerformanceRatingCard = dynamic(
+  () =>
+    import("@/components/analytics-hub/ai-performance-rating-card").then(
+      (mod) => ({ default: mod.AiPerformanceRatingCard })
+    ),
+  { loading: () => <div className="min-h-[20rem] animate-pulse rounded-xl bg-muted/40" /> }
+);
+
 export default function AnalyticsPage() {
   const { trades, currency } = useRegionTrades();
   const capitalBase = useMemo(() => computeCapitalBase(trades), [trades]);
@@ -119,6 +127,13 @@ export default function AnalyticsPage() {
         capitalBase={capitalBase}
         tradeCount={filtered.length}
       />
+
+      <LazySection minHeight="20rem">
+        <AiPerformanceRatingCard
+          trades={filtered}
+          capitalBase={capitalBase}
+        />
+      </LazySection>
 
       {filtered.length === 0 ? (
         <>

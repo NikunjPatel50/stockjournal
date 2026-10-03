@@ -2,7 +2,7 @@
 
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import {
   formatIndexPriceCompact,
@@ -18,7 +18,7 @@ import {
   timeZoneForListingMarket,
   type MarketSessionCountdown,
 } from "@/lib/listing-market-hours";
-import { cn } from "@/lib/utils";
+import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
 import { Button } from "@/components/ui/button";
 import { Maximize2 } from "lucide-react";
@@ -122,8 +122,8 @@ function MarketStatusDot({ open }: { open: boolean }) {
   return (
     <span
       className={cn(
-        "mt-1 size-1.5 shrink-0 rounded-full",
-        open ? "bg-emerald-500" : "bg-rose-500"
+        "size-1.5 shrink-0 rounded-full",
+        open ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.45)]" : "bg-muted-foreground/35"
       )}
       aria-hidden
     />
@@ -224,7 +224,13 @@ function OhlcCard({
   );
 }
 
-export function MarketIndicesPanel() {
+export function MarketIndicesPanel({
+  className,
+  scrollable = false,
+}: {
+  className?: string;
+  scrollable?: boolean;
+}) {
   const isCompact = useIsCompactApp();
   const pollEnabled = !isCompact;
   const { quotes, loading, error, fetchedAt } = useMarketIndices(pollEnabled);
@@ -239,6 +245,14 @@ export function MarketIndicesPanel() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const openMarketCount = useMemo(
+    () =>
+      MAJOR_MARKET_INDICES.filter((index) =>
+        isListingMarketOpen(index.listingMarket, now)
+      ).length,
+    [now]
+  );
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -285,16 +299,24 @@ export function MarketIndicesPanel() {
 
   return (
     <>
-      <div className="shrink-0 rounded-xl border border-border/80 bg-card p-3 shadow-sm ring-1 ring-border/40">
-        <div className="mb-3.5 flex items-center justify-between gap-1 px-1.5">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
+      <section className={cn("flex min-h-0 flex-col", className)}>
+        <div className="flex items-center gap-2 border-b border-border/70 bg-muted/20 px-2.5 py-2">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/85">
             Markets
-          </p>
+          </span>
+          <span
+            className={cn(
+              "ml-auto shrink-0 rounded-md border border-border/60 bg-background/50 px-1.5 py-0.5 text-[9px] font-medium tabular-nums text-muted-foreground",
+              NUMERIC_DISPLAY_CLASS
+            )}
+          >
+            {openMarketCount} open
+          </span>
           <Button
             type="button"
             variant="ghost"
             size="icon-xs"
-            className="size-5 shrink-0 text-muted-foreground hover:text-foreground"
+            className="size-7 shrink-0 rounded-md text-muted-foreground hover:bg-background/60 hover:text-foreground"
             aria-label="Expand markets table"
             title="View detailed markets table"
             onClick={(event) => {
@@ -306,95 +328,138 @@ export function MarketIndicesPanel() {
               setDetailOpen(true);
             }}
           >
-            <Maximize2 className="size-3" />
+            <Maximize2 className="size-3.5" />
           </Button>
         </div>
 
         {error ? (
-          <p className="px-1.5 text-[10px] text-muted-foreground">{error}</p>
+          <p className="px-2.5 py-2 text-[11px] text-muted-foreground">{error}</p>
         ) : (
-          <ul className="space-y-3.5 max-lg:max-h-[min(40vh,22rem)] max-lg:overflow-y-auto max-lg:pr-0.5">
-            {MAJOR_MARKET_INDICES.map((index) => {
-              const quote = quotes[index.id];
-              const pending = loading && !quote;
-              const regionCode = REGION_CODES[index.region] ?? index.region;
-              const marketOpen = isListingMarketOpen(index.listingMarket, now);
-              const isActive =
-                ohlcAnchor?.id === index.id || pinnedId === index.id;
-              const showInlineOhlc =
-                isCompact && pinnedId === index.id && quote?.ohlc;
+          <div className="relative min-h-0 flex flex-col">
+            <div
+              className={cn(
+                "sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2 border-b border-border/50 bg-card/80 px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70 backdrop-blur-sm",
+                NUMERIC_DISPLAY_CLASS
+              )}
+            >
+              <span>Index</span>
+              <span className="text-right">Last</span>
+              <span className="w-[3.25rem] text-right">Chg</span>
+            </div>
 
-              return (
-                <li
-                  key={index.id}
-                  className={cn(
-                    "rounded-md px-1.5 py-1.5",
-                    isActive && "bg-sidebar-accent/50"
-                  )}
-                  onMouseEnter={(event) => {
-                    if (!isCompact) openOhlc(index.id, event.currentTarget);
-                  }}
-                  onMouseLeave={scheduleHide}
-                  onClick={(event) => {
-                    if (isCompact) openOhlc(index.id, event.currentTarget);
-                  }}
-                >
-                  <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2">
-                    <MarketStatusDot open={marketOpen} />
+            <ul
+              className={cn(
+                "min-h-0 space-y-px px-1.5 py-1",
+                scrollable
+                  ? "max-h-[min(38vh,15.5rem)] overflow-y-auto overscroll-contain"
+                  : "max-lg:max-h-[min(40vh,22rem)] max-lg:overflow-y-auto",
 
-                    <div className="min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="min-w-0 truncate text-[10px] leading-tight text-foreground">
-                          <span className="font-medium">{index.label}</span>
+              )}
+            >
+              {MAJOR_MARKET_INDICES.map((index) => {
+                const quote = quotes[index.id];
+                const pending = loading && !quote;
+                const regionCode = REGION_CODES[index.region] ?? index.region;
+                const marketOpen = isListingMarketOpen(index.listingMarket, now);
+                const isActive =
+                  ohlcAnchor?.id === index.id || pinnedId === index.id;
+                const showInlineOhlc =
+                  isCompact && pinnedId === index.id && quote?.ohlc;
+
+                return (
+                  <li
+                    key={index.id}
+                    className={cn(
+                      "rounded-md px-1.5 py-1.5 transition-colors",
+                      isActive
+                        ? "bg-primary/5 ring-1 ring-inset ring-primary/20"
+                        : "even:bg-muted/15 hover:bg-muted/35"
+                    )}
+                    onMouseEnter={(event) => {
+                      if (!isCompact) openOhlc(index.id, event.currentTarget);
+                    }}
+                    onMouseLeave={scheduleHide}
+                    onClick={(event) => {
+                      if (isCompact) openOhlc(index.id, event.currentTarget);
+                    }}
+                  >
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <MarketStatusDot open={marketOpen} />
+                        <span className="min-w-0 truncate text-[11px] leading-none">
+                          <span className="font-medium text-foreground">
+                            {index.label}
+                          </span>
                           <span className="text-muted-foreground">
                             {" "}
                             · {regionCode}
                           </span>
                         </span>
-
-                        <span className="flex shrink-0 flex-col items-end gap-0.5 text-[10px] leading-tight tabular-nums sm:flex-row sm:items-baseline sm:gap-1">
-                          {pending ? (
-                            <span className="inline-block h-3 w-12 animate-pulse rounded bg-muted" />
-                          ) : quote ? (
-                            <>
-                              <AnimatedNumber
-                                value={quote.price}
-                                format={(amount) =>
-                                  formatIndexPriceCompact(amount, quote.currency)
-                                }
-                                roll={false}
-                                className={cn(
-                                  "font-semibold",
-                                  marketOpen
-                                    ? "text-foreground"
-                                    : "text-muted-foreground"
-                                )}
-                              />
-                              <ChangeText value={quote.changePercent} />
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </span>
                       </div>
 
-                      {showInlineOhlc ? (
-                        <div className="mt-2">
-                          <OhlcCard
-                            label={`${index.label} · ${index.region}`}
-                            listingMarket={index.listingMarket}
-                            ohlc={quote.ohlc!}
+                      <div className="text-right">
+                        {pending ? (
+                          <span className="inline-block h-3 w-14 animate-pulse rounded bg-muted" />
+                        ) : quote ? (
+                          <AnimatedNumber
+                            value={quote.price}
+                            format={(amount) =>
+                              formatIndexPriceCompact(amount, quote.currency)
+                            }
+                            roll={false}
+                            className={cn(
+                              "text-[11px] font-semibold tabular-nums",
+                              NUMERIC_DISPLAY_CLASS,
+                              marketOpen
+                                ? "text-foreground"
+                                : "text-muted-foreground"
+                            )}
                           />
-                        </div>
-                      ) : null}
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground">
+                            —
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        className={cn(
+                          "w-[3.25rem] text-right text-[11px]",
+                          NUMERIC_DISPLAY_CLASS
+                        )}
+                      >
+                        {pending ? (
+                          <span className="inline-block h-3 w-10 animate-pulse rounded bg-muted" />
+                        ) : quote ? (
+                          <ChangeText value={quote.changePercent} />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+
+                    {showInlineOhlc ? (
+                      <div className="mt-2">
+                        <OhlcCard
+                          label={`${index.label} · ${index.region}`}
+                          listingMarket={index.listingMarket}
+                          ohlc={quote.ohlc!}
+                        />
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            {scrollable ? (
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-card/90 to-transparent"
+                aria-hidden
+              />
+            ) : null}
+          </div>
         )}
-      </div>
+      </section>
 
       {mounted &&
         !isCompact &&

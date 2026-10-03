@@ -14,6 +14,8 @@ import {
   subDays,
   subMonths,
 } from "date-fns";
+import type { ListingMarketId } from "@/lib/equity-listing-markets";
+import { isListingMarketTradingSessionYmd } from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
 import type { JournalTrade } from "@/lib/journal-types";
@@ -245,18 +247,41 @@ function isWeekendYmd(ymd: string): boolean {
  * Weekdays outside that span (before the first position, or today before
  * close) stay on the axis so the timeframe still reads correctly.
  */
-function makeNonTradingDayTest(daily: DailyPnlPoint[]) {
+function isChartTradingSessionYmd(
+  ymd: string,
+  listingMarket?: ListingMarketId
+): boolean {
+  if (listingMarket) {
+    return isListingMarketTradingSessionYmd(listingMarket, ymd);
+  }
+  return !isWeekendYmd(ymd);
+}
+
+function makeNonTradingDayTest(
+  daily: DailyPnlPoint[],
+  listingMarket?: ListingMarketId
+) {
   const sessionDates = daily.map((point) => point.date).sort();
   const firstSession = sessionDates[0];
   const lastSession = sessionDates[sessionDates.length - 1];
   const sessionSet = new Set(sessionDates);
 
   return (ymd: string): boolean => {
-    if (isWeekendYmd(ymd)) return true;
+    if (!isChartTradingSessionYmd(ymd, listingMarket)) return true;
     if (sessionSet.has(ymd)) return false;
     if (!firstSession || !lastSession) return false;
     return ymd > firstSession && ymd < lastSession;
   };
+}
+
+/** Drop weekends and exchange holidays from daily P&L rows used in charts. */
+export function filterDailyPnlTradingSessions(
+  daily: DailyPnlPoint[],
+  listingMarket?: ListingMarketId
+): DailyPnlPoint[] {
+  return daily.filter((point) =>
+    isChartTradingSessionYmd(point.date, listingMarket)
+  );
 }
 
 /**
@@ -267,9 +292,13 @@ function makeNonTradingDayTest(daily: DailyPnlPoint[]) {
 export function buildDailyPnlChartSeries(
   daily: DailyPnlPoint[],
   filters: AnalyticsFilters,
-  now = new Date()
+  now = new Date(),
+  listingMarket?: ListingMarketId
 ): DailyPnlChartPoint[] {
-  const sessions = filterDailyPnlByTimeframe(daily, filters, now);
+  const sessions = filterDailyPnlTradingSessions(
+    filterDailyPnlByTimeframe(daily, filters, now),
+    listingMarket
+  );
   const byDate = new Map(sessions.map((point) => [point.date, point]));
 
   if (
@@ -290,7 +319,7 @@ export function buildDailyPnlChartSeries(
     }));
   }
 
-  const isNonTradingDay = makeNonTradingDayTest(daily);
+  const isNonTradingDay = makeNonTradingDayTest(daily, listingMarket);
 
   let days = eachDayOfInterval({
     start: startOfDay(from),

@@ -43,6 +43,7 @@ import {
   buildDailyPnlChartSeries,
   emptyAnalyticsFilters,
   filterDailyPnlByTimeframe,
+  filterDailyPnlTradingSessions,
   formatChartAxisMoney,
   formatMoney,
   type AnalyticsFilters,
@@ -54,6 +55,7 @@ import {
   readActivePositionPnlCache,
 } from "@/lib/active-position-pnl-cache";
 import { defaultListingMarketForCurrency } from "@/lib/equity-listing-markets";
+import { isTransientFetchError } from "@/lib/transient-fetch-error";
 import {
   isExchangeSessionClosedForDate,
   sessionCloseDescription,
@@ -130,6 +132,7 @@ export const PnlChartCard = memo(function PnlChartCard({
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const hasCachedDailyRef = useRef(false);
+  const transientRetriesRef = useRef(0);
   const isMobile = useIsMobile();
 
   const activePool = useMemo(
@@ -210,9 +213,19 @@ export const PnlChartCard = memo(function PnlChartCard({
         setDaily(payload.daily);
         setPriorSessionBarByTradeId(payload.priorSessionBarByTradeId);
         hasCachedDailyRef.current = payload.daily.length > 0;
+        transientRetriesRef.current = 0;
       } catch (err) {
         if (signal?.aborted) return;
         if (err instanceof Error && err.name === "AbortError") return;
+        if (isTransientFetchError(err)) {
+          if (transientRetriesRef.current < 3) {
+            transientRetriesRef.current += 1;
+            window.setTimeout(() => {
+              if (!signal?.aborted) void fetchDailyPnl(signal);
+            }, 1500);
+          }
+          return;
+        }
         if (!hasCachedDailyRef.current) {
           setError(
             err instanceof Error ? err.message : "Could not load active position P&L"
@@ -340,13 +353,23 @@ export const PnlChartCard = memo(function PnlChartCard({
   );
 
   const filteredDaily = useMemo(
-    () => filterDailyPnlByTimeframe(frozenDaily, filters, now),
-    [frozenDaily, filters, now]
+    () =>
+      filterDailyPnlTradingSessions(
+        filterDailyPnlByTimeframe(frozenDaily, filters, now),
+        primaryListingMarket
+      ),
+    [frozenDaily, filters, now, primaryListingMarket]
   );
 
   const chartSeries = useMemo(
-    () => buildDailyPnlChartSeries(frozenDaily, filters, now),
-    [frozenDaily, filters, now]
+    () =>
+      buildDailyPnlChartSeries(
+        frozenDaily,
+        filters,
+        now,
+        primaryListingMarket
+      ),
+    [frozenDaily, filters, now, primaryListingMarket]
   );
 
   const netPnl = useMemo(

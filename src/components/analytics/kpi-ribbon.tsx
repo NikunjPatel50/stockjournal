@@ -9,6 +9,7 @@ import {
   type AnalyticsKpis,
 } from "@/lib/analytics";
 import { useJournalMarket } from "@/components/journal/journal-market-provider";
+import { APP_CARD_SURFACE_CLASS } from "@/lib/app-shell";
 import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 
 interface KpiRibbonProps {
@@ -48,8 +49,8 @@ function InsightKpiCard({
   return (
     <div
       className={cn(
-        "flex min-h-[7.5rem] min-w-0 flex-col rounded-xl border border-border/80 bg-card px-4 py-4 shadow-sm sm:min-h-[8.5rem]",
-        "ring-1 ring-foreground/[0.04] dark:ring-foreground/[0.06]"
+        "flex min-h-[7.5rem] min-w-0 flex-col px-4 py-4 sm:min-h-[8.5rem]",
+        APP_CARD_SURFACE_CLASS
       )}
     >
       <div className="flex items-center justify-center gap-1">

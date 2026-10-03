@@ -1,8 +1,7 @@
 "use client";
 
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
 import {
   BarChart3,
   BookOpen,
@@ -15,6 +14,7 @@ import {
 import { useIsAdmin } from "@/components/admin/admin-access-provider";
 import { BrandLogo } from "@/components/brand-logo";
 import { MarketIndicesPanel } from "@/components/sidebar/market-indices-panel";
+import { useOptimisticPathname } from "@/hooks/use-optimistic-pathname";
 import { cn } from "@/lib/utils";
 
 const tradingNav = [
@@ -30,6 +30,9 @@ const accountNav = [
   { href: "/feedback", label: "Feedback", icon: MessageSquare },
 ] as const;
 
+const SIDEBAR_INSET_SHELL =
+  "rounded-xl border border-border bg-card/60 shadow-sm ring-1 ring-border/50 dark:bg-card/35 dark:ring-border/70";
+
 function isActiveRoute(pathname: string, href: string) {
   return (
     pathname === href ||
@@ -37,28 +40,60 @@ function isActiveRoute(pathname: string, href: string) {
   );
 }
 
+function SidebarSectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="px-2 pb-1.5 pt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
+      {children}
+    </p>
+  );
+}
+
 function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
-  const pathnameFromRouter = usePathname();
-  const pathname = pathnameOverride ?? pathnameFromRouter;
+  const { activePathname: pathname, onNavigate } =
+    useOptimisticPathname(pathnameOverride);
   const isAdmin = useIsAdmin();
-  const reduceMotion = useReducedMotion();
+  const listRef = useRef<HTMLDivElement>(null);
+  const [indicator, setIndicator] = useState<{
+    top: number;
+    height: number;
+  } | null>(null);
+  const [animateIndicator, setAnimateIndicator] = useState(false);
+
+  const placeIndicator = useCallback((target: HTMLElement) => {
+    const list = listRef.current;
+    if (!list) return;
+    setIndicator({
+      top: target.offsetTop,
+      height: target.offsetHeight,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const active = listRef.current?.querySelector<HTMLElement>(
+      '[aria-current="page"]'
+    );
+    if (!active) return;
+    placeIndicator(active);
+    const frame = requestAnimationFrame(() => setAnimateIndicator(true));
+    return () => cancelAnimationFrame(frame);
+  }, [pathname, placeIndicator, isAdmin]);
+
   const navGroups = [
     {
       label: "Trading",
-      items: tradingNav.filter((item) => !("adminOnly" in item && item.adminOnly) || isAdmin),
+      items: tradingNav.filter(
+        (item) => !("adminOnly" in item && item.adminOnly) || isAdmin
+      ),
     },
     { label: "Account", items: accountNav },
   ];
-  const navSpring = reduceMotion
-    ? { duration: 0 }
-    : { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.85 };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-sidebar-border px-4 py-4">
+    <div className="flex h-full min-h-0 flex-col bg-sidebar">
+      <div className="shrink-0 px-4 pb-3 pt-5">
         <Link
           href="/dashboard"
-          className="flex items-center gap-3 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="flex items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <BrandLogo
             size="md"
@@ -68,7 +103,7 @@ function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
             priority
           />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
+            <p className="truncate text-[15px] font-semibold tracking-tight text-foreground">
               SwingTradingLog
             </p>
             <p className="truncate text-[11px] text-muted-foreground">
@@ -78,15 +113,27 @@ function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
         </Link>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
-        <div className="rounded-xl border border-border/80 bg-card p-3 shadow-sm ring-1 ring-border/40">
-          <div className="flex flex-col gap-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3">
+        <div className={cn(SIDEBAR_INSET_SHELL, "shrink-0 p-2")}>
+          <div ref={listRef} className="relative flex flex-col gap-4">
+            {indicator ? (
+              <span
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute inset-x-0 rounded-lg bg-background shadow-sm ring-1 ring-border/80 will-change-transform dark:bg-background/90",
+                  animateIndicator &&
+                    "transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+                )}
+                style={{
+                  height: indicator.height,
+                  transform: `translate3d(0, ${indicator.top}px, 0)`,
+                }}
+              />
+            ) : null}
             {navGroups.map((group) => (
-              <div key={group.label}>
-                <p className="mb-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-                  {group.label}
-                </p>
-                <nav className="space-y-0.5">
+              <section key={group.label}>
+                <SidebarSectionLabel>{group.label}</SidebarSectionLabel>
+                <nav className="space-y-1">
                   {group.items.map((item) => {
                     const Icon = item.icon;
                     const active = isActiveRoute(pathname, item.href);
@@ -94,50 +141,47 @@ function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
                       <Link
                         key={item.href}
                         href={item.href}
+                        onPointerDown={(event) => {
+                          onNavigate(item.href)(event);
+                          if (event.button === 0) placeIndicator(event.currentTarget);
+                        }}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-200",
+                          "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-300 ease-out",
                           active
                             ? "text-foreground"
-                            : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                            : "text-muted-foreground hover:bg-background/55 hover:text-foreground"
                         )}
                       >
-                        {active ? (
-                          <motion.span
-                            layoutId="sidebar-nav-active"
-                            className="absolute inset-0 rounded-lg bg-background shadow-sm ring-1 ring-border/80"
-                            transition={navSpring}
-                          />
-                        ) : null}
                         <span
                           className={cn(
-                            "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+                            "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent transition-colors duration-300 ease-out",
                             active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground group-hover:bg-sidebar-accent group-hover:text-sidebar-foreground"
+                              ? "border-border/60 bg-primary/10 text-primary"
+                              : "bg-muted/30 text-muted-foreground group-hover:bg-muted/45 group-hover:text-foreground"
                           )}
                         >
-                          <Icon className="size-4" strokeWidth={active ? 2.25 : 2} />
-                        </span>
-                        <span className="relative z-10 truncate">{item.label}</span>
-                        {active ? (
-                          <motion.span
-                            layoutId="sidebar-nav-dot"
-                            className="relative z-10 ml-auto size-1.5 shrink-0 rounded-full bg-primary"
-                            transition={navSpring}
-                            aria-hidden
+                          <Icon
+                            className="size-4"
+                            strokeWidth={active ? 2.25 : 2}
                           />
-                        ) : null}
+                        </span>
+                        <span className="relative z-10 min-w-0 truncate">
+                          {item.label}
+                        </span>
                       </Link>
                     );
                   })}
                 </nav>
-              </div>
+              </section>
             ))}
           </div>
         </div>
 
-        <MarketIndicesPanel />
+        <MarketIndicesPanel
+          className={cn(SIDEBAR_INSET_SHELL, "shrink-0")}
+          scrollable
+        />
       </div>
     </div>
   );
@@ -145,7 +189,12 @@ function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
 
 export function Sidebar({ pathnameOverride }: { pathnameOverride?: string }) {
   return (
-    <aside className="sticky top-0 hidden h-full w-72 min-w-72 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
+    <aside
+      className={cn(
+        "sticky top-0 hidden h-full w-72 min-w-72 shrink-0 lg:flex lg:flex-col",
+        "border-r border-border bg-sidebar"
+      )}
+    >
       <NavContent pathnameOverride={pathnameOverride} />
     </aside>
   );

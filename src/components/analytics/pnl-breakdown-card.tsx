@@ -48,7 +48,7 @@ function OutcomeSpectrum({
   const netDown = netPnl < 0;
 
   return (
-    <div className="w-full space-y-2 rounded-lg border border-border/80 bg-muted/15 p-3">
+    <div className="w-full space-y-2 rounded-lg border border-border bg-muted/15 p-3">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className={cn("text-2xl font-bold leading-none text-foreground", NUMERIC_DISPLAY_CLASS)}>
@@ -259,7 +259,7 @@ function LegendRow({
   barClass: string;
 }) {
   return (
-    <li className="rounded-md border border-border/80 bg-muted/20 px-2 py-1.5">
+    <li className="rounded-md border border-border bg-muted/20 px-2 py-1.5">
       <div className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-foreground">
           <span className={cn("size-1.5 shrink-0 rounded-full", color)} />
@@ -302,7 +302,7 @@ function FooterStat({
   valueClass?: string;
 }) {
   return (
-    <div className="rounded-lg border border-border/80 bg-muted/15 px-2 py-2 text-center">
+    <div className="rounded-lg border border-border bg-muted/15 px-2 py-2 text-center">
       <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>

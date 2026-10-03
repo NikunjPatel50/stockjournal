@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { APP_CARD_GRID_SURFACE_CLASS } from "@/lib/app-shell";
 import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 
 export type MetricTone = "positive" | "negative" | "neutral";
@@ -35,8 +36,8 @@ export function MetricBand({
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border/80 bg-border/70 shadow-sm",
-        "ring-1 ring-foreground/[0.04] dark:ring-foreground/[0.06]",
+        "grid grid-cols-2 gap-px",
+        APP_CARD_GRID_SURFACE_CLASS,
         columnsClassName,
         className
       )}

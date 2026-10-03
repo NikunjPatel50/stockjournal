@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   BarChart3,
   BookOpen,
@@ -21,6 +20,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useOptimisticPathname } from "@/hooks/use-optimistic-pathname";
 import { cn } from "@/lib/utils";
 
 const primaryTabs = [
@@ -45,7 +45,7 @@ function isActiveRoute(pathname: string, href: string) {
 }
 
 export function MobileBottomNav() {
-  const pathname = usePathname();
+  const { activePathname: pathname, onNavigate } = useOptimisticPathname();
   const isAdmin = useIsAdmin();
   const visibleMoreLinks = moreLinks.filter(
     (link) => !("adminOnly" in link && link.adminOnly) || isAdmin
@@ -68,6 +68,7 @@ export function MobileBottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
+              onClick={onNavigate(tab.href)}
               className={cn(
                 "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors",
                 active ? "text-primary" : "text-muted-foreground"
@@ -103,6 +104,7 @@ export function MobileBottomNav() {
                   <Link
                     key={link.href}
                     href={link.href}
+                    onClick={onNavigate(link.href)}
                     className={cn(
                       "flex min-h-14 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors",
                       active

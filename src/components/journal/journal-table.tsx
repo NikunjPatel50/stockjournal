@@ -82,6 +82,7 @@ import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
 import { openTradingViewDailyChart } from "@/lib/tradingview";
 import { parseEarningsDisplayDate, type EarningsDateInfo } from "@/lib/yahoo-earnings";
+import { APP_CARD_SURFACE_CLASS } from "@/lib/app-shell";
 import {
   cn,
   NUMERIC_CLASS,
@@ -2470,7 +2471,7 @@ function JournalTableInner({
   );
 
   return (
-    <section className="cv-section overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm ring-1 ring-foreground/[0.04] dark:ring-white/[0.05]">
+    <section className={cn("cv-section", APP_CARD_SURFACE_CLASS)}>
       <JournalTableHeader
         title={title}
         totalRows={totalRows}

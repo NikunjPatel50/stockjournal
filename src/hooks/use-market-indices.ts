@@ -8,6 +8,7 @@ import {
   MAJOR_MARKET_INDICES,
 } from "@/lib/major-market-indices";
 import { msUntilNextSessionBoundaryForSymbols } from "@/lib/listing-market-hours";
+import { isTransientFetchError } from "@/lib/transient-fetch-error";
 
 type MarketIndicesState = {
   quotes: Record<string, MarketIndexQuote | null>;
@@ -51,6 +52,7 @@ export function useMarketIndices(enabled = true) {
   const pollTimerRef = useRef<number | null>(null);
   const boundaryTimerRef = useRef<number | null>(null);
   const generationRef = useRef(0);
+  const transientRetriesRef = useRef(0);
   const sessionOpenRef = useRef(false);
   const schedulePollRef = useRef<(() => void) | null>(null);
   const enabledRef = useRef(enabled);
@@ -73,6 +75,8 @@ export function useMarketIndices(enabled = true) {
         throw new Error(data.error ?? "Could not load market indices");
       }
 
+      transientRetriesRef.current = 0;
+
       const nowOpen = anyMajorIndexMarketOpen();
       setState((prev) => ({
         quotes: { ...prev.quotes, ...(data.indices ?? {}) },
@@ -87,6 +91,20 @@ export function useMarketIndices(enabled = true) {
       }
     } catch (err) {
       if (generation !== generationRef.current) return;
+      if (isTransientFetchError(err)) {
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: prev.fetchedAt != null ? null : prev.error,
+        }));
+        if (transientRetriesRef.current < 3) {
+          transientRetriesRef.current += 1;
+          window.setTimeout(() => {
+            if (generation === generationRef.current) void fetchIndices();
+          }, 1500);
+        }
+        return;
+      }
       setState((prev) => ({
         ...prev,
         loading: false,

@@ -19,6 +19,7 @@ import type {
 } from "@/lib/trade-pnl";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
+import { APP_CARD_GRID_SURFACE_CLASS } from "@/lib/app-shell";
 import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 
 interface JournalSummaryBarProps {
@@ -117,7 +118,7 @@ function HeroMetric({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 min-w-0 flex-col items-center justify-center bg-card px-2.5 py-2 text-center sm:px-3 sm:py-2.5",
+        "flex h-auto min-h-0 min-w-0 flex-col items-center justify-center bg-card px-2.5 py-2.5 text-center sm:px-3 sm:py-2.5 lg:h-full",
         className
       )}
     >
@@ -265,7 +266,7 @@ function RewardRiskCard({
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-card lg:col-start-5 lg:row-start-1 lg:row-span-2"
+      className="col-span-2 flex h-auto min-h-0 flex-col overflow-hidden bg-card lg:col-span-1 lg:col-start-5 lg:row-start-1 lg:row-span-2 lg:h-full"
     >
       <div className="shrink-0 border-b border-border/60 px-3 py-1.5 text-center sm:px-4 sm:py-2">
         <MetricLabel
@@ -480,7 +481,12 @@ export const JournalSummaryBar = memo(function JournalSummaryBar({
   return (
     <div className="space-y-5">
       <SummarySection title="Performance">
-        <div className="grid min-w-0 auto-rows-fr grid-cols-1 gap-px overflow-hidden rounded-xl border border-border/80 bg-border/70 shadow-sm ring-1 ring-foreground/[0.04] sm:grid-cols-2 dark:ring-foreground/[0.06] lg:grid-cols-5 lg:grid-rows-2 lg:items-stretch">
+        <div
+          className={cn(
+            "grid min-w-0 grid-cols-2 gap-px lg:auto-rows-fr lg:grid-cols-5 lg:grid-rows-2 lg:items-stretch",
+            APP_CARD_GRID_SURFACE_CLASS
+          )}
+        >
           <HeroMetric
             className="lg:col-start-1 lg:row-start-1"
             label="Daily P/L"

@@ -30,14 +30,17 @@ export function TimeframeSegmentedControl({
           onChange(next as AnalyticsTimeframe);
         }
       }}
-      className={cn("min-w-0", className)}
+      className={cn("w-full min-w-0 sm:w-auto", className)}
     >
-      <div className="inline-flex min-w-max flex-nowrap items-center gap-2">
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:w-max sm:flex-nowrap sm:gap-2">
         <TabsList
           className={cn(
-            "inline-flex w-max flex-none flex-nowrap items-center gap-0.5",
-            compact ? "h-9 p-0.5" : "h-10 p-1",
-            "group-data-horizontal/tabs:h-10",
+            "flex h-auto! w-full flex-wrap items-center justify-start gap-0.5",
+            "group-data-horizontal/tabs:h-auto!",
+            "sm:inline-flex sm:w-max sm:flex-none sm:flex-nowrap",
+            compact
+              ? "p-0.5 sm:h-9 sm:group-data-horizontal/tabs:h-9"
+              : "p-1 sm:h-10 sm:group-data-horizontal/tabs:h-10",
             "rounded-lg border border-border/70 bg-background/70",
             "shadow-none dark:bg-background/40"
           )}

@@ -161,7 +161,7 @@ function BreakdownPnlShareChart({
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
         <div className="mx-auto w-full max-w-[12.5rem] shrink-0 sm:mx-0">
-          <div className="mb-3 rounded-lg border border-border/60 bg-muted/15 px-3 py-2.5 text-center">
+          <div className="mb-3 rounded-lg border border-border bg-muted/15 px-3 py-2.5 text-center">
             <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               Net P&L
             </p>
@@ -226,7 +226,7 @@ function BreakdownPnlShareChart({
           </ChartContainer>
 
           {activeRow ? (
-            <div className="mt-3 rounded-lg border border-border/60 bg-card px-3 py-2 text-xs shadow-sm">
+            <div className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-sm">
               <p className="font-medium text-foreground">{activeRow.name}</p>
               <p
                 className={cn(

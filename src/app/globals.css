@@ -70,7 +70,7 @@
   --accent: oklch(0.95 0.01 260);
   --accent-foreground: oklch(0.25 0.02 260);
   --destructive: oklch(0.55 0.2 25);
-  --border: oklch(0.9 0.01 260);
+  --border: oklch(0.86 0.012 260);
   --input: oklch(0.9 0.01 260);
   --ring: oklch(0.55 0.14 160);
   --chart-1: oklch(0.55 0.14 160);
@@ -107,8 +107,8 @@
   --accent: oklch(0.28 0.015 260);
   --accent-foreground: oklch(0.96 0.01 250);
   --destructive: oklch(0.65 0.2 25);
-  --border: oklch(0.32 0.015 260);
-  --input: oklch(0.32 0.015 260);
+  --border: oklch(0.38 0.018 260);
+  --input: oklch(0.38 0.018 260);
   --ring: oklch(0.72 0.15 160);
   --chart-1: oklch(0.72 0.15 160);
   --chart-2: oklch(0.7 0.14 250);
@@ -202,6 +202,24 @@ input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+@keyframes journal-ticker-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.journal-ticker-track {
+  animation: journal-ticker-marquee 42s linear infinite;
+}
+
+.journal-ticker:hover .journal-ticker-track,
+.journal-ticker:focus-within .journal-ticker-track {
+  animation-play-state: paused;
 }
 
 @keyframes markets-dialog-dock-in {
@@ -323,6 +341,10 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .journal-ticker-track {
+    animation: none;
+  }
+
   .target-stop-marker-blink-green,
   .target-stop-marker-blink-red,
   .target-stop-fill-glow-green {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
@@ -202,7 +203,12 @@ export function AdminUsersTable({ rows }: { rows: AdminUserRow[] }) {
                   {row.currency}
                 </TableCell>
                 <TableCell className={cn(numericCellClass, "font-semibold")}>
-                  {row.tradeCount}
+                  <Link
+                    href={`/admin/trades?user=${encodeURIComponent(row.userId)}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {row.tradeCount}
+                  </Link>
                 </TableCell>
                 <TableCell
                   className={cn(numericCellClass, "text-muted-foreground")}

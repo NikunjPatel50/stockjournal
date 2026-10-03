@@ -1,5 +1,11 @@
 import type { FeedbackCategory } from "@/lib/feedback";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { normalizeJournalTrade } from "@/lib/journal-types";
+import type { CurrencyCode } from "@/lib/settings";
+import { DEFAULT_CURRENCY } from "@/lib/settings";
+import {
+  createSupabaseAdminClient,
+  createSupabaseAuthAdminClient,
+} from "@/lib/supabase/admin";
 
 export type AdminFeedbackRow = {
   id: string;
@@ -20,6 +26,26 @@ export type AdminUserRow = {
   goalCount: number;
   createdAt: string;
   lastTradeSync: string | null;
+};
+
+export type AdminTradeRow = {
+  key: string;
+  userId: string;
+  userName: string;
+  email: string | null;
+  currency: CurrencyCode;
+  ticker: string;
+  assetClass: string;
+  direction: string;
+  status: "Active" | "Closed";
+  outcome: string;
+  strategy: string;
+  entryDate: string;
+  exitDate: string;
+  quantity: number;
+  entryPrice: number;
+  exitPrice: number;
+  pnl: number;
 };
 
 export type AdminDashboardStats = {
@@ -57,6 +83,59 @@ type GoalRow = {
 
 function tradeCountFromJournal(trades: unknown): number {
   return Array.isArray(trades) ? trades.length : 0;
+}
+
+function asCurrency(value: string): CurrencyCode {
+  if (
+    value === "USD" ||
+    value === "EUR" ||
+    value === "GBP" ||
+    value === "INR" ||
+    value === "CAD"
+  ) {
+    return value;
+  }
+  return DEFAULT_CURRENCY;
+}
+
+async function loadEmailByUserId(): Promise<Map<string, string>> {
+  const emails = new Map<string, string>();
+
+  try {
+    const authAdmin = createSupabaseAuthAdminClient();
+    for (let page = 1; page <= 20; page += 1) {
+      const { data, error } = await authAdmin.auth.admin.listUsers({
+        page,
+        perPage: 200,
+      });
+      if (error || !data?.users?.length) break;
+      for (const user of data.users) {
+        const email = user.email?.trim();
+        if (email) emails.set(user.id, email);
+      }
+      if (data.users.length < 200) break;
+    }
+  } catch {
+    // Fall through to feedback emails below.
+  }
+
+  if (emails.size > 0) return emails;
+
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("feedback_submissions")
+    .select("user_id, email")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return emails;
+
+  for (const row of data as { user_id: string; email: string }[]) {
+    if (row.email && !emails.has(row.user_id)) {
+      emails.set(row.user_id, row.email);
+    }
+  }
+
+  return emails;
 }
 
 function startOfWeekIso(): string {
@@ -164,7 +243,7 @@ export async function fetchAdminFeedback(
 export async function fetchAdminUsers(): Promise<AdminUserRow[]> {
   const admin = createSupabaseAdminClient();
 
-  const [settingsRes, goalsRes, feedbackRes] = await Promise.all([
+  const [settingsRes, goalsRes, emailByUser] = await Promise.all([
     admin
       .from("user_settings")
       .select(
@@ -172,22 +251,14 @@ export async function fetchAdminUsers(): Promise<AdminUserRow[]> {
       )
       .order("created_at", { ascending: false }),
     admin.from("goals").select("user_id"),
-    admin
-      .from("feedback_submissions")
-      .select("user_id, email")
-      .order("created_at", { ascending: false }),
+    loadEmailByUserId(),
   ]);
 
   if (settingsRes.error) throw new Error(settingsRes.error.message);
   if (goalsRes.error) throw new Error(goalsRes.error.message);
-  if (feedbackRes.error) throw new Error(feedbackRes.error.message);
 
   const settings = (settingsRes.data ?? []) as UserSettingsRow[];
   const goals = (goalsRes.data ?? []) as GoalRow[];
-  const feedback = (feedbackRes.data ?? []) as {
-    user_id: string;
-    email: string;
-  }[];
 
   const goalCountByUser = new Map<string, number>();
   for (const goal of goals) {
@@ -195,13 +266,6 @@ export async function fetchAdminUsers(): Promise<AdminUserRow[]> {
       goal.user_id,
       (goalCountByUser.get(goal.user_id) ?? 0) + 1
     );
-  }
-
-  const emailByUser = new Map<string, string>();
-  for (const row of feedback) {
-    if (!emailByUser.has(row.user_id)) {
-      emailByUser.set(row.user_id, row.email);
-    }
   }
 
   return settings.map((row) => ({
@@ -214,4 +278,57 @@ export async function fetchAdminUsers(): Promise<AdminUserRow[]> {
     createdAt: row.created_at,
     lastTradeSync: row.journal_trades_updated_at,
   }));
+}
+
+export async function fetchAdminTrades(): Promise<AdminTradeRow[]> {
+  const admin = createSupabaseAdminClient();
+  const [settingsRes, emailByUser] = await Promise.all([
+    admin
+      .from("user_settings")
+      .select("user_id, full_name, currency, journal_trades"),
+    loadEmailByUserId(),
+  ]);
+
+  if (settingsRes.error) throw new Error(settingsRes.error.message);
+
+  const settings = (settingsRes.data ?? []) as Pick<
+    UserSettingsRow,
+    "user_id" | "full_name" | "currency" | "journal_trades"
+  >[];
+
+  const rows: AdminTradeRow[] = [];
+
+  for (const account of settings) {
+    if (!Array.isArray(account.journal_trades)) continue;
+    const currency = asCurrency(account.currency);
+    const userName = account.full_name?.trim() || "—";
+    const email = emailByUser.get(account.user_id) ?? null;
+
+    for (const raw of account.journal_trades) {
+      if (raw == null || typeof raw !== "object") continue;
+      const trade = normalizeJournalTrade(raw);
+      rows.push({
+        key: `${account.user_id}:${trade.id}`,
+        userId: account.user_id,
+        userName,
+        email,
+        currency,
+        ticker: trade.ticker,
+        assetClass: trade.assetClass,
+        direction: trade.direction,
+        status: trade.status === "Active" ? "Active" : "Closed",
+        outcome: trade.outcome,
+        strategy: trade.strategy,
+        entryDate: trade.entryDate,
+        exitDate: trade.exitDate,
+        quantity: trade.quantity,
+        entryPrice: trade.entryPrice,
+        exitPrice: trade.exitPrice,
+        pnl: trade.pnl,
+      });
+    }
+  }
+
+  rows.sort((a, b) => b.entryDate.localeCompare(a.entryDate));
+  return rows;
 }

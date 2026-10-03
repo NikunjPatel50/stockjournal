@@ -260,15 +260,15 @@ export function MonthlyPerformanceCard({
           </div>
         </CardAction>
       </CardHeader>
-      <CardContent className="space-y-4 pt-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
         {periods.length === 0 ? (
-          <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-border bg-muted/10 px-4 text-center text-sm text-muted-foreground">
+          <div className="flex min-h-[200px] flex-1 items-center justify-center rounded-lg border border-dashed border-border bg-muted/10 px-4 text-center text-sm text-muted-foreground">
             No closed trades in the selected year for this view.
           </div>
         ) : (
         <ChartContainer
           config={chartConfig}
-          className="h-[200px] w-full cursor-pointer [&_svg]:outline-none [&_svg_*]:outline-none"
+          className="aspect-auto h-full min-h-[200px] w-full flex-1 basis-0 cursor-pointer [&_svg]:outline-none [&_svg_*]:outline-none"
         >
           <BarChart
             accessibilityLayer={false}
@@ -323,7 +323,7 @@ export function MonthlyPerformanceCard({
         )}
 
         {display ? (
-          <div className="rounded-lg border-2 border-border/70 bg-muted/20 px-4 py-3 text-center">
+          <div className="shrink-0 rounded-lg border-2 border-border/70 bg-muted/20 px-4 py-3 text-center">
             <p className="text-xs text-muted-foreground">{display.monthTitle}</p>
             <p
               className={cn(

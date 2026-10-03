@@ -1,6 +1,6 @@
 /** Shared layout tokens for side-by-side dashboard analytics cards */
 export const dashboardAnalyticsCardClass =
-  "h-full min-h-0 border-border bg-card shadow-none";
+  "h-full min-h-0 border-border bg-card shadow-sm ring-1 ring-border/60 dark:ring-border/85";
 
 export const dashboardAnalyticsHeaderClass =
   "shrink-0 gap-0.5 border-b border-border pb-4";

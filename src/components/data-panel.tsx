@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { APP_CARD_SURFACE_CLASS } from "@/lib/app-shell";
 import { cn } from "@/lib/utils";
 
 type DataPanelProps = {
@@ -30,13 +31,9 @@ export function DataPanel({
 }: DataPanelProps) {
   return (
     <section
-      className={cn(
-        "flex min-w-0 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm",
-        "ring-1 ring-foreground/[0.04] dark:ring-foreground/[0.06]",
-        className
-      )}
+      className={cn("flex min-w-0 flex-col", APP_CARD_SURFACE_CLASS, className)}
     >
-      <header className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold tracking-tight text-foreground">
             {title}
@@ -59,7 +56,7 @@ export function DataPanel({
       </div>
 
       {footer ? (
-        <footer className="border-t border-border/70 bg-muted/20 px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground sm:px-5">
+        <footer className="border-t border-border bg-muted/20 px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground sm:px-5">
           {footer}
         </footer>
       ) : null}

@@ -50,7 +50,7 @@ export function FeedbackFeaturePanel({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center rounded-xl border border-border/80 bg-muted/30 px-6 py-12 text-center sm:py-14",
+          "flex flex-col items-center justify-center rounded-xl border border-border bg-muted/30 px-6 py-12 text-center shadow-sm ring-1 ring-border/60 sm:py-14 dark:ring-border/85",
           className
         )}
       >

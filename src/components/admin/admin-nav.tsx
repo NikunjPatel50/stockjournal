@@ -11,7 +11,7 @@ export function AdminNav() {
   return (
     <nav
       aria-label="Admin sections"
-      className="inline-flex h-10 items-center gap-0.5 rounded-lg border border-border bg-muted/60 p-1 dark:bg-muted/40"
+      className="inline-flex h-auto flex-wrap items-center gap-0.5 rounded-lg border border-border bg-muted/60 p-1 dark:bg-muted/40"
     >
       {ADMIN_NAV_ITEMS.map((item) => {
         const Icon = item.icon;

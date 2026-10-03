@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { JournalHeader } from "@/components/journal/journal-header";
+import { JournalTickerMarquee } from "@/components/journal/journal-ticker-marquee";
 import { JournalSummaryBar } from "@/components/journal/journal-summary-bar";
 import { JournalTable } from "@/components/journal/journal-table";
 import {
@@ -416,6 +417,8 @@ export default function JournalPage() {
         onExportCsv={handleExportCsv}
         onImportFile={handleImportFile}
       />
+
+      <JournalTickerMarquee />
 
       <JournalSummaryBar
         summary={summary}

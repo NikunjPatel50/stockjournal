@@ -336,7 +336,7 @@ export const PortfolioOverviewCard = memo(function PortfolioOverviewCard({
         )}
 
         <div className="flex w-full min-w-0 justify-start sm:justify-end">
-          <div className="inline-flex max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-full border border-border bg-muted/50 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-muted/50 p-1 sm:w-auto">
             {PORTFOLIO_CHART_TIMEFRAMES.map((item) => (
               <button
                 key={item.value}

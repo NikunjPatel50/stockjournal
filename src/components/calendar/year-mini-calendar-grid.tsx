@@ -71,7 +71,7 @@ export function YearMiniCalendarGrid({
             key={month.month}
             type="button"
             onClick={() => onSelectMonth(month.month)}
-            className="flex h-full min-h-0 flex-col rounded-lg border border-border/80 bg-muted/20 p-2 text-left transition-colors hover:border-emerald-500/40 hover:bg-muted/40"
+            className="flex h-full min-h-0 flex-col rounded-lg border border-border bg-muted/20 p-2 text-left ring-1 ring-border/40 transition-colors hover:border-emerald-500/40 hover:bg-muted/40 dark:ring-border/60"
           >
             <div className="flex shrink-0 items-start justify-between gap-1.5">
               <p className="text-[10px] font-bold tracking-[0.12em] text-foreground">

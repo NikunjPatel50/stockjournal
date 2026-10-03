@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
     ];
   },
   experimental: {
+    // Pages are client components fed by providers, so a cached RSC shell
+    // stays valid; revisiting a tab skips the server round trip.
+    staleTimes: {
+      dynamic: 60,
+      static: 300,
+    },
     optimizePackageImports: [
       "lucide-react",
       "recharts",

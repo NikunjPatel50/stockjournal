@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { isScrollActive, onScrollEnd } from "@/lib/scroll-activity";
+import { isTransientFetchError } from "@/lib/transient-fetch-error";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import {
   defaultListingMarketForCurrency,
@@ -207,6 +208,7 @@ export function useMarketQuotesPoller(
   const quotesRef = useRef(state.quotes);
 
   const pollGenerationRef = useRef(0);
+  const transientRetriesRef = useRef(0);
   const pollTimerRef = useRef<number | null>(null);
   const boundaryTimerRef = useRef<number | null>(null);
   const sessionOpenRef = useRef(false);
@@ -377,6 +379,8 @@ export function useMarketQuotesPoller(
         throw new Error(data.error ?? "Could not load quotes");
       }
 
+      transientRetriesRef.current = 0;
+
       const fetchedAt = data.fetchedAt ?? Date.now();
       const incoming = data.quotes ?? {};
       const sessionOpenAtFetch = anySymbolSessionOpen(
@@ -432,6 +436,23 @@ export function useMarketQuotesPoller(
       }
     } catch (err) {
       if (generation !== pollGenerationRef.current) return;
+      // A dropped request is retried on the next poll. Keep the last prices
+      // instead of flashing "Failed to fetch" over the trade log.
+      if (isTransientFetchError(err)) {
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: null,
+          sessionOpen: anySymbolSessionOpen(symbols),
+        }));
+        if (transientRetriesRef.current < 3) {
+          transientRetriesRef.current += 1;
+          window.setTimeout(() => {
+            if (generation === pollGenerationRef.current) void fetchQuotes();
+          }, 1500);
+        }
+        return;
+      }
       setState((prev) => ({
         ...prev,
         loading: false,

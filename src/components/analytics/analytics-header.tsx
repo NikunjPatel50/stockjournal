@@ -96,13 +96,12 @@ export function AnalyticsHeader({
 
       <div className="relative z-20 min-w-0 w-full">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain pb-0.5 sm:flex-1">
+          <div className="min-w-0 w-full sm:flex-1">
             <TimeframeSegmentedControl
               value={filters.timeframe}
               onChange={setTimeframe}
               trailing={datePicker}
               compact={isMobile}
-              className="min-w-max"
             />
           </div>
           {onLogTrade ? (
