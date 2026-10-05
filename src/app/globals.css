@@ -204,24 +204,6 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
 }
 
-@keyframes journal-ticker-marquee {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-.journal-ticker-track {
-  animation: journal-ticker-marquee 42s linear infinite;
-}
-
-.journal-ticker:hover .journal-ticker-track,
-.journal-ticker:focus-within .journal-ticker-track {
-  animation-play-state: paused;
-}
-
 @keyframes markets-dialog-dock-in {
   0% {
     opacity: 0;
@@ -341,10 +323,6 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .journal-ticker-track {
-    animation: none;
-  }
-
   .target-stop-marker-blink-green,
   .target-stop-marker-blink-red,
   .target-stop-fill-glow-green {

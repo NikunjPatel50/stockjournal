@@ -119,6 +119,7 @@ function parseOhlc(
 }
 
 export type YahooQuoteWithOhlc = MarketQuote & {
+  previousClose: number | null;
   ohlc: {
     open: number;
     high: number;
@@ -129,13 +130,15 @@ export type YahooQuoteWithOhlc = MarketQuote & {
 
 async function fetchYahooChartSymbol(
   symbol: string,
-  fallbackCurrency?: CurrencyCode
+  fallbackCurrency?: CurrencyCode,
+  options?: { fresh?: boolean }
 ): Promise<YahooQuoteWithOhlc | null> {
   if (!symbol) return null;
 
   const url = new URL(`${YAHOO_CHART}/${encodeURIComponent(symbol)}`);
   url.searchParams.set("interval", "1m");
   url.searchParams.set("range", "1d");
+  if (options?.fresh) url.searchParams.set("_", String(Date.now()));
 
   try {
     const res = await fetch(url.toString(), {
@@ -185,6 +188,10 @@ async function fetchYahooChartSymbol(
       changePercent,
       timestamp: ts,
       currency: mapYahooCurrency(meta.currency) ?? fallbackCurrency,
+      previousClose:
+        previous !== null && Number.isFinite(previous) && previous > 0
+          ? previous
+          : null,
       ohlc: parseOhlc(meta, result?.indicators?.quote?.[0]),
     };
   } catch {
@@ -199,16 +206,17 @@ export async function fetchYahooQuoteBySymbol(
 ): Promise<MarketQuote | null> {
   const quote = await fetchYahooChartSymbol(symbol, fallbackCurrency);
   if (!quote) return null;
-  const { ohlc: _ohlc, ...marketQuote } = quote;
+  const { ohlc: _ohlc, previousClose: _previousClose, ...marketQuote } = quote;
   return marketQuote;
 }
 
 /** Quote with same-day OHLC from Yahoo chart meta. */
 export async function fetchYahooQuoteWithOhlc(
   symbol: string,
-  fallbackCurrency?: CurrencyCode
+  fallbackCurrency?: CurrencyCode,
+  options?: { fresh?: boolean }
 ): Promise<YahooQuoteWithOhlc | null> {
-  return fetchYahooChartSymbol(symbol, fallbackCurrency);
+  return fetchYahooChartSymbol(symbol, fallbackCurrency, options);
 }
 
 /** Near–real-time equity quote via Yahoo chart API (server-side only). */

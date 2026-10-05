@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
-  computeIndexPriceChange,
   formatIndexPriceChange,
   formatIndexPriceCompact,
 } from "@/lib/major-market-indices";
@@ -22,8 +22,7 @@ function TickerItem({
   pending: boolean;
 }) {
   const change = quote?.changePercent;
-  const priceChange =
-    quote != null ? computeIndexPriceChange(quote.price, change ?? null) : null;
+  const priceChange = quote?.change ?? null;
   const up = (priceChange ?? change ?? 0) > 0;
   const down = (priceChange ?? change ?? 0) < 0;
   const changeClass = cn(
@@ -47,7 +46,7 @@ function TickerItem({
               NUMERIC_DISPLAY_CLASS
             )}
           >
-            {formatIndexPriceCompact(quote.price, quote.currency)}
+            {formatIndexPriceCompact(quote.price, quote.currency, 2)}
           </span>
           {priceChange != null ? (
             <span className={changeClass}>
@@ -76,14 +75,16 @@ function TickerItem({
 function TickerSequence({
   quotes,
   loading,
+  hidden,
 }: {
   quotes: JournalTickerQuote[];
   loading: boolean;
+  hidden?: boolean;
 }) {
   const byId = new Map(quotes.map((quote) => [quote.id, quote]));
 
   return (
-    <span className="inline-flex items-center">
+    <span className="inline-flex items-center" aria-hidden={hidden || undefined}>
       {JOURNAL_TICKER_INSTRUMENTS.map((instrument) => (
         <TickerItem
           key={instrument.id}
@@ -96,17 +97,69 @@ function TickerSequence({
   );
 }
 
+const MARQUEE_LOOP_MS = 42_000;
+
 export function JournalTickerMarquee() {
   const { quotes, loading } = useJournalTicker();
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(false);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let raf = 0;
+    let last = performance.now();
+    let pos = 0;
+
+    const step = (now: number) => {
+      const dt = Math.min(50, now - last);
+      last = now;
+      const half = el.scrollWidth / 2;
+      if (!pausedRef.current && half > 1) {
+        pos = (pos + (half / MARQUEE_LOOP_MS) * dt) % half;
+        el.scrollLeft = pos;
+      }
+      raf = window.requestAnimationFrame(step);
+    };
+
+    raf = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
 
   return (
     <div
-      className="journal-ticker relative overflow-hidden border-y border-border/70 bg-muted/15"
+      className="journal-ticker relative border-y border-border/70 bg-muted/15"
       aria-label="Market prices"
+      onMouseEnter={() => {
+        pausedRef.current = true;
+      }}
+      onMouseLeave={() => {
+        pausedRef.current = false;
+      }}
+      onFocus={() => {
+        pausedRef.current = true;
+      }}
+      onBlur={() => {
+        pausedRef.current = false;
+      }}
     >
-      <div className="journal-ticker-track flex w-max items-center py-3.5">
-        <TickerSequence quotes={quotes} loading={loading && quotes.length === 0} />
-        <TickerSequence quotes={quotes} loading={loading && quotes.length === 0} />
+      <div
+        ref={scrollerRef}
+        className="w-full overflow-x-hidden"
+      >
+        <div className="flex w-max items-center py-3.5">
+          <TickerSequence
+            quotes={quotes}
+            loading={loading && quotes.length === 0}
+          />
+          <TickerSequence
+            quotes={quotes}
+            loading={loading && quotes.length === 0}
+            hidden
+          />
+        </div>
       </div>
     </div>
   );

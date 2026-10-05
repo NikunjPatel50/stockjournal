@@ -178,9 +178,10 @@ export function formatIndexPrice(
 /** Sidebar-friendly price: fewer decimals on large index levels. */
 export function formatIndexPriceCompact(
   value: number,
-  currency: string
+  currency: string,
+  fractionDigits?: number
 ): string {
-  const decimals = value >= 1000 ? 0 : 2;
+  const decimals = fractionDigits ?? (value >= 1000 ? 0 : 2);
 
   if (SUPPORTED_CURRENCIES.has(currency as CurrencyCode)) {
     const locale = currency === "INR" ? "en-IN" : "en-US";

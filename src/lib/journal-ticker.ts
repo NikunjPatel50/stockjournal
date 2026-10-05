@@ -112,6 +112,8 @@ export type JournalTickerQuote = {
   id: string;
   label: string;
   price: number;
+  /** Point move versus the previous close. */
+  change: number | null;
   changePercent: number | null;
   currency: string;
   /** True while that instrument's session is open. Closed rows use the last close. */
