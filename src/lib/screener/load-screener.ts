@@ -38,6 +38,7 @@ import {
   type StockScreenerDetail,
 } from "@/lib/screener/types";
 import { loadAllEmaSetups } from "@/lib/screener/load-ema-setups";
+import { loadAllMomentumSetups } from "@/lib/screener/load-momentum-setups";
 import { loadAllTurtleBreakouts } from "@/lib/screener/load-turtle-breakouts";
 import {
   readScreenerSnapshot,
@@ -224,20 +225,28 @@ async function overlayNseQuotesOnRows(
 
 async function fillSparseSectorRows(
   rows: SectorScreenerRow[],
-  fresh: boolean
+  fresh: boolean,
+  onProgress?: (progress: SectorLoadProgress) => void
 ): Promise<SectorScreenerRow[]> {
   const yahooChangesBySymbol = new Map<string, PeriodChanges>();
+  const total = rows.length;
+  let loaded = 0;
   return mapWithConcurrency(rows, 8, async (row) => {
-    if (!needsSupplementalSectorPeriods(row.changes)) return row;
-    const sector = getIndianSector(row.id);
-    if (!sector) return row;
-    const changes = await fillMissingLongerPeriods(
-      sector,
-      row.changes,
-      fresh,
-      yahooChangesBySymbol
-    );
-    return { ...row, changes };
+    try {
+      if (!needsSupplementalSectorPeriods(row.changes)) return row;
+      const sector = getIndianSector(row.id);
+      if (!sector) return row;
+      const changes = await fillMissingLongerPeriods(
+        sector,
+        row.changes,
+        fresh,
+        yahooChangesBySymbol
+      );
+      return { ...row, changes };
+    } finally {
+      loaded += 1;
+      onProgress?.({ loaded, total });
+    }
   });
 }
 
@@ -297,24 +306,40 @@ function isCompleteSectorCatalog(rows: SectorScreenerRow[]): boolean {
 
 async function completeSectorPayload(
   payload: SectorRowsPayload,
-  fresh: boolean
+  fresh: boolean,
+  onProgress?: (progress: SectorLoadProgress) => void
 ): Promise<SectorRowsPayload> {
   const known = payload.sectors.filter((row) => SECTOR_CATALOG_IDS.has(row.id));
   const have = new Set(known.map((row) => row.id));
   const missing = SECTOR_CATALOG.filter((sector) => !have.has(sector.id));
   const nseDirectory = await loadNseIndexDirectory(fresh);
   const yahooChangesBySymbol = new Map<string, PeriodChanges>();
+  let loaded = known.length;
   const extras =
     missing.length > 0
-      ? await mapWithConcurrency(missing, 8, (sector) =>
-          fetchOneSectorRow(sector, fresh, nseDirectory, yahooChangesBySymbol)
-        )
+      ? await mapWithConcurrency(missing, 8, async (sector) => {
+          const row = await fetchOneSectorRow(
+            sector,
+            fresh,
+            nseDirectory,
+            yahooChangesBySymbol
+          );
+          loaded += 1;
+          onProgress?.({ loaded, total: SECTOR_CATALOG.length });
+          return row;
+        })
       : [];
 
   const merged = orderCatalogSectors([...known, ...extras]);
   let sectors = await overlayNseQuotesOnRows(merged, fresh);
   if (sectors.some((row) => needsSupplementalSectorPeriods(row.changes))) {
-    sectors = await fillSparseSectorRows(sectors, fresh);
+    sectors = await fillSparseSectorRows(
+      sectors,
+      fresh,
+      missing.length > 0 ? undefined : onProgress
+    );
+  } else {
+    onProgress?.({ loaded: sectors.length, total: SECTOR_CATALOG.length });
   }
 
   return normalizeSectorPayload({
@@ -477,11 +502,15 @@ export async function loadSectorRows(
       const normalized = normalizeSectorPayload(cached);
       let sectors = await overlayNseQuotesOnRows(normalized.sectors, false);
       if (sectors.some((row) => needsSupplementalSectorPeriods(row.changes))) {
-        sectors = await fillSparseSectorRows(sectors, false);
+        sectors = await fillSparseSectorRows(sectors, false, onProgress);
         const payload = { ...normalized, sectors };
         await persistPayload(SECTORS_SNAPSHOT_KEY, payload, marketOpen);
         return payload;
       }
+      onProgress?.({
+        loaded: sectors.length,
+        total: SECTOR_CATALOG.length,
+      });
       return { ...normalized, sectors };
     }
 
@@ -498,7 +527,7 @@ export async function loadSectorRows(
         : null);
 
     if (base) {
-      const payload = await completeSectorPayload(base, false);
+      const payload = await completeSectorPayload(base, false, onProgress);
       if (payload.sectors.length !== base.sectors.length) {
         await persistPayload(SECTORS_SNAPSHOT_KEY, payload, marketOpen);
       } else {
@@ -580,6 +609,7 @@ export async function refreshScreenerDailySnapshot(): Promise<{
   stockLists: number;
   emaSetups: number;
   turtleSetups: number;
+  momentumSetups: number;
   persisted: boolean;
 }> {
   const sessionDate = getNseScreenerSessionDate();
@@ -616,9 +646,10 @@ export async function refreshScreenerDailySnapshot(): Promise<{
   }
 
   await persistYahooSnapshots(sessionDate, symbols);
-  const [emaPayload, turtlePayload] = await Promise.all([
+  const [emaPayload, turtlePayload, momentumPayload] = await Promise.all([
     loadAllEmaSetups(false),
     loadAllTurtleBreakouts(false),
+    loadAllMomentumSetups(false),
   ]);
 
   return {
@@ -628,6 +659,7 @@ export async function refreshScreenerDailySnapshot(): Promise<{
     stockLists,
     emaSetups: emaPayload.setups.length,
     turtleSetups: turtlePayload.setups.length,
+    momentumSetups: momentumPayload.setups.length,
     persisted: sectorsOk && stockListsOk,
   };
 }

@@ -53,6 +53,9 @@ function backLink(from?: ScreenerTab, sectorId?: string | null, sectorLabel?: st
   if (from === "turtle") {
     return { href: screenerTabHref("turtle"), label: "Back to Turtle breakout" };
   }
+  if (from === "momentum") {
+    return { href: screenerTabHref("momentum"), label: "Back to Momentum" };
+  }
   if (sectorId) {
     return {
       href: `/screener/${sectorId}`,

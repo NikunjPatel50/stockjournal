@@ -1,10 +1,10 @@
-export type ScreenerTab = "sectors" | "ema" | "turtle";
+export type ScreenerTab = "sectors" | "ema" | "turtle" | "momentum";
 
 export function parseScreenerTab(
   value?: string | string[] | null
 ): ScreenerTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === "ema" || raw === "turtle") return raw;
+  if (raw === "ema" || raw === "turtle" || raw === "momentum") return raw;
   return "sectors";
 }
 

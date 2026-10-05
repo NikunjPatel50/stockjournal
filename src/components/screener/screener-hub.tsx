@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppPageHeader } from "@/components/app-page-header";
 import { ScreenerEmaCard } from "@/components/screener/screener-ema-card";
+import { ScreenerMomentumCard } from "@/components/screener/screener-momentum-card";
 import { ScreenerSectorsPage } from "@/components/screener/screener-sectors-page";
 import { ScreenerTurtleCard } from "@/components/screener/screener-turtle-card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,6 +27,7 @@ export function ScreenerHub({
     sectors: true,
     ema: initialTab === "ema",
     turtle: initialTab === "turtle",
+    momentum: initialTab === "momentum",
   });
 
   return (
@@ -33,7 +35,7 @@ export function ScreenerHub({
       <AppPageHeader
         eyebrow="Private"
         title="Screener"
-        description="Indian sector map, EMA support, and turtle Donchian breakouts."
+        description="Indian sector map, EMA support, turtle breakouts, and momentum bases."
       />
 
       <div className="space-y-4">
@@ -42,7 +44,7 @@ export function ScreenerHub({
           onValueChange={(next) => {
             const value = parseScreenerTab(String(next));
             setTab(value);
-            if (value === "ema" || value === "turtle") {
+            if (value === "ema" || value === "turtle" || value === "momentum") {
               setOpened((current) =>
                 current[value] ? current : { ...current, [value]: true }
               );
@@ -61,6 +63,9 @@ export function ScreenerHub({
               <TabsTrigger value="turtle" className="px-3 text-xs">
                 Turtle breakout
               </TabsTrigger>
+              <TabsTrigger value="momentum" className="px-3 text-xs">
+                Momentum
+              </TabsTrigger>
             </TabsList>
           </div>
         </Tabs>
@@ -76,6 +81,11 @@ export function ScreenerHub({
         {opened.turtle ? (
           <div className={cn(tab === "turtle" ? undefined : "hidden")}>
             <ScreenerTurtleCard />
+          </div>
+        ) : null}
+        {opened.momentum ? (
+          <div className={cn(tab === "momentum" ? undefined : "hidden")}>
+            <ScreenerMomentumCard />
           </div>
         ) : null}
       </div>

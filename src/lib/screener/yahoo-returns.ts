@@ -17,6 +17,9 @@ type PriceBar = {
   ts: number;
   close: number;
   high: number;
+  open: number | null;
+  low: number | null;
+  volume: number | null;
   date: string;
 };
 
@@ -84,18 +87,31 @@ function computeChanges(
   return changes;
 }
 
+function finitePositive(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : null;
+}
+
 function mapBars(result: {
   timestamp?: number[];
   indicators?: {
     quote?: Array<{
+      open?: Array<number | null>;
       close?: Array<number | null>;
       high?: Array<number | null>;
+      low?: Array<number | null>;
+      volume?: Array<number | null>;
     }>;
   };
 }): PriceBar[] {
   const timestamps = result.timestamp ?? [];
-  const closes = result.indicators?.quote?.[0]?.close ?? [];
-  const highs = result.indicators?.quote?.[0]?.high ?? [];
+  const quote = result.indicators?.quote?.[0];
+  const opens = quote?.open ?? [];
+  const closes = quote?.close ?? [];
+  const highs = quote?.high ?? [];
+  const lows = quote?.low ?? [];
+  const volumes = quote?.volume ?? [];
   const bars: PriceBar[] = [];
 
   for (let index = 0; index < timestamps.length; index += 1) {
@@ -117,6 +133,9 @@ function mapBars(result: {
         typeof high === "number" && Number.isFinite(high) && high > 0
           ? high
           : close,
+      open: finitePositive(opens[index]),
+      low: finitePositive(lows[index]),
+      volume: finitePositive(volumes[index]),
       date: new Date(ts * 1000).toISOString().slice(0, 10),
     });
   }
@@ -200,8 +219,11 @@ export async function fetchYahooReturnSnapshot(
           timestamp?: number[];
           indicators?: {
             quote?: Array<{
+              open?: Array<number | null>;
               close?: Array<number | null>;
               high?: Array<number | null>;
+              low?: Array<number | null>;
+              volume?: Array<number | null>;
             }>;
           };
         }>;
@@ -250,6 +272,15 @@ export async function fetchYahooReturnSnapshot(
               date: bar.date,
               close: Math.round(bar.close * 100) / 100,
               high: Math.round(bar.high * 100) / 100,
+              ...(bar.open != null
+                ? { open: Math.round(bar.open * 100) / 100 }
+                : {}),
+              ...(bar.low != null
+                ? { low: Math.round(bar.low * 100) / 100 }
+                : {}),
+              ...(bar.volume != null
+                ? { volume: Math.round(bar.volume) }
+                : {}),
             })),
     };
   } catch {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppPageHeader } from "@/components/app-page-header";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerHeatmap } from "@/components/screener/screener-heatmap";
+import { ScreenerLoadProgress } from "@/components/screener/screener-load-progress";
 import { ScreenerPeriodTable } from "@/components/screener/screener-period-table";
 import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { ScreenerToolbar } from "@/components/screener/screener-toolbar";
@@ -28,7 +29,7 @@ export function ScreenerSectorsPage({
   embedded?: boolean;
 }) {
   const router = useRouter();
-  const { data, error, loading, progress, reload } = useScreenerSectors();
+  const { data, error, loading, progress, counts, reload } = useScreenerSectors();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"table" | "heatmap">("table");
   const [sort, setSort] = useState(defaultScreenerSort("1w"));
@@ -102,27 +103,12 @@ export function ScreenerSectorsPage({
         {error ? (
           <PanelEmpty title="Could not load sectors" hint={error} />
         ) : loading && !data ? (
-          <div className="space-y-4">
-            <div className="min-h-[14rem] animate-pulse rounded-xl bg-muted/40" />
-            <div className="mx-auto max-w-sm space-y-2">
-              <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                <span>Fetching 53 NSE sector indices…</span>
-                <span className="tabular-nums text-foreground">{progress ?? 0}%</span>
-              </div>
-              <div
-                className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-                role="progressbar"
-                aria-valuenow={progress ?? 0}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <div
-                  className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
-                  style={{ width: `${Math.min(100, Math.max(0, progress ?? 0))}%` }}
-                />
-              </div>
-            </div>
-          </div>
+          <ScreenerLoadProgress
+            fetchingLabel="Fetching NSE sector indices…"
+            itemLabel="NSE sector indices"
+            progress={progress}
+            counts={counts}
+          />
         ) : rows.length === 0 ? (
           <PanelEmpty
             title="No matching sectors"

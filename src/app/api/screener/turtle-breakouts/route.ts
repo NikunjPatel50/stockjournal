@@ -16,9 +16,9 @@ export async function GET(request: Request) {
   const fresh = url.searchParams.get("fresh") === "1";
   const stream = url.searchParams.get("stream") === "1";
 
-  if (stream && fresh) {
+  if (stream) {
     return screenerNdjsonStream((onProgress) =>
-      loadAllTurtleBreakouts(true, onProgress)
+      loadAllTurtleBreakouts(fresh, onProgress)
     );
   }
 

@@ -17,46 +17,65 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useScreenerStream } from "@/hooks/use-screener-stream";
-import { formatPercent } from "@/lib/analytics";
 import { formatMarketPrice } from "@/lib/journal-types";
 import { formatScreenerStamp } from "@/lib/screener/format";
-import {
-  matchesTurtleSystem,
-  type TurtleSystem,
-} from "@/lib/screener/turtle-rules";
-import { dedupeRowsByTicker } from "@/lib/screener/dedupe-rows";
+import type {
+  MomentumSetupRow,
+  MomentumSetupsPayload,
+  MomentumTimeframe,
+} from "@/lib/screener/load-momentum-setups";
+import type { MomentumSetup } from "@/lib/screener/momentum";
 import { cn, NUMERIC_CLASS } from "@/lib/utils";
 
-type TurtleRow = {
-  ticker: string;
-  name: string;
-  sectorLabel: string | null;
-  lastPrice: number | null;
-  system: "S1" | "S2" | "W20";
-  channelHigh: number | null;
-  extension: number | null;
-  ageBars: number | null;
-  why: string;
-};
-
-type TurtlePayload = {
-  setups: TurtleRow[];
-  scanned: number;
-  asOf: string;
-  system: TurtleSystem;
-};
-
-function systemLabel(system: TurtleRow["system"]): string {
-  if (system === "S1") return "20-day";
-  if (system === "S2") return "55-day";
-  return "20-week";
+function formatCrore(crore: number): string {
+  return `₹${new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(crore)} Cr`;
 }
 
-const TurtleSetupTable = memo(function TurtleSetupTable({
+function formatBreakoutDate(value: string): string {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+  }).format(date);
+}
+
+function visibleSetup(
+  row: MomentumSetupRow,
+  timeframe: MomentumTimeframe
+): { label: string; setup: MomentumSetup; unit: "d" | "w" } | null {
+  if (timeframe === "daily") {
+    return row.daily
+      ? { label: "Daily", setup: row.daily, unit: "d" }
+      : null;
+  }
+  if (timeframe === "weekly") {
+    return row.weekly
+      ? { label: "Weekly", setup: row.weekly, unit: "w" }
+      : null;
+  }
+  if (row.daily && row.weekly) {
+    const dailyIsNewer = row.daily.breakoutDate >= row.weekly.breakoutDate;
+    return {
+      label: "Daily + weekly",
+      setup: dailyIsNewer ? row.daily : row.weekly,
+      unit: dailyIsNewer ? "d" : "w",
+    };
+  }
+  if (row.daily) return { label: "Daily", setup: row.daily, unit: "d" };
+  if (row.weekly) return { label: "Weekly", setup: row.weekly, unit: "w" };
+  return null;
+}
+
+const MomentumTable = memo(function MomentumTable({
   rows,
+  timeframe,
   onOpen,
 }: {
-  rows: TurtleRow[];
+  rows: MomentumSetupRow[];
+  timeframe: MomentumTimeframe;
   onOpen: (ticker: string) => void;
 }) {
   return (
@@ -70,16 +89,22 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
             Sector
           </TableHead>
           <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            System
+            Timeframe
           </TableHead>
           <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Price
           </TableHead>
           <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Channel
+            Mkt cap
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Breakout
           </TableHead>
           <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Break
+            Volume
+          </TableHead>
+          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Base
           </TableHead>
           <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Why
@@ -87,9 +112,12 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((row, index) => (
+        {rows.map((row) => {
+          const visible = visibleSetup(row, timeframe);
+          if (!visible) return null;
+          return (
           <TableRow
-            key={`${row.ticker}-${row.system}-${index}`}
+            key={row.ticker}
             className="cursor-pointer"
             onClick={() => onOpen(row.ticker)}
           >
@@ -99,9 +127,7 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
                   <p className="text-sm font-medium text-foreground">
                     {row.ticker}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {row.name}
-                  </p>
+                  <p className="text-[11px] text-muted-foreground">{row.name}</p>
                 </div>
                 <ScreenerChartButton ticker={row.ticker} label={row.name} />
               </div>
@@ -110,7 +136,7 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
               {row.sectorLabel ?? "—"}
             </TableCell>
             <TableCell className="px-2.5 py-2.5 text-sm">
-              {systemLabel(row.system)}
+              {visible.label}
             </TableCell>
             <TableCell
               className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
@@ -122,48 +148,52 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
             <TableCell
               className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
             >
-              {row.channelHigh != null
-                ? formatMarketPrice(row.channelHigh, "INR")
-                : "—"}
+              {formatCrore(row.marketCapCrore)}
+            </TableCell>
+            <TableCell className="px-2.5 py-2.5 text-sm">
+              {formatBreakoutDate(visible.setup.breakoutDate)}
             </TableCell>
             <TableCell
-              className={cn(
-                "px-2.5 py-2.5 text-right text-sm text-emerald-600 dark:text-emerald-400",
-                NUMERIC_CLASS
-              )}
+              className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
             >
-              {row.extension != null
-                ? `+${formatPercent(row.extension * 100, 1)}`
-                : "—"}
+              {visible.setup.volumeMultiple.toFixed(1)}×
             </TableCell>
-            <TableCell className="max-w-[16rem] px-2.5 py-2.5 text-[11px] leading-snug text-muted-foreground">
+            <TableCell
+              className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
+            >
+              {visible.setup.consolidationBars}
+              {visible.unit}
+            </TableCell>
+            <TableCell className="max-w-[18rem] px-2.5 py-2.5 text-[11px] leading-snug text-muted-foreground">
               {row.why}
             </TableCell>
           </TableRow>
-        ))}
+          );
+        })}
       </TableBody>
     </Table>
   );
 });
 
-export function ScreenerTurtleCard() {
+export function ScreenerMomentumCard() {
   const router = useRouter();
-  const [system, setSystem] = useState<TurtleSystem>("s1");
+  const [timeframe, setTimeframe] = useState<MomentumTimeframe>("either");
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, counts, reload } =
-    useScreenerStream<TurtlePayload>("/api/screener/turtle-breakouts?v=tech");
+    useScreenerStream<MomentumSetupsPayload>("/api/screener/momentum?v=dw");
 
   const openStock = useCallback(
     (ticker: string) => {
-      router.push(`/screener/stock/${encodeURIComponent(ticker)}?from=turtle`);
+      router.push(`/screener/stock/${encodeURIComponent(ticker)}?from=momentum`);
     },
     [router]
   );
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return dedupeRowsByTicker(data?.setups ?? []).filter((row) => {
-      if (!matchesTurtleSystem(system, row.system)) return false;
+    return (data?.setups ?? []).filter((row) => {
+      if (timeframe === "daily" && !row.daily) return false;
+      if (timeframe === "weekly" && !row.weekly) return false;
       if (!needle) return true;
       return (
         row.ticker.toLowerCase().includes(needle) ||
@@ -171,17 +201,17 @@ export function ScreenerTurtleCard() {
         (row.sectorLabel ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [data?.setups, query, system]);
+  }, [data?.setups, query, timeframe]);
 
   return (
     <DataPanel
-      title="Turtle breakout"
-      subtitle="Classic Donchian breakouts in the last 1–2 sessions: 20-day (S1), 55-day (S2), or 20-week."
+      title="Momentum"
+      subtitle="Above the 50 and 200 EMA on the daily chart, the weekly chart, or both. A green candle closed through 20-bar resistance with an upper wick of 10% or less and at least 1.5× average volume, then held that break in a tight base on lighter volume. Market cap above ₹10,000 Cr."
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`
           : loading && progress != null
-            ? `Loading turtle breakouts · ${progress}%`
+            ? `Loading momentum · ${progress}%`
             : undefined
       }
       flush
@@ -203,51 +233,43 @@ export function ScreenerTurtleCard() {
             />
           </div>
           <Tabs
-            value={system}
+            value={timeframe}
             onValueChange={(value) => {
-              if (
-                value === "s1" ||
-                value === "s2" ||
-                value === "weekly" ||
-                value === "any"
-              ) {
-                setSystem(value);
+              if (value === "either" || value === "daily" || value === "weekly") {
+                setTimeframe(value);
               }
             }}
           >
             <TabsList className="h-9">
-              <TabsTrigger value="s1" className="px-3 text-xs">
-                20-day
+              <TabsTrigger value="either" className="px-3 text-xs">
+                Either
               </TabsTrigger>
-              <TabsTrigger value="s2" className="px-3 text-xs">
-                55-day
+              <TabsTrigger value="daily" className="px-3 text-xs">
+                Daily
               </TabsTrigger>
               <TabsTrigger value="weekly" className="px-3 text-xs">
-                20-week
-              </TabsTrigger>
-              <TabsTrigger value="any" className="px-3 text-xs">
-                Any
+                Weekly
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
         {error ? (
-          <PanelEmpty title="Could not load turtle breakouts" hint={error} />
+          <PanelEmpty title="Could not load momentum setups" hint={error} />
         ) : loading && !data ? (
           <ScreenerLoadProgress
-            fetchingLabel="Fetching stocks for turtle breakouts…"
-            itemLabel="stocks for turtle breakouts"
+            fetchingLabel="Fetching stocks for momentum…"
+            itemLabel="stocks for momentum"
             progress={progress}
             counts={counts}
           />
         ) : rows.length === 0 ? (
           <PanelEmpty
-            title="No turtle breakouts right now"
-            hint="Nothing in the Indian catalog is breaking a Donchian high right now."
+            title="No momentum bases right now"
+            hint="Nothing above ₹10,000 Cr is above the 50 and 200 EMA on this timeframe, fresh off a tight high-volume breakout, and consolidating on lighter volume."
           />
         ) : (
-          <TurtleSetupTable rows={rows} onOpen={openStock} />
+          <MomentumTable rows={rows} timeframe={timeframe} onOpen={openStock} />
         )}
       </div>
     </DataPanel>

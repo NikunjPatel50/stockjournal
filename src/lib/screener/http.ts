@@ -57,8 +57,9 @@ export function screenerNdjsonStream<T>(
 
   return new Response(body, {
     headers: {
-      "Content-Type": "application/x-ndjson",
-      "Cache-Control": "no-store",
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-store, no-transform",
+      "X-Accel-Buffering": "no",
     },
   });
 }

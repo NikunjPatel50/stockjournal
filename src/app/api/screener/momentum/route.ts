@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin";
 import { screenerJson, screenerNdjsonStream } from "@/lib/screener/http";
-import { loadSectorRows } from "@/lib/screener/load-screener";
+import { loadAllMomentumSetups } from "@/lib/screener/load-momentum-setups";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export const maxDuration = 120;
 
@@ -17,9 +17,11 @@ export async function GET(request: Request) {
   const stream = url.searchParams.get("stream") === "1";
 
   if (stream) {
-    return screenerNdjsonStream((onProgress) => loadSectorRows(fresh, onProgress));
+    return screenerNdjsonStream((onProgress) =>
+      loadAllMomentumSetups(fresh, onProgress)
+    );
   }
 
-  const payload = await loadSectorRows(fresh);
+  const payload = await loadAllMomentumSetups(fresh);
   return screenerJson(payload);
 }

@@ -44,24 +44,20 @@ function writeStored<T>(key: string, data: T) {
   }
 }
 
-async function fetchScreenerJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: "default" });
-  if (!res.ok) {
-    throw new Error(
-      res.status === 403
-        ? "This screener is private."
-        : "Could not load screener data."
-    );
-  }
-  return (await res.json()) as T;
-}
+export type ScreenerProgressCounts = {
+  loaded: number;
+  total: number;
+};
 
 async function streamScreenerPayload<T>(
   url: string,
-  onProgress: (percent: number) => void
+  fresh: boolean,
+  onProgress: (update: ScreenerProgressCounts & { percent: number }) => void
 ): Promise<T> {
+  const params = new URLSearchParams({ stream: "1" });
+  if (fresh) params.set("fresh", "1");
   const separator = url.includes("?") ? "&" : "?";
-  const res = await fetch(`${url}${separator}fresh=1&stream=1`, {
+  const res = await fetch(`${url}${separator}${params.toString()}`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -93,9 +89,9 @@ async function streamScreenerPayload<T>(
         const percent = event.total
           ? Math.round((event.loaded / event.total) * 100)
           : 0;
-        onProgress(percent);
+        onProgress({ loaded: event.loaded, total: event.total, percent });
       } else if (event.type === "complete") {
-        onProgress(100);
+        onProgress({ loaded: 0, total: 0, percent: 100 });
         return event.data;
       } else if (event.type === "error") {
         throw new Error(event.message || "Could not load screener data.");
@@ -112,6 +108,7 @@ export function useScreenerStream<T>(url: string) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<number | null>(null);
+  const [counts, setCounts] = useState<ScreenerProgressCounts | null>(null);
   const inflight = useRef<Promise<void> | null>(null);
 
   const load = useCallback(
@@ -129,20 +126,23 @@ export function useScreenerStream<T>(url: string) {
             setError(null);
             setLoading(false);
             setProgress(100);
+            setCounts(null);
             return;
           }
         }
 
         setLoading(true);
         setError(null);
-        setProgress(fresh ? 0 : null);
+        setProgress(0);
+        setCounts(null);
 
         try {
-          const next = fresh
-            ? await streamScreenerPayload<T>(url, (percent) => {
-                setProgress(percent);
-              })
-            : await fetchScreenerJson<T>(url);
+          const next = await streamScreenerPayload<T>(url, fresh, (update) => {
+            setProgress(update.percent);
+            if (update.total > 0) {
+              setCounts({ loaded: update.loaded, total: update.total });
+            }
+          });
           setData(next);
           writeStored(key, next);
         } catch (err) {
@@ -172,5 +172,5 @@ export function useScreenerStream<T>(url: string) {
     void load(false);
   }, [load]);
 
-  return { data, error, loading, progress, reload };
+  return { data, error, loading, progress, counts, reload };
 }

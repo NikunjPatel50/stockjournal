@@ -36,6 +36,9 @@ export type ScreenerChartPoint = {
   date: string;
   close: number;
   high?: number;
+  open?: number;
+  low?: number;
+  volume?: number;
 };
 
 export type SectorScreenerRow = {

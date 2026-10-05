@@ -4,6 +4,7 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerChartButton } from "@/components/screener/screener-chart-button";
+import { ScreenerLoadProgress } from "@/components/screener/screener-load-progress";
 import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { Input } from "@/components/ui/input";
 import {
@@ -144,7 +145,7 @@ export function ScreenerEmaCard() {
   const router = useRouter();
   const [timeframe, setTimeframe] = useState<EmaTimeframe>("daily");
   const [query, setQuery] = useState("");
-  const { data, error, loading, progress, reload } = useScreenerStream<EmaPayload>(
+  const { data, error, loading, progress, counts, reload } = useScreenerStream<EmaPayload>(
     "/api/screener/ema-setups?v=ema200-5"
   );
 
@@ -224,7 +225,12 @@ export function ScreenerEmaCard() {
         {error ? (
           <PanelEmpty title="Could not load EMA setups" hint={error} />
         ) : loading && !data ? (
-          <div className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40" />
+          <ScreenerLoadProgress
+            fetchingLabel="Fetching stocks for EMA support…"
+            itemLabel="stocks for EMA support"
+            progress={progress}
+            counts={counts}
+          />
         ) : rows.length === 0 ? (
           <PanelEmpty
             title="No names passing the filters"
