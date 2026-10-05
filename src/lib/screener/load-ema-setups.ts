@@ -1,4 +1,5 @@
 import { getScreenerCache } from "@/lib/screener/cache";
+import type { TradePlan } from "@/lib/screener/trade-plan";
 import { passesEmaTimeframe, type EmaTimeframe } from "@/lib/screener/ema-rules";
 import {
   dedupeEmaSetupsByTicker,
@@ -26,6 +27,8 @@ export type EmaSetupRow = {
     dist200: number | null;
     holding: boolean;
   };
+  tradeDaily: TradePlan | null;
+  tradeWeekly: TradePlan | null;
   why: string;
 };
 

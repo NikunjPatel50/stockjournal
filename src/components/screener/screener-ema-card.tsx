@@ -4,6 +4,11 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerChartButton } from "@/components/screener/screener-chart-button";
+import { ScreenerSortHead } from "@/components/screener/screener-column-sort";
+import {
+  ScreenerPlanCells,
+  ScreenerPlanHeads,
+} from "@/components/screener/screener-trade-plan";
 import { ScreenerLoadProgress } from "@/components/screener/screener-load-progress";
 import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +16,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -19,7 +23,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useScreenerStream } from "@/hooks/use-screener-stream";
 import { formatPercent } from "@/lib/analytics";
 import { formatMarketPrice } from "@/lib/journal-types";
+import {
+  compareSortValues,
+  toggleColumnSort,
+  type ColumnSort,
+} from "@/lib/screener/column-sort";
 import { formatScreenerStamp } from "@/lib/screener/format";
+import type { TradePlan } from "@/lib/screener/trade-plan";
 import {
   ema200TimeframeLabel,
   passesEmaTimeframe,
@@ -35,6 +45,8 @@ type EmaSetupRow = {
   lastPrice: number | null;
   daily: { holding: boolean; dist50: number | null; dist200: number | null };
   weekly: { holding: boolean; dist50: number | null; dist200: number | null };
+  tradeDaily?: TradePlan | null;
+  tradeWeekly?: TradePlan | null;
   why: string;
 };
 
@@ -45,6 +57,42 @@ type EmaPayload = {
   timeframe: EmaTimeframe;
 };
 
+type EmaSortKey =
+  | "stock"
+  | "sector"
+  | "timeframe"
+  | "price"
+  | "dist"
+  | "plan"
+  | "strength"
+  | "why";
+
+function emaSortValue(
+  row: EmaSetupRow,
+  key: EmaSortKey,
+  timeframe: EmaTimeframe
+): string | number | null {
+  const plan = visibleEmaPlan(row, timeframe);
+  switch (key) {
+    case "stock":
+      return row.ticker;
+    case "sector":
+      return row.sectorLabel;
+    case "timeframe":
+      return ema200TimeframeLabel(row.daily.holding, row.weekly.holding);
+    case "price":
+      return row.lastPrice;
+    case "dist":
+      return nearestDist200(row, timeframe);
+    case "plan":
+      return plan?.entry ?? null;
+    case "strength":
+      return plan?.strength ?? null;
+    case "why":
+      return row.why;
+  }
+}
+
 const EmaSetupTable = memo(function EmaSetupTable({
   rows,
   timeframe,
@@ -54,32 +102,74 @@ const EmaSetupTable = memo(function EmaSetupTable({
   timeframe: EmaTimeframe;
   onOpen: (ticker: string) => void;
 }) {
+  const [sort, setSort] = useState<ColumnSort<EmaSortKey> | null>(null);
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+    return [...rows].sort((left, right) =>
+      compareSortValues(
+        emaSortValue(left, sort.key, timeframe),
+        emaSortValue(right, sort.key, timeframe),
+        sort.direction
+      )
+    );
+  }, [rows, sort, timeframe]);
+
+  function sortBy(key: EmaSortKey, firstDirection: "asc" | "desc") {
+    setSort((current) => toggleColumnSort(current, key, firstDirection));
+  }
+
   return (
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Stock
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Sector
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Timeframe
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Price
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            200 Dist
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Why
-          </TableHead>
+          <ScreenerSortHead
+            label="Stock"
+            active={sort?.key === "stock"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("stock", "asc")}
+          />
+          <ScreenerSortHead
+            label="Sector"
+            active={sort?.key === "sector"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("sector", "asc")}
+          />
+          <ScreenerSortHead
+            label="Timeframe"
+            active={sort?.key === "timeframe"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("timeframe", "asc")}
+          />
+          <ScreenerSortHead
+            label="Price"
+            align="right"
+            active={sort?.key === "price"}
+            direction={sort?.direction ?? "desc"}
+            onClick={() => sortBy("price", "desc")}
+          />
+          <ScreenerSortHead
+            label="200 Dist"
+            align="right"
+            active={sort?.key === "dist"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("dist", "asc")}
+          />
+          <ScreenerPlanHeads
+            planKey="plan"
+            strengthKey="strength"
+            sort={sort}
+            onSort={(key) => sortBy(key, "desc")}
+          />
+          <ScreenerSortHead
+            label="Why"
+            active={sort?.key === "why"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("why", "asc")}
+          />
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((row, index) => {
+        {sortedRows.map((row, index) => {
           const dist = nearestDist200(row, timeframe);
           return (
             <TableRow
@@ -118,6 +208,10 @@ const EmaSetupTable = memo(function EmaSetupTable({
               >
                 {dist != null ? `+${formatPercent(dist * 100, 1)}` : "—"}
               </TableCell>
+              <ScreenerPlanCells
+                plan={visibleEmaPlan(row, timeframe)}
+                showFrame={timeframe === "both"}
+              />
               <TableCell className="max-w-[16rem] px-2.5 py-2.5 text-[11px] leading-snug text-muted-foreground">
                 {row.why}
               </TableCell>
@@ -128,6 +222,21 @@ const EmaSetupTable = memo(function EmaSetupTable({
     </Table>
   );
 });
+
+function visibleEmaPlan(
+  row: EmaSetupRow,
+  timeframe: EmaTimeframe
+): TradePlan | null {
+  if (timeframe === "daily") return row.tradeDaily ?? null;
+  if (timeframe === "weekly") return row.tradeWeekly ?? null;
+  const dailyDist = row.daily.holding ? row.daily.dist200 : null;
+  const weeklyDist = row.weekly.holding ? row.weekly.dist200 : null;
+  if (dailyDist == null) return row.tradeWeekly ?? null;
+  if (weeklyDist == null) return row.tradeDaily ?? null;
+  return dailyDist <= weeklyDist
+    ? (row.tradeDaily ?? null)
+    : (row.tradeWeekly ?? null);
+}
 
 function nearestDist200(
   row: EmaSetupRow,
@@ -146,7 +255,7 @@ export function ScreenerEmaCard() {
   const [timeframe, setTimeframe] = useState<EmaTimeframe>("daily");
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, counts, reload } = useScreenerStream<EmaPayload>(
-    "/api/screener/ema-setups?v=ema200-5"
+    "/api/screener/ema-setups?v=plan-1"
   );
 
   const openStock = useCallback(
@@ -174,7 +283,7 @@ export function ScreenerEmaCard() {
   return (
     <DataPanel
       title="EMA support"
-      subtitle="Names sitting on 200 EMA support. Price is above the 200 EMA and no more than 3% away, on daily and/or weekly."
+      subtitle="Names sitting on 200 EMA support. Price is above the 200 EMA and no more than 3% away, on daily and/or weekly. Plan is the entry, stop, and target from the candles, RSI, and moving averages. Strength is how many of those checks line up."
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`

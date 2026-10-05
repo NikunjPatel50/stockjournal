@@ -1,4 +1,5 @@
 import { getScreenerCache } from "@/lib/screener/cache";
+import type { TradePlan } from "@/lib/screener/trade-plan";
 import {
   refreshStrategyCaches,
   TURTLE_BREAKOUTS_CACHE_KEY,
@@ -18,6 +19,7 @@ export type TurtleBreakoutRow = {
   channelHigh: number | null;
   extension: number | null;
   ageBars: number | null;
+  trade: TradePlan | null;
   why: string;
 };
 

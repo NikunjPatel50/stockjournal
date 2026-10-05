@@ -13,6 +13,8 @@ import {
   toWeeklyOhlcv,
   type MomentumSetup,
 } from "@/lib/screener/momentum";
+import { buildTradePlan, type TradePlan } from "@/lib/screener/trade-plan";
+import type { ScreenerChartPoint } from "@/lib/screener/types";
 import { getNseScreenerSessionDate } from "@/lib/screener/session";
 import {
   readScreenerSnapshot,
@@ -24,7 +26,7 @@ import {
 } from "@/lib/screener/yahoo-store";
 import { yahooSymbolForNseTicker } from "@/lib/screener/yahoo-returns";
 
-export const MOMENTUM_SETUPS_CACHE_KEY = "momentum-setups:v4";
+export const MOMENTUM_SETUPS_CACHE_KEY = "momentum-setups:v5";
 
 export type MomentumTimeframe = "either" | "daily" | "weekly";
 
@@ -36,6 +38,8 @@ export type MomentumSetupRow = {
   marketCapCrore: number;
   daily: MomentumSetup | null;
   weekly: MomentumSetup | null;
+  tradeDaily: TradePlan | null;
+  tradeWeekly: TradePlan | null;
   why: string;
 };
 
@@ -65,6 +69,23 @@ function describeWhy(
   ]
     .filter((part): part is string => part != null)
     .join(" · ");
+}
+
+function momentumPlan(
+  chart: ScreenerChartPoint[],
+  setup: MomentumSetup | null,
+  price: number,
+  frame: "Daily" | "Weekly"
+): TradePlan | null {
+  if (!setup || price <= 0) return null;
+  return buildTradePlan(chart, {
+    kind: "momentum",
+    frame,
+    price,
+    level: setup.resistance,
+    trigger: setup.baseHigh,
+    invalidation: setup.baseLow,
+  });
 }
 
 function newestBreakout(row: {
@@ -136,8 +157,13 @@ export async function loadAllMomentumSetups(
           snapshot = await loadYahooSnapshot(symbol, true);
         }
         const daily = detectMomentumSetup(snapshot.chart);
-        const weekly = detectMomentumSetup(toWeeklyOhlcv(snapshot.chart));
+        const weeklyBars = toWeeklyOhlcv(snapshot.chart);
+        const weekly = detectMomentumSetup(weeklyBars);
         if (!daily && !weekly) return null;
+        const price =
+          snapshot.lastPrice ??
+          snapshot.chart[snapshot.chart.length - 1]?.close ??
+          0;
         const setupRow: MomentumSetupRow = {
           ticker: stock.ticker,
           name: stock.name,
@@ -146,6 +172,8 @@ export async function loadAllMomentumSetups(
           marketCapCrore: stock.marketCapCrore,
           daily,
           weekly,
+          tradeDaily: momentumPlan(snapshot.chart, daily, price, "Daily"),
+          tradeWeekly: momentumPlan(weeklyBars, weekly, price, "Weekly"),
           why: describeWhy(daily, weekly),
         };
         return setupRow;

@@ -20,6 +20,8 @@ export type MomentumSetup = {
   volumeMultiple: number;
   upperWickRatio: number;
   consolidationBars: number;
+  baseHigh: number;
+  baseLow: number;
 };
 
 type OhlcvBar = ScreenerChartPoint & {
@@ -175,6 +177,8 @@ export function detectMomentumSetup(
       volumeMultiple: Math.round((bar.volume / averageVolume) * 10) / 10,
       upperWickRatio: Math.round(upperWickRatio * 1000) / 1000,
       consolidationBars: base.length,
+      baseHigh: Math.round(baseHigh * 100) / 100,
+      baseLow: Math.round(baseLow * 100) / 100,
     };
   }
 

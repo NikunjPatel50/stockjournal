@@ -4,6 +4,11 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataPanel, PanelEmpty } from "@/components/data-panel";
 import { ScreenerChartButton } from "@/components/screener/screener-chart-button";
+import { ScreenerSortHead } from "@/components/screener/screener-column-sort";
+import {
+  ScreenerPlanCells,
+  ScreenerPlanHeads,
+} from "@/components/screener/screener-trade-plan";
 import { ScreenerLoadProgress } from "@/components/screener/screener-load-progress";
 import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +16,17 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useScreenerStream } from "@/hooks/use-screener-stream";
 import { formatMarketPrice } from "@/lib/journal-types";
+import {
+  compareSortValues,
+  toggleColumnSort,
+  type ColumnSort,
+} from "@/lib/screener/column-sort";
 import { formatScreenerStamp } from "@/lib/screener/format";
 import type {
   MomentumSetupRow,
@@ -69,6 +78,58 @@ function visibleSetup(
   return null;
 }
 
+type MomentumSortKey =
+  | "stock"
+  | "sector"
+  | "timeframe"
+  | "price"
+  | "cap"
+  | "breakout"
+  | "volume"
+  | "base"
+  | "plan"
+  | "strength"
+  | "why";
+
+function momentumSortValue(
+  row: MomentumSetupRow,
+  key: MomentumSortKey,
+  timeframe: MomentumTimeframe
+): string | number | null {
+  const visible = visibleSetup(row, timeframe);
+  const plan = visible
+    ? visible.unit === "d"
+      ? row.tradeDaily
+      : row.tradeWeekly
+    : null;
+  switch (key) {
+    case "stock":
+      return row.ticker;
+    case "sector":
+      return row.sectorLabel;
+    case "timeframe":
+      return visible?.label ?? null;
+    case "price":
+      return row.lastPrice;
+    case "cap":
+      return row.marketCapCrore;
+    case "breakout":
+      return visible?.setup.breakoutDate ?? null;
+    case "volume":
+      return visible?.setup.volumeMultiple ?? null;
+    case "base":
+      return visible
+        ? visible.setup.consolidationBars * (visible.unit === "w" ? 5 : 1)
+        : null;
+    case "plan":
+      return plan?.entry ?? null;
+    case "strength":
+      return plan?.strength ?? null;
+    case "why":
+      return row.why;
+  }
+}
+
 const MomentumTable = memo(function MomentumTable({
   rows,
   timeframe,
@@ -78,41 +139,94 @@ const MomentumTable = memo(function MomentumTable({
   timeframe: MomentumTimeframe;
   onOpen: (ticker: string) => void;
 }) {
+  const [sort, setSort] = useState<ColumnSort<MomentumSortKey> | null>(null);
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+    return [...rows].sort((left, right) =>
+      compareSortValues(
+        momentumSortValue(left, sort.key, timeframe),
+        momentumSortValue(right, sort.key, timeframe),
+        sort.direction
+      )
+    );
+  }, [rows, sort, timeframe]);
+
+  function sortBy(key: MomentumSortKey, firstDirection: "asc" | "desc") {
+    setSort((current) => toggleColumnSort(current, key, firstDirection));
+  }
+
   return (
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Stock
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Sector
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Timeframe
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Price
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Mkt cap
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Breakout
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Volume
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Base
-          </TableHead>
-          <TableHead className="h-9 bg-muted/30 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Why
-          </TableHead>
+          <ScreenerSortHead
+            label="Stock"
+            active={sort?.key === "stock"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("stock", "asc")}
+          />
+          <ScreenerSortHead
+            label="Sector"
+            active={sort?.key === "sector"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("sector", "asc")}
+          />
+          <ScreenerSortHead
+            label="Timeframe"
+            active={sort?.key === "timeframe"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("timeframe", "asc")}
+          />
+          <ScreenerSortHead
+            label="Price"
+            align="right"
+            active={sort?.key === "price"}
+            direction={sort?.direction ?? "desc"}
+            onClick={() => sortBy("price", "desc")}
+          />
+          <ScreenerSortHead
+            label="Mkt cap"
+            align="right"
+            active={sort?.key === "cap"}
+            direction={sort?.direction ?? "desc"}
+            onClick={() => sortBy("cap", "desc")}
+          />
+          <ScreenerSortHead
+            label="Breakout"
+            active={sort?.key === "breakout"}
+            direction={sort?.direction ?? "desc"}
+            onClick={() => sortBy("breakout", "desc")}
+          />
+          <ScreenerSortHead
+            label="Volume"
+            align="right"
+            active={sort?.key === "volume"}
+            direction={sort?.direction ?? "desc"}
+            onClick={() => sortBy("volume", "desc")}
+          />
+          <ScreenerSortHead
+            label="Base"
+            align="right"
+            active={sort?.key === "base"}
+            direction={sort?.direction ?? "desc"}
+            onClick={() => sortBy("base", "desc")}
+          />
+          <ScreenerPlanHeads
+            planKey="plan"
+            strengthKey="strength"
+            sort={sort}
+            onSort={(key) => sortBy(key, "desc")}
+          />
+          <ScreenerSortHead
+            label="Why"
+            active={sort?.key === "why"}
+            direction={sort?.direction ?? "asc"}
+            onClick={() => sortBy("why", "asc")}
+          />
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((row) => {
+        {sortedRows.map((row) => {
           const visible = visibleSetup(row, timeframe);
           if (!visible) return null;
           return (
@@ -164,6 +278,12 @@ const MomentumTable = memo(function MomentumTable({
               {visible.setup.consolidationBars}
               {visible.unit}
             </TableCell>
+            <ScreenerPlanCells
+              plan={visible.unit === "d" ? row.tradeDaily : row.tradeWeekly}
+              showFrame={
+                timeframe === "either" && row.daily != null && row.weekly != null
+              }
+            />
             <TableCell className="max-w-[18rem] px-2.5 py-2.5 text-[11px] leading-snug text-muted-foreground">
               {row.why}
             </TableCell>
@@ -180,7 +300,7 @@ export function ScreenerMomentumCard() {
   const [timeframe, setTimeframe] = useState<MomentumTimeframe>("either");
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, counts, reload } =
-    useScreenerStream<MomentumSetupsPayload>("/api/screener/momentum?v=nse");
+    useScreenerStream<MomentumSetupsPayload>("/api/screener/momentum?v=plan-1");
 
   const openStock = useCallback(
     (ticker: string) => {
@@ -206,7 +326,7 @@ export function ScreenerMomentumCard() {
   return (
     <DataPanel
       title="Momentum"
-      subtitle="NSE-listed stocks only, above ₹10,000 Cr, checked live. Above the 50 and 200 EMA on the daily chart, the weekly chart, or both. A green candle closed through 20-bar resistance with an upper wick of 10% or less and at least 1.5× average volume, then held that break in a tight base on lighter volume."
+      subtitle="NSE-listed stocks only, above ₹10,000 Cr, checked live. Above the 50 and 200 EMA on the daily chart, the weekly chart, or both. A green candle closed through 20-bar resistance with an upper wick of 10% or less and at least 1.5× average volume, then held that break in a tight base on lighter volume. Plan is the entry, stop, and target from the candles, RSI, and moving averages. Strength is how many of those checks line up."
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`

@@ -1,5 +1,8 @@
 import { getScreenerCache } from "@/lib/screener/cache";
 import { computeEmaSupport, toWeeklyCloses } from "@/lib/screener/ema";
+import { toWeeklyOhlcv } from "@/lib/screener/momentum";
+import { buildTradePlan } from "@/lib/screener/trade-plan";
+import type { ScreenerChartPoint } from "@/lib/screener/types";
 import { EMA_QUALITY_RULES } from "@/lib/screener/ema-rules";
 import { findPrimarySectorLabel } from "@/lib/screener/indian-sectors";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
@@ -16,8 +19,8 @@ import {
   type UniverseSnapshot,
 } from "@/lib/screener/yahoo-store";
 
-export const EMA_SETUPS_CACHE_KEY = "ema-setups:ema200-5";
-export const TURTLE_BREAKOUTS_CACHE_KEY = "turtle-breakouts:tech";
+export const EMA_SETUPS_CACHE_KEY = "ema-setups:plan-1";
+export const TURTLE_BREAKOUTS_CACHE_KEY = "turtle-breakouts:plan-1";
 
 function formatPct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -42,6 +45,16 @@ export function dedupeEmaSetupsByTicker(setups: EmaSetupRow[]): EmaSetupRow[] {
   }
 
   return Array.from(byTicker.values());
+}
+
+function signalLow(
+  chart: ScreenerChartPoint[],
+  ageBars: number | null
+): number | null {
+  if (ageBars == null) return null;
+  const point = chart[chart.length - 1 - ageBars];
+  if (!point) return null;
+  return point.low != null && point.low > 0 ? point.low : point.close;
 }
 
 function describeEmaWhy(row: EmaSetupRow): string {
@@ -119,6 +132,22 @@ export function buildEmaSetupsFromSnapshots(
           dist200: weekly.dist200,
           holding: weekly.holding,
         },
+        tradeDaily: daily.holding
+          ? buildTradePlan(snapshot.chart, {
+              kind: "ema",
+              frame: "Daily",
+              price,
+              level: daily.ema200,
+            })
+          : null,
+        tradeWeekly: weekly.holding
+          ? buildTradePlan(toWeeklyOhlcv(snapshot.chart), {
+              kind: "ema",
+              frame: "Weekly",
+              price,
+              level: weekly.ema200,
+            })
+          : null,
         why: "",
       };
       return [{ ...row, why: describeEmaWhy(row) }];
@@ -160,6 +189,7 @@ export function buildTurtleBreakoutsFromSnapshots(
         return [];
       }
 
+      const weeklyBars = toWeeklyTurtleBars(snapshot.chart);
       const dailyS1 = detectTurtleBreakout(
         snapshot.chart,
         price,
@@ -173,7 +203,7 @@ export function buildTurtleBreakoutsFromSnapshots(
         TURTLE_LOOKBACKS.maxAgeBars
       );
       const weekly = detectTurtleBreakout(
-        toWeeklyTurtleBars(snapshot.chart),
+        weeklyBars,
         price,
         TURTLE_LOOKBACKS.weekly,
         1
@@ -212,6 +242,7 @@ export function buildTurtleBreakoutsFromSnapshots(
       }
 
       return hits.map((hit) => {
+        const series = hit.system === "W20" ? weeklyBars : snapshot.chart;
         const row: TurtleBreakoutRow = {
           ticker: stock.ticker,
           name: stock.name,
@@ -221,6 +252,13 @@ export function buildTurtleBreakoutsFromSnapshots(
           channelHigh: hit.channelHigh,
           extension: hit.extension,
           ageBars: hit.ageBars,
+          trade: buildTradePlan(series, {
+            kind: "turtle",
+            frame: hit.system === "W20" ? "Weekly" : "Daily",
+            price,
+            level: hit.channelHigh,
+            invalidation: signalLow(series, hit.ageBars),
+          }),
           why: "",
         };
         return { ...row, why: describeTurtleWhy(row) };

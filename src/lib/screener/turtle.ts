@@ -36,10 +36,26 @@ export function toWeeklyTurtleBars(chart: ScreenerChartPoint[]): ScreenerChartPo
     const key = monday.toISOString().slice(0, 10);
     const existing = weeks.get(key);
     const high = Math.max(existing?.high ?? 0, barHigh(point));
+    const low =
+      point.low != null && point.low > 0 ? point.low : point.close;
+    const open =
+      existing?.open != null && existing.open > 0
+        ? existing.open
+        : point.open != null && point.open > 0
+          ? point.open
+          : point.close;
     weeks.set(key, {
       date: key,
+      open,
       close: point.close,
       high,
+      low:
+        existing?.low != null && existing.low > 0
+          ? Math.min(existing.low, low)
+          : low,
+      volume:
+        (existing?.volume ?? 0) +
+        (point.volume != null && point.volume > 0 ? point.volume : 0),
     });
   }
   return [...weeks.entries()]
