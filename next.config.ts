@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
     ];
   },
   experimental: {
+    // Clarity replays fetch stylesheets later. Hashed CSS files from an
+    // older deploy 404, so recordings render as unstyled HTML. Inlining
+    // puts the CSS in the DOM snapshot Clarity already stores.
+    inlineCss: true,
     // Pages are client components fed by providers, so a cached RSC shell
     // stays valid; revisiting a tab skips the server round trip.
     staleTimes: {
