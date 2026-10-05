@@ -16,7 +16,7 @@ let directoryCache: {
 let directoryLoadPromise: Promise<NseDirectorySymbol[]> | null = null;
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const NSE_FETCH_TIMEOUT_MS = 8000;
+const NSE_FETCH_TIMEOUT_MS = 20_000;
 const NSE_EQUITY_CSV_URL =
   "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv";
 const BUNDLED_SYMBOLS_PATH = path.join(
@@ -41,13 +41,14 @@ async function loadBundledNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
 
 async function loadNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
   try {
+    const url = new URL(NSE_EQUITY_CSV_URL);
+    url.searchParams.set("_", String(Date.now()));
     const res = await fetchWithTimeout(
-      NSE_EQUITY_CSV_URL,
+      url,
       {
-        cache: "no-store",
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; SwingTradingLog/1.0; +https://swingtradinglog.com)",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           Accept: "text/csv,*/*",
         },
       },

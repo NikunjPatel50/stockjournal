@@ -1,28 +1,30 @@
 import { mapWithConcurrency } from "@/lib/map-with-concurrency";
-import { getScreenerCache } from "@/lib/screener/cache";
+import { isListingMarketOpen } from "@/lib/listing-market-hours";
 import {
-  findPrimarySectorLabel,
-  getUniqueIndianStocks,
-} from "@/lib/screener/indian-sectors";
+  getScreenerCache,
+  screenerCacheTtlMs,
+  setScreenerCache,
+} from "@/lib/screener/cache";
+import { findPrimarySectorLabel } from "@/lib/screener/indian-sectors";
+import { loadNseLargeCapUniverse } from "@/lib/screener/large-cap-universe";
 import {
   chartHasOhlcv,
   detectMomentumSetup,
-  MOMENTUM_RULES,
   toWeeklyOhlcv,
   type MomentumSetup,
 } from "@/lib/screener/momentum";
+import { getNseScreenerSessionDate } from "@/lib/screener/session";
+import {
+  readScreenerSnapshot,
+  writeScreenerSnapshot,
+} from "@/lib/screener/snapshot-store";
 import {
   loadYahooSnapshot,
-  persistComputedScreenerSnapshot,
-  readComputedScreenerSnapshot,
   YAHOO_FETCH_CONCURRENCY,
 } from "@/lib/screener/yahoo-store";
 import { yahooSymbolForNseTicker } from "@/lib/screener/yahoo-returns";
-import { fetchYahooFundamentals } from "@/lib/yahoo-fundamentals";
 
-export const MOMENTUM_SETUPS_CACHE_KEY = "momentum-setups:v2";
-
-const CRORE = 10_000_000;
+export const MOMENTUM_SETUPS_CACHE_KEY = "momentum-setups:v4";
 
 export type MomentumTimeframe = "either" | "daily" | "weekly";
 
@@ -42,17 +44,6 @@ export type MomentumSetupsPayload = {
   scanned: number;
   asOf: string;
 };
-
-function marketCapCrore(
-  marketCap: number | null | undefined,
-  currency: string | null | undefined
-): number | null {
-  if (marketCap == null || !Number.isFinite(marketCap) || marketCap <= 0) {
-    return null;
-  }
-  if (currency != null && currency !== "INR") return null;
-  return marketCap / CRORE;
-}
 
 function describeSetup(label: string, setup: MomentumSetup, unit: string): string {
   const wick = Math.round(setup.upperWickRatio * 100);
@@ -86,79 +77,82 @@ function newestBreakout(row: {
     .at(-1) ?? "";
 }
 
+async function rememberMomentumPayload(payload: MomentumSetupsPayload) {
+  const marketOpen = isListingMarketOpen("IN_NSE");
+  setScreenerCache(
+    MOMENTUM_SETUPS_CACHE_KEY,
+    payload,
+    screenerCacheTtlMs(marketOpen)
+  );
+  if (marketOpen) return;
+  await writeScreenerSnapshot(
+    MOMENTUM_SETUPS_CACHE_KEY,
+    getNseScreenerSessionDate(),
+    payload
+  );
+}
+
 export async function loadAllMomentumSetups(
   fresh = false,
   onProgress?: (progress: { loaded: number; total: number }) => void
 ): Promise<MomentumSetupsPayload> {
+  const marketOpen = isListingMarketOpen("IN_NSE");
   if (!fresh) {
     const cached = getScreenerCache<MomentumSetupsPayload>(
       MOMENTUM_SETUPS_CACHE_KEY
     );
     if (cached) return cached;
-    const stored = await readComputedScreenerSnapshot<MomentumSetupsPayload>(
-      MOMENTUM_SETUPS_CACHE_KEY
-    );
-    if (stored) return stored;
+    if (!marketOpen) {
+      const stored = await readScreenerSnapshot<MomentumSetupsPayload>(
+        MOMENTUM_SETUPS_CACHE_KEY
+      );
+      if (stored) {
+        setScreenerCache(
+          MOMENTUM_SETUPS_CACHE_KEY,
+          stored.payload,
+          screenerCacheTtlMs(false)
+        );
+        return stored.payload;
+      }
+    }
   }
 
-  const stocks = getUniqueIndianStocks();
+  const stocks = await loadNseLargeCapUniverse();
+  if (stocks.length === 0) {
+    throw new Error("Could not load NSE stocks above ₹10,000 Cr.");
+  }
+
   const total = stocks.length;
   let loaded = 0;
+  const liveCharts = fresh || marketOpen;
   onProgress?.({ loaded, total });
 
-  const technical = (
+  const setups = (
     await mapWithConcurrency(stocks, YAHOO_FETCH_CONCURRENCY, async (stock) => {
       try {
         const symbol = yahooSymbolForNseTicker(stock.ticker);
-        let snapshot = await loadYahooSnapshot(symbol, fresh);
+        let snapshot = await loadYahooSnapshot(symbol, liveCharts);
         if (!chartHasOhlcv(snapshot.chart)) {
           snapshot = await loadYahooSnapshot(symbol, true);
         }
         const daily = detectMomentumSetup(snapshot.chart);
         const weekly = detectMomentumSetup(toWeeklyOhlcv(snapshot.chart));
         if (!daily && !weekly) return null;
-        return {
-          stock,
+        const setupRow: MomentumSetupRow = {
+          ticker: stock.ticker,
+          name: stock.name,
+          sectorLabel: findPrimarySectorLabel(stock.ticker),
           lastPrice: snapshot.lastPrice,
+          marketCapCrore: stock.marketCapCrore,
           daily,
           weekly,
+          why: describeWhy(daily, weekly),
         };
+        return setupRow;
       } finally {
         loaded += 1;
         onProgress?.({ loaded, total });
       }
-    })
-  ).flatMap((row) => (row ? [row] : []));
-
-  const qualified = (
-    await mapWithConcurrency(technical, 4, async (row) => {
-      let fundamentals: Awaited<ReturnType<typeof fetchYahooFundamentals>> =
-        null;
-      try {
-        fundamentals = await fetchYahooFundamentals({
-          ticker: row.stock.ticker,
-          assetClass: "Equities",
-          listingMarket: "IN_NSE",
-        });
-      } catch {
-        return null;
-      }
-      const crore = marketCapCrore(
-        fundamentals?.marketCap,
-        fundamentals?.currency
-      );
-      if (crore == null || crore < MOMENTUM_RULES.minMarketCapCrore) return null;
-      const setupRow: MomentumSetupRow = {
-        ticker: row.stock.ticker,
-        name: row.stock.name,
-        sectorLabel: findPrimarySectorLabel(row.stock.ticker),
-        lastPrice: row.lastPrice,
-        marketCapCrore: Math.round(crore),
-        daily: row.daily,
-        weekly: row.weekly,
-        why: describeWhy(row.daily, row.weekly),
-      };
-      return setupRow;
     })
   )
     .flatMap((row) => (row ? [row] : []))
@@ -167,10 +161,10 @@ export async function loadAllMomentumSetups(
     );
 
   const payload: MomentumSetupsPayload = {
-    setups: qualified,
+    setups,
     scanned: stocks.length,
     asOf: new Date().toISOString(),
   };
-  await persistComputedScreenerSnapshot(MOMENTUM_SETUPS_CACHE_KEY, payload);
+  await rememberMomentumPayload(payload);
   return payload;
 }

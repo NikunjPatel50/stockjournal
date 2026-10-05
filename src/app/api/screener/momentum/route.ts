@@ -4,7 +4,7 @@ import { loadAllMomentumSetups } from "@/lib/screener/load-momentum-setups";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();

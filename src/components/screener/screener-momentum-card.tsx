@@ -180,7 +180,7 @@ export function ScreenerMomentumCard() {
   const [timeframe, setTimeframe] = useState<MomentumTimeframe>("either");
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, counts, reload } =
-    useScreenerStream<MomentumSetupsPayload>("/api/screener/momentum?v=dw");
+    useScreenerStream<MomentumSetupsPayload>("/api/screener/momentum?v=nse");
 
   const openStock = useCallback(
     (ticker: string) => {
@@ -206,7 +206,7 @@ export function ScreenerMomentumCard() {
   return (
     <DataPanel
       title="Momentum"
-      subtitle="Above the 50 and 200 EMA on the daily chart, the weekly chart, or both. A green candle closed through 20-bar resistance with an upper wick of 10% or less and at least 1.5× average volume, then held that break in a tight base on lighter volume. Market cap above ₹10,000 Cr."
+      subtitle="NSE-listed stocks only, above ₹10,000 Cr, checked live. Above the 50 and 200 EMA on the daily chart, the weekly chart, or both. A green candle closed through 20-bar resistance with an upper wick of 10% or less and at least 1.5× average volume, then held that break in a tight base on lighter volume."
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`
@@ -258,8 +258,8 @@ export function ScreenerMomentumCard() {
           <PanelEmpty title="Could not load momentum setups" hint={error} />
         ) : loading && !data ? (
           <ScreenerLoadProgress
-            fetchingLabel="Fetching stocks for momentum…"
-            itemLabel="stocks for momentum"
+            fetchingLabel="Fetching NSE stocks above ₹10,000 Cr…"
+            itemLabel="NSE stocks above ₹10,000 Cr"
             progress={progress}
             counts={counts}
           />
