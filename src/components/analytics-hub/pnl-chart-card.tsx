@@ -124,6 +124,7 @@ export const PnlChartCard = memo(function PnlChartCard({
   });
   const [dateOpen, setDateOpen] = useState(false);
   const [daily, setDaily] = useState<DailyPnlPoint[]>([]);
+  const [dailyKey, setDailyKey] = useState<string | null>(null);
   const [priorSessionBarByTradeId, setPriorSessionBarByTradeId] = useState<
     Record<string, boolean>
   >({});
@@ -154,6 +155,7 @@ export const PnlChartCard = memo(function PnlChartCard({
     () => activePositionPnlCacheKey(activeTrades, currency),
     [activeTrades, currency]
   );
+  const seriesReady = dailyKey === pnlCacheKey;
 
   useLayoutEffect(() => {
     if (activeTrades.length === 0) {
@@ -170,6 +172,7 @@ export const PnlChartCard = memo(function PnlChartCard({
     }
 
     setDaily(cached.daily);
+    setDailyKey(pnlCacheKey);
     setPriorSessionBarByTradeId(cached.priorSessionBarByTradeId);
     setLoading(false);
     setError(null);
@@ -192,6 +195,7 @@ export const PnlChartCard = memo(function PnlChartCard({
     async (signal?: AbortSignal) => {
       if (activeTrades.length === 0) {
         setDaily([]);
+        setDailyKey(pnlCacheKey);
         setLoading(false);
         setRefreshing(false);
         setError(null);
@@ -211,6 +215,7 @@ export const PnlChartCard = memo(function PnlChartCard({
         const payload = await loadActivePositionPnl(activeTrades, currency);
         if (signal?.aborted) return;
         setDaily(payload.daily);
+        setDailyKey(pnlCacheKey);
         setPriorSessionBarByTradeId(payload.priorSessionBarByTradeId);
         hasCachedDailyRef.current = payload.daily.length > 0;
         transientRetriesRef.current = 0;
@@ -231,13 +236,14 @@ export const PnlChartCard = memo(function PnlChartCard({
             err instanceof Error ? err.message : "Could not load active position P&L"
           );
           setDaily([]);
+          setDailyKey(pnlCacheKey);
         }
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [activeTrades, currency]
+    [activeTrades, currency, pnlCacheKey]
   );
 
   useEffect(() => {
@@ -346,10 +352,11 @@ export const PnlChartCard = memo(function PnlChartCard({
   );
 
   const { daily: frozenDaily } = useFrozenDailyPnl(
-    closedSessionDaily,
+    seriesReady ? closedSessionDaily : [],
     currency,
     primaryListingMarket,
-    now
+    now,
+    seriesReady
   );
 
   const filteredDaily = useMemo(

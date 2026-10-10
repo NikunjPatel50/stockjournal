@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DailyPnlPoint } from "@/lib/analytics";
 import type { ListingMarketId } from "@/lib/equity-listing-markets";
 import {
-  dailyPnlPointsEqual,
   mergeFrozenClosedDailyPnl,
   readFrozenDailyPnl,
   writeFrozenDailyPnl,
@@ -15,12 +14,19 @@ import {
 } from "@/lib/listing-market-hours";
 import type { CurrencyCode } from "@/lib/settings";
 
-/** Closed session bars stay locked; later EOD refreshes cannot rewrite them. */
+const EMPTY_DAILY: DailyPnlPoint[] = [];
+
+/**
+ * Closed session bars stay locked; later EOD refreshes cannot rewrite them.
+ * `ready` must be false until `daily` belongs to `currency`. Otherwise a
+ * market switch can lock the previous market's P/L under the new currency.
+ */
 export function useFrozenDailyPnl(
   daily: DailyPnlPoint[],
   currency: CurrencyCode,
   listingMarket: ListingMarketId,
-  asOf: Date
+  asOf: Date,
+  ready = true
 ): { daily: DailyPnlPoint[]; todayFrozen: boolean } {
   const todayYmd = todayYmdForListingMarket(listingMarket, asOf);
   const sessionClosed = isExchangeSessionClosedForDate(
@@ -28,33 +34,39 @@ export function useFrozenDailyPnl(
     todayYmd,
     asOf
   );
+  const [frozenCurrency, setFrozenCurrency] = useState(currency);
   const [frozen, setFrozen] = useState(() => readFrozenDailyPnl(currency));
-  const dailyRef = useRef(daily);
+  const aligned = frozenCurrency === currency;
 
-  useEffect(() => {
+  if (!aligned) {
+    setFrozenCurrency(currency);
     setFrozen(readFrozenDailyPnl(currency));
-  }, [currency]);
+  }
 
+  const series = ready && aligned ? daily : EMPTY_DAILY;
   const merged = useMemo(
     () =>
-      mergeFrozenClosedDailyPnl(daily, frozen, (date) =>
+      mergeFrozenClosedDailyPnl(series, frozen, (date) =>
         date < todayYmd || (date === todayYmd && sessionClosed)
       ),
-    [daily, frozen, sessionClosed, todayYmd]
+    [series, frozen, sessionClosed, todayYmd]
   );
 
-  useEffect(() => {
-    if (!merged.changed) return;
-    writeFrozenDailyPnl(currency, merged.nextFrozen);
+  if (ready && aligned && merged.changed) {
     setFrozen(merged.nextFrozen);
-  }, [currency, merged.changed, merged.nextFrozen]);
+  }
 
-  if (!dailyPnlPointsEqual(dailyRef.current, merged.daily)) {
-    dailyRef.current = merged.daily;
+  useEffect(() => {
+    if (!ready || !aligned) return;
+    writeFrozenDailyPnl(currency, frozen);
+  }, [aligned, currency, frozen, ready]);
+
+  if (!ready || !aligned) {
+    return { daily: EMPTY_DAILY, todayFrozen: false };
   }
 
   return {
-    daily: dailyRef.current,
+    daily: merged.daily,
     todayFrozen: sessionClosed && Boolean(frozen[todayYmd]),
   };
 }

@@ -57,12 +57,15 @@ export function useTodayDailyPnl(
     Record<string, boolean>
   >({});
   const [dailyPoints, setDailyPoints] = useState<DailyPnlPoint[]>([]);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [priorBarsLoading, setPriorBarsLoading] = useState(false);
+  const seriesReady = loadedKey === pnlCacheKey;
 
   useEffect(() => {
     if (activeTrades.length === 0) {
       setPriorSessionBarByTradeId({});
       setDailyPoints([]);
+      setLoadedKey(pnlCacheKey);
       setPriorBarsLoading(false);
       return;
     }
@@ -71,6 +74,7 @@ export function useTodayDailyPnl(
     if (cached) {
       setPriorSessionBarByTradeId(cached.priorSessionBarByTradeId);
       setDailyPoints(cached.daily);
+      setLoadedKey(pnlCacheKey);
       setPriorBarsLoading(false);
       return;
     }
@@ -83,12 +87,14 @@ export function useTodayDailyPnl(
         if (cancelled) return;
         setPriorSessionBarByTradeId(payload.priorSessionBarByTradeId);
         setDailyPoints(payload.daily);
+        setLoadedKey(pnlCacheKey);
       })
       .catch((err) => {
         if (cancelled) return;
         if (err instanceof Error && err.name === "AbortError") return;
         setPriorSessionBarByTradeId({});
         setDailyPoints([]);
+        setLoadedKey(pnlCacheKey);
       })
       .finally(() => {
         if (!cancelled) setPriorBarsLoading(false);
@@ -173,14 +179,23 @@ export function useTodayDailyPnl(
   );
 
   const { daily: frozenDaily, todayFrozen } = useFrozenDailyPnl(
-    closedSessionDaily,
+    seriesReady ? closedSessionDaily : [],
     currency,
     listingMarket,
-    asOf
+    asOf,
+    seriesReady
   );
   if (todayFrozen) skipLiveRef.current = true;
 
   const summary = useMemo(() => {
+    if (!seriesReady && sessionClosed) {
+      return {
+        totalPnl: 0,
+        activeCount: activeTrades.length,
+        pricedCount: 0,
+      };
+    }
+
     const displayLive = sessionClosed
       ? {
           totalPnl: 0,
@@ -191,15 +206,23 @@ export function useTodayDailyPnl(
 
     return enrichTodayDailyPnlWithPriorSession(
       displayLive,
-      frozenDaily,
+      seriesReady ? frozenDaily : [],
       currency,
       asOf
     );
-  }, [asOf, currency, frozenDaily, liveSummary, sessionClosed]);
+  }, [
+    activeTrades.length,
+    asOf,
+    currency,
+    frozenDaily,
+    liveSummary,
+    seriesReady,
+    sessionClosed,
+  ]);
 
   return {
     ...summary,
-    loading: priorBarsLoading,
+    loading: !seriesReady || priorBarsLoading,
     quotesLoading: skipLiveQuotes ? false : quotesLoading,
   };
 }

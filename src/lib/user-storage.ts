@@ -27,7 +27,7 @@ export function journalMarketStorageKey(userId: string) {
 }
 
 export function frozenDailyPnlStorageKey(userId: string) {
-  return `swingtradinglog_frozen_daily_pnl_v1_${userId}`;
+  return `swingtradinglog_frozen_daily_pnl_v2_${userId}`;
 }
 
 /** Pre–per-user trade backup (migrated once for the signing-in user). */
