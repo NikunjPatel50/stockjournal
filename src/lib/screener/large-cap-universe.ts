@@ -1,20 +1,43 @@
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { mapWithConcurrency } from "@/lib/map-with-concurrency";
+import { parseNseEquityCsv } from "@/lib/nse-symbol-directory-shared";
 import { getFreshNseSymbolDirectory } from "@/lib/nse-symbol-directory";
 import { MOMENTUM_RULES } from "@/lib/screener/momentum";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 import { getYahooAuth } from "@/lib/yahoo-earnings";
+
+type IndianListing = "IN_NSE" | "IN_BSE";
 
 const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; SwingTradingLog/1.0)";
 const FETCH_TIMEOUT_MS = 12_000;
 const CRORE = 10_000_000;
 const PAGE_SIZE = 250;
 const QUOTE_BATCH = 80;
+const MAX_SCREENER_ROWS = 20_000;
+/** Last close must be above this many rupees, and trailing EPS must be positive. */
+export const LISTED_MIN_PRICE = 150;
+export const LISTED_QUOTE_QUALITY = {
+  minPrice: LISTED_MIN_PRICE,
+  minTrailingEps: 0,
+} as const;
+
+export function listedPriceQualifies(
+  price: number | null | undefined
+): price is number {
+  return (
+    typeof price === "number" &&
+    Number.isFinite(price) &&
+    price > LISTED_MIN_PRICE
+  );
+}
+const NSE_SME_CSV_URL =
+  "https://nsearchives.nseindia.com/emerge/content/SME_EQUITY_L.csv";
 
 export type LargeCapStock = {
   ticker: string;
   name: string;
-  marketCapCrore: number;
+  marketCapCrore: number | null;
+  listingMarket: IndianListing;
 };
 
 type ScreenerQuote = {
@@ -23,10 +46,31 @@ type ScreenerQuote = {
   longName?: string;
   marketCap?: number;
   currency?: string;
+  regularMarketPrice?: number;
+  epsTrailingTwelveMonths?: number;
 };
 
-function minMarketCapInr(): number {
-  return MOMENTUM_RULES.minMarketCapCrore * CRORE;
+type QuoteQuality = {
+  minPrice: number;
+  minTrailingEps: number;
+};
+
+function quotePassesQuality(
+  quote: ScreenerQuote,
+  quality: QuoteQuality | undefined
+): boolean {
+  if (!quality) return true;
+  if (quote.currency != null && quote.currency !== "INR") return false;
+  const price = quote.regularMarketPrice;
+  const eps = quote.epsTrailingTwelveMonths;
+  return (
+    typeof price === "number" &&
+    Number.isFinite(price) &&
+    price > quality.minPrice &&
+    typeof eps === "number" &&
+    Number.isFinite(eps) &&
+    eps > quality.minTrailingEps
+  );
 }
 
 function croreFromCap(
@@ -37,31 +81,69 @@ function croreFromCap(
     return null;
   }
   if (currency != null && currency !== "INR") return null;
-  const crore = marketCap / CRORE;
-  if (crore < MOMENTUM_RULES.minMarketCapCrore) return null;
-  return Math.round(crore);
+  return Math.round(marketCap / CRORE);
 }
 
-function stockFromQuote(quote: ScreenerQuote): LargeCapStock | null {
+function capRank(stock: LargeCapStock): number {
+  return stock.marketCapCrore ?? -1;
+}
+
+function stockFromQuote(
+  quote: ScreenerQuote,
+  suffix: ".NS" | ".BO",
+  listingMarket: IndianListing,
+  minCrore: number
+): LargeCapStock | null {
   const symbol = quote.symbol?.trim().toUpperCase() ?? "";
-  if (!symbol.endsWith(".NS")) return null;
-  const ticker = normalizeEquityTicker(symbol.slice(0, -3));
+  if (!symbol.endsWith(suffix)) return null;
+  const ticker = normalizeEquityTicker(symbol.slice(0, -suffix.length));
+  if (!ticker) return null;
   const crore = croreFromCap(quote.marketCap, quote.currency);
-  if (!ticker || crore == null) return null;
+  if (crore == null) {
+    if (minCrore > 0) return null;
+    const name = quote.shortName?.trim() || quote.longName?.trim() || ticker;
+    return { ticker, name, marketCapCrore: null, listingMarket };
+  }
+  if (crore < minCrore) return null;
   const name = quote.shortName?.trim() || quote.longName?.trim() || ticker;
-  return { ticker, name, marketCapCrore: crore };
+  return { ticker, name, marketCapCrore: crore, listingMarket };
 }
 
 function dedupe(stocks: LargeCapStock[]): LargeCapStock[] {
   const byTicker = new Map<string, LargeCapStock>();
   for (const stock of stocks) {
     const existing = byTicker.get(stock.ticker);
-    if (!existing || stock.marketCapCrore > existing.marketCapCrore) {
+    if (!existing || capRank(stock) > capRank(existing)) {
       byTicker.set(stock.ticker, stock);
     }
   }
   return [...byTicker.values()].sort(
-    (left, right) => right.marketCapCrore - left.marketCapCrore
+    (left, right) => capRank(right) - capRank(left)
+  );
+}
+
+/** One row per company. NSE wins when the same ticker is listed on both exchanges. */
+function mergeListings(stocks: LargeCapStock[]): LargeCapStock[] {
+  const byTicker = new Map<string, LargeCapStock>();
+  for (const stock of stocks) {
+    const existing = byTicker.get(stock.ticker);
+    if (!existing) {
+      byTicker.set(stock.ticker, stock);
+      continue;
+    }
+    const existingNse = existing.listingMarket === "IN_NSE";
+    const nextNse = stock.listingMarket === "IN_NSE";
+    if (existingNse && !nextNse) continue;
+    if (nextNse && !existingNse) {
+      byTicker.set(stock.ticker, stock);
+      continue;
+    }
+    if (capRank(stock) > capRank(existing)) {
+      byTicker.set(stock.ticker, stock);
+    }
+  }
+  return [...byTicker.values()].sort(
+    (left, right) => capRank(right) - capRank(left)
   );
 }
 
@@ -91,7 +173,10 @@ function keepNseListed(
 
 async function fetchScreenerPage(
   auth: { cookie: string; crumb: string },
-  offset: number
+  offset: number,
+  exchange: string,
+  minCrore: number,
+  quality?: QuoteQuality
 ): Promise<{ total: number; quotes: ScreenerQuote[] }> {
   const url = new URL("https://query1.finance.yahoo.com/v1/finance/screener");
   url.searchParams.set("crumb", auth.crumb);
@@ -116,11 +201,27 @@ async function fetchScreenerPage(
           operator: "AND",
           operands: [
             { operator: "EQ", operands: ["region", "in"] },
-            { operator: "EQ", operands: ["exchange", "NSI"] },
-            {
-              operator: "gt",
-              operands: ["intradaymarketcap", minMarketCapInr() - 1],
-            },
+            { operator: "EQ", operands: ["exchange", exchange] },
+            ...(minCrore > 0
+              ? [
+                  {
+                    operator: "gt",
+                    operands: ["intradaymarketcap", minCrore * CRORE - 1],
+                  },
+                ]
+              : []),
+            ...(quality
+              ? [
+                  {
+                    operator: "gt",
+                    operands: ["intradayprice", quality.minPrice],
+                  },
+                  {
+                    operator: "gt",
+                    operands: ["epstrailingtwelvemonths", quality.minTrailingEps],
+                  },
+                ]
+              : []),
           ],
         },
       }),
@@ -143,17 +244,29 @@ async function fetchScreenerPage(
 }
 
 async function loadFromYahooScreener(
-  auth: { cookie: string; crumb: string }
+  auth: { cookie: string; crumb: string },
+  exchange: string,
+  suffix: ".NS" | ".BO",
+  listingMarket: IndianListing,
+  minCrore: number = MOMENTUM_RULES.minMarketCapCrore,
+  quality?: QuoteQuality
 ): Promise<LargeCapStock[]> {
   const stocks: LargeCapStock[] = [];
   let offset = 0;
   let total = Number.POSITIVE_INFINITY;
 
-  while (offset < total) {
-    const page = await fetchScreenerPage(auth, offset);
+  while (offset < total && offset < MAX_SCREENER_ROWS) {
+    const page = await fetchScreenerPage(
+      auth,
+      offset,
+      exchange,
+      minCrore,
+      quality
+    );
     total = page.total;
     for (const quote of page.quotes) {
-      const stock = stockFromQuote(quote);
+      if (!quotePassesQuality(quote, quality)) continue;
+      const stock = stockFromQuote(quote, suffix, listingMarket, minCrore);
       if (stock) stocks.push(stock);
     }
     if (page.quotes.length === 0) break;
@@ -196,7 +309,12 @@ async function loadFromQuoteBatches(
       quoteResponse?: { result?: ScreenerQuote[] };
     };
     return (payload.quoteResponse?.result ?? []).flatMap((quote) => {
-      const stock = stockFromQuote(quote);
+      const stock = stockFromQuote(
+        quote,
+        ".NS",
+        "IN_NSE",
+        MOMENTUM_RULES.minMarketCapCrore
+      );
       return stock ? [stock] : [];
     });
   });
@@ -217,11 +335,145 @@ export async function loadNseLargeCapUniverse(): Promise<LargeCapStock[]> {
   }
 
   try {
-    const screened = keepNseListed(await loadFromYahooScreener(auth), listed);
+    const screened = keepNseListed(
+      await loadFromYahooScreener(auth, "NSI", ".NS", "IN_NSE"),
+      listed
+    );
     if (screened.length > 0) return screened;
   } catch {
     // Fall through to quotes for the NSE directory itself.
   }
 
   return keepNseListed(await loadFromQuoteBatches(auth), listed);
+}
+
+async function loadBseLargeCaps(
+  auth: { cookie: string; crumb: string }
+): Promise<LargeCapStock[]> {
+  for (const exchange of ["BSE", "BOM"]) {
+    try {
+      const stocks = await loadFromYahooScreener(
+        auth,
+        exchange,
+        ".BO",
+        "IN_BSE"
+      );
+      if (stocks.length > 0) return stocks;
+    } catch {
+      // Try the other Yahoo exchange code for BSE.
+    }
+  }
+  return [];
+}
+
+/**
+ * NSE and BSE equities at or above ₹10,000 crore.
+ * A name listed on both exchanges is kept once, on NSE.
+ */
+export async function loadIndianLargeCapUniverse(): Promise<LargeCapStock[]> {
+  const nse = await loadNseLargeCapUniverse();
+  const auth = await getYahooAuth();
+  if (!auth) return nse;
+
+  let bse: LargeCapStock[] = [];
+  try {
+    bse = await loadBseLargeCaps(auth);
+  } catch {
+    bse = [];
+  }
+
+  return mergeListings([...nse, ...bse]);
+}
+
+async function nseSmeNames(): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  try {
+    const res = await fetchWithTimeout(
+      NSE_SME_CSV_URL,
+      {
+        cache: "no-store",
+        headers: {
+          "User-Agent": YAHOO_USER_AGENT,
+          Accept: "text/csv,*/*",
+        },
+      },
+      FETCH_TIMEOUT_MS
+    );
+    if (!res.ok) return names;
+    for (const row of parseNseEquityCsv(await res.text())) {
+      const ticker = normalizeEquityTicker(row.code);
+      if (!ticker || names.has(ticker)) continue;
+      names.set(ticker, row.name);
+    }
+  } catch {
+    return names;
+  }
+  return names;
+}
+
+async function loadBseListed(
+  auth: { cookie: string; crumb: string },
+  quality?: QuoteQuality
+): Promise<LargeCapStock[]> {
+  for (const exchange of ["BSE", "BOM"]) {
+    try {
+      const stocks = await loadFromYahooScreener(
+        auth,
+        exchange,
+        ".BO",
+        "IN_BSE",
+        0,
+        quality
+      );
+      if (stocks.length > 0) return stocks;
+    } catch {
+      // Try the other Yahoo exchange code for BSE.
+    }
+  }
+  return [];
+}
+
+/**
+ * NSE and BSE equities priced above ₹150 with positive trailing earnings.
+ * Large, mid, small, and micro caps all qualify when those two checks pass.
+ * A name listed on both exchanges is kept once, on NSE.
+ */
+export async function loadIndianListedUniverse(): Promise<LargeCapStock[]> {
+  const listed = await nseListedNames();
+  const sme = await nseSmeNames();
+  for (const [ticker, name] of sme) {
+    if (!listed.has(ticker)) listed.set(ticker, name);
+  }
+  if (listed.size === 0) {
+    throw new Error("Could not load the NSE stock list.");
+  }
+
+  const auth = await getYahooAuth();
+  if (!auth) return [];
+
+  let nse: LargeCapStock[] = [];
+  try {
+    nse = keepNseListed(
+      await loadFromYahooScreener(
+        auth,
+        "NSI",
+        ".NS",
+        "IN_NSE",
+        0,
+        LISTED_QUOTE_QUALITY
+      ),
+      listed
+    );
+  } catch {
+    nse = [];
+  }
+
+  let bse: LargeCapStock[] = [];
+  try {
+    bse = await loadBseListed(auth, LISTED_QUOTE_QUALITY);
+  } catch {
+    bse = [];
+  }
+
+  return mergeListings([...nse, ...bse]);
 }

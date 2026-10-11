@@ -21,7 +21,7 @@ import {
   type SymbolReturnSnapshot,
 } from "@/lib/screener/yahoo-returns";
 
-export const YAHOO_FETCH_CONCURRENCY = 16;
+export const YAHOO_FETCH_CONCURRENCY = 48;
 
 export type UniverseSnapshot = {
   stock: IndianSectorStock;
@@ -73,19 +73,20 @@ export async function loadYahooReturnsSnapshot(
 
 export async function loadYahooSnapshot(
   symbol: string,
-  fresh = false
+  fresh = false,
+  options?: { skipStore?: boolean }
 ): Promise<SymbolReturnSnapshot> {
   const cacheKey = `yahoo:${symbol}`;
   if (!fresh) {
     const cached = getScreenerCache<SymbolReturnSnapshot>(cacheKey);
     if (cached) return cached;
-
-    const pending = inflight.get(cacheKey);
-    if (pending) return pending;
   }
 
+  const pending = inflight.get(cacheKey);
+  if (pending) return pending;
+
   const request = (async () => {
-    if (!fresh) {
+    if (!fresh && !options?.skipStore) {
       const stored = await readScreenerSnapshot<SymbolReturnSnapshot>(cacheKey);
       if (stored) {
         setScreenerCache(cacheKey, stored.payload, SCREENER_EOD_CACHE_TTL_MS);
@@ -93,7 +94,10 @@ export async function loadYahooSnapshot(
       }
     }
 
-    const snapshot = await fetchYahooReturnSnapshot(symbol, { fresh });
+    const snapshot = await fetchYahooReturnSnapshot(symbol, {
+      fresh,
+      includeChart: true,
+    });
     setScreenerCache(cacheKey, snapshot, persistTtlMs());
     return snapshot;
   })();

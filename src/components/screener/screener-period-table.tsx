@@ -13,6 +13,10 @@ import {
 import { ScreenerChange } from "@/components/screener/screener-change";
 import { ScreenerChartButton } from "@/components/screener/screener-chart-button";
 import {
+  ScreenerTablePagination,
+  useScreenerPage,
+} from "@/components/screener/screener-table-pagination";
+import {
   ScreenerStrength,
   ScreenerWhy,
 } from "@/components/screener/screener-strength";
@@ -48,6 +52,7 @@ export function ScreenerPeriodTable({
   renderExtra,
   stickyLabel = "Name",
   showChartButton = false,
+  noun = "rows",
 }: {
   rows: PeriodTableRow[];
   sort: ScreenerSort;
@@ -57,8 +62,12 @@ export function ScreenerPeriodTable({
   renderExtra?: (row: PeriodTableRow) => ReactNode;
   stickyLabel?: string;
   showChartButton?: boolean;
+  noun?: string;
 }) {
+  const page = useScreenerPage(rows, (row) => row.id);
+
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
@@ -96,7 +105,7 @@ export function ScreenerPeriodTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((row, index) => (
+        {page.pageRows.map((row, index) => (
           <TableRow
             key={`${row.id}-${index}`}
             className={cn(
@@ -150,6 +159,8 @@ export function ScreenerPeriodTable({
         ))}
       </TableBody>
     </Table>
+    <ScreenerTablePagination page={page} noun={noun} />
+    </>
   );
 }
 

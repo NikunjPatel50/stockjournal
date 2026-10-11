@@ -189,6 +189,7 @@ export function ScreenerSectorStocksPage({ sectorId }: { sectorId: string }) {
                   setSort((current) => toggleScreenerSort(current, key))
                 }
                 showChartButton
+                noun="names"
                 extraHead={
                   <>
                     <TableHead className="h-9 bg-muted/30 px-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">

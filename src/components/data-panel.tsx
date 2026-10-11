@@ -34,7 +34,7 @@ export function DataPanel({
       className={cn("flex min-w-0 flex-col", APP_CARD_SURFACE_CLASS, className)}
     >
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold tracking-tight text-foreground">
             {title}
           </h3>
@@ -45,7 +45,7 @@ export function DataPanel({
           ) : null}
         </div>
         {action ?? (meta ? <PanelMeta>{meta}</PanelMeta> : null) ? (
-          <div className="w-full min-w-0 shrink sm:w-auto">
+          <div className="w-full min-w-0 sm:w-auto sm:max-w-[18rem]">
             {action ?? (meta ? <PanelMeta>{meta}</PanelMeta> : null)}
           </div>
         ) : null}
@@ -66,7 +66,7 @@ export function DataPanel({
 
 export function PanelMeta({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-block max-w-full whitespace-normal break-words rounded-md border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground sm:whitespace-nowrap">
+    <span className="inline-block max-w-full whitespace-normal break-words rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 text-[10px] font-medium uppercase leading-relaxed tracking-[0.08em] text-muted-foreground">
       {children}
     </span>
   );

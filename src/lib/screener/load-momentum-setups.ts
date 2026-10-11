@@ -1,3 +1,4 @@
+import { yahooSymbolForListingMarket } from "@/lib/equity-listing-markets";
 import { mapWithConcurrency } from "@/lib/map-with-concurrency";
 import { isListingMarketOpen } from "@/lib/listing-market-hours";
 import {
@@ -5,8 +6,12 @@ import {
   screenerCacheTtlMs,
   setScreenerCache,
 } from "@/lib/screener/cache";
+import { priceAboveEma200 } from "@/lib/screener/ema";
 import { findPrimarySectorLabel } from "@/lib/screener/indian-sectors";
-import { loadNseLargeCapUniverse } from "@/lib/screener/large-cap-universe";
+import {
+  listedPriceQualifies,
+  loadIndianListedUniverse,
+} from "@/lib/screener/large-cap-universe";
 import {
   chartHasOhlcv,
   detectMomentumSetup,
@@ -24,9 +29,8 @@ import {
   loadYahooSnapshot,
   YAHOO_FETCH_CONCURRENCY,
 } from "@/lib/screener/yahoo-store";
-import { yahooSymbolForNseTicker } from "@/lib/screener/yahoo-returns";
 
-export const MOMENTUM_SETUPS_CACHE_KEY = "momentum-setups:v5";
+export const MOMENTUM_SETUPS_CACHE_KEY = "momentum-setups:v9";
 
 export type MomentumTimeframe = "either" | "daily" | "weekly";
 
@@ -35,7 +39,7 @@ export type MomentumSetupRow = {
   name: string;
   sectorLabel: string | null;
   lastPrice: number | null;
-  marketCapCrore: number;
+  marketCapCrore: number | null;
   daily: MomentumSetup | null;
   weekly: MomentumSetup | null;
   tradeDaily: TradePlan | null;
@@ -138,9 +142,9 @@ export async function loadAllMomentumSetups(
     }
   }
 
-  const stocks = await loadNseLargeCapUniverse();
+  const stocks = await loadIndianListedUniverse();
   if (stocks.length === 0) {
-    throw new Error("Could not load NSE stocks above ₹10,000 Cr.");
+    throw new Error("Could not load the NSE and BSE stock lists.");
   }
 
   const total = stocks.length;
@@ -151,10 +155,15 @@ export async function loadAllMomentumSetups(
   const setups = (
     await mapWithConcurrency(stocks, YAHOO_FETCH_CONCURRENCY, async (stock) => {
       try {
-        const symbol = yahooSymbolForNseTicker(stock.ticker);
-        let snapshot = await loadYahooSnapshot(symbol, liveCharts);
+        const symbol = yahooSymbolForListingMarket(
+          stock.ticker,
+          stock.listingMarket
+        );
+        let snapshot = await loadYahooSnapshot(symbol, liveCharts, {
+          skipStore: true,
+        });
         if (!chartHasOhlcv(snapshot.chart)) {
-          snapshot = await loadYahooSnapshot(symbol, true);
+          snapshot = await loadYahooSnapshot(symbol, true, { skipStore: true });
         }
         const daily = detectMomentumSetup(snapshot.chart);
         const weeklyBars = toWeeklyOhlcv(snapshot.chart);
@@ -163,7 +172,10 @@ export async function loadAllMomentumSetups(
         const price =
           snapshot.lastPrice ??
           snapshot.chart[snapshot.chart.length - 1]?.close ??
-          0;
+          null;
+        if (!listedPriceQualifies(price)) return null;
+        const closes = snapshot.chart.map((point) => point.close);
+        if (!priceAboveEma200(closes, price)) return null;
         const setupRow: MomentumSetupRow = {
           ticker: stock.ticker,
           name: stock.name,

@@ -1,10 +1,21 @@
+import { yahooSymbolForListingMarket } from "@/lib/equity-listing-markets";
+import { mapWithConcurrency } from "@/lib/map-with-concurrency";
+import { isListingMarketOpen } from "@/lib/listing-market-hours";
 import { getScreenerCache } from "@/lib/screener/cache";
-import { computeEmaSupport, toWeeklyCloses } from "@/lib/screener/ema";
+import {
+  computeEmaSupport,
+  priceAboveEma200,
+  toWeeklyCloses,
+} from "@/lib/screener/ema";
 import { toWeeklyOhlcv } from "@/lib/screener/momentum";
 import { buildTradePlan } from "@/lib/screener/trade-plan";
 import type { ScreenerChartPoint } from "@/lib/screener/types";
 import { EMA_QUALITY_RULES } from "@/lib/screener/ema-rules";
 import { findPrimarySectorLabel } from "@/lib/screener/indian-sectors";
+import {
+  listedPriceQualifies,
+  loadIndianListedUniverse,
+} from "@/lib/screener/large-cap-universe";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 import type { EmaSetupRow, EmaSetupsPayload } from "@/lib/screener/load-ema-setups";
 import type {
@@ -14,13 +25,14 @@ import type {
 import { detectTurtleBreakout, toWeeklyTurtleBars } from "@/lib/screener/turtle";
 import { TURTLE_LOOKBACKS } from "@/lib/screener/turtle-rules";
 import {
-  loadUniverseSnapshots,
+  loadYahooSnapshot,
   persistComputedScreenerSnapshot,
+  YAHOO_FETCH_CONCURRENCY,
   type UniverseSnapshot,
 } from "@/lib/screener/yahoo-store";
 
-export const EMA_SETUPS_CACHE_KEY = "ema-setups:plan-1";
-export const TURTLE_BREAKOUTS_CACHE_KEY = "turtle-breakouts:plan-1";
+export const EMA_SETUPS_CACHE_KEY = "ema-setups:qualified-1";
+export const TURTLE_BREAKOUTS_CACHE_KEY = "turtle-breakouts:qualified-2";
 
 function formatPct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -103,7 +115,7 @@ export function buildEmaSetupsFromSnapshots(
     .flatMap(({ stock, snapshot }) => {
       const closes = snapshot.chart.map((point) => point.close);
       const price = snapshot.lastPrice ?? closes[closes.length - 1] ?? null;
-      if (price == null || closes.length < 200) return [];
+      if (!listedPriceQualifies(price) || closes.length < 200) return [];
 
       const daily = computeEmaSupport(closes, price, EMA_QUALITY_RULES.ema200Band);
       const weekly = computeEmaSupport(
@@ -185,7 +197,12 @@ export function buildTurtleBreakoutsFromSnapshots(
         snapshot.lastPrice ??
         snapshot.chart[snapshot.chart.length - 1]?.close ??
         null;
-      if (price == null || snapshot.chart.length < TURTLE_LOOKBACKS.s2 + 3) {
+      const closes = snapshot.chart.map((point) => point.close);
+      if (
+        !listedPriceQualifies(price) ||
+        !priceAboveEma200(closes, price) ||
+        snapshot.chart.length < TURTLE_LOOKBACKS.s2 + 3
+      ) {
         return [];
       }
 
@@ -292,11 +309,10 @@ export async function refreshStrategyCaches(
   onProgress?: (progress: { loaded: number; total: number }) => void
 ) {
   if (!fresh) {
-    const ema = getScreenerCache<EmaSetupsPayload>(EMA_SETUPS_CACHE_KEY);
     const turtle = getScreenerCache<TurtleBreakoutsPayload>(
       TURTLE_BREAKOUTS_CACHE_KEY
     );
-    if (ema && turtle) return;
+    if (turtle) return;
   }
 
   if (onProgress) scanProgressListeners.add(onProgress);
@@ -311,13 +327,38 @@ export async function refreshStrategyCaches(
   }
 
   const pending = (async () => {
-    const snapshots = await loadUniverseSnapshots(fresh, emitScanProgress);
-    const ema = buildEmaSetupsFromSnapshots(snapshots);
+    const stocks = await loadIndianListedUniverse();
+    if (stocks.length === 0) {
+      throw new Error("Could not load the NSE and BSE stock lists.");
+    }
+    const total = stocks.length;
+    let loaded = 0;
+    const liveCharts = fresh || isListingMarketOpen("IN_NSE");
+    emitScanProgress({ loaded, total });
+    const snapshots = await mapWithConcurrency(
+      stocks,
+      YAHOO_FETCH_CONCURRENCY,
+      async (stock) => {
+        try {
+          const symbol = yahooSymbolForListingMarket(
+            stock.ticker,
+            stock.listingMarket
+          );
+          const snapshot = await loadYahooSnapshot(symbol, liveCharts, {
+            skipStore: true,
+          });
+          return {
+            stock: { ticker: stock.ticker, name: stock.name },
+            snapshot,
+          };
+        } finally {
+          loaded += 1;
+          emitScanProgress({ loaded, total });
+        }
+      }
+    );
     const turtle = buildTurtleBreakoutsFromSnapshots(snapshots);
-    await Promise.all([
-      persistComputedScreenerSnapshot(EMA_SETUPS_CACHE_KEY, ema),
-      persistComputedScreenerSnapshot(TURTLE_BREAKOUTS_CACHE_KEY, turtle),
-    ]);
+    await persistComputedScreenerSnapshot(TURTLE_BREAKOUTS_CACHE_KEY, turtle);
   })();
 
   scanInflight = pending;

@@ -10,6 +10,10 @@ import {
   ScreenerPlanHeads,
 } from "@/components/screener/screener-trade-plan";
 import { ScreenerLoadProgress } from "@/components/screener/screener-load-progress";
+import {
+  ScreenerTablePagination,
+  useScreenerPage,
+} from "@/components/screener/screener-table-pagination";
 import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { Input } from "@/components/ui/input";
 import {
@@ -123,7 +127,13 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
     setSort((current) => toggleColumnSort(current, key, firstDirection));
   }
 
+  const page = useScreenerPage(
+    sortedRows,
+    (row) => `${row.ticker}:${row.system}`
+  );
+
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
@@ -181,7 +191,7 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sortedRows.map((row, index) => (
+        {page.pageRows.map((row, index) => (
           <TableRow
             key={`${row.ticker}-${row.system}-${index}`}
             className="cursor-pointer"
@@ -238,6 +248,8 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
         ))}
       </TableBody>
     </Table>
+    <ScreenerTablePagination page={page} noun="names" />
+    </>
   );
 });
 
@@ -247,7 +259,7 @@ export function ScreenerTurtleCard() {
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, counts, reload } =
     useScreenerStream<TurtlePayload>(
-      "/api/screener/turtle-breakouts?v=plan-1"
+      "/api/screener/turtle-breakouts?v=qualified-2"
     );
 
   const openStock = useCallback(
@@ -273,13 +285,11 @@ export function ScreenerTurtleCard() {
   return (
     <DataPanel
       title="Turtle breakout"
-      subtitle="Classic Donchian breakouts in the last 1–2 sessions: 20-day (S1), 55-day (S2), or 20-week. Plan is the entry, stop, and target from the candles, RSI, and moving averages. Strength is how many of those checks line up."
+      subtitle="NSE and BSE stocks across large, mid, small, and micro caps, priced above ₹150 and the 200-day EMA, with positive trailing twelve-month earnings. A name listed on both exchanges is kept once, on NSE. Classic Donchian breakouts in the last 1–2 sessions: 20-day (S1), 55-day (S2), or 20-week. Plan is the entry, stop, and target from the candles, RSI, and moving averages. Strength is how many of those checks line up."
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`
-          : loading && progress != null
-            ? `Loading turtle breakouts · ${progress}%`
-            : undefined
+          : undefined
       }
       flush
     >
@@ -333,15 +343,15 @@ export function ScreenerTurtleCard() {
           <PanelEmpty title="Could not load turtle breakouts" hint={error} />
         ) : loading && !data ? (
           <ScreenerLoadProgress
-            fetchingLabel="Fetching stocks for turtle breakouts…"
-            itemLabel="stocks for turtle breakouts"
+            fetchingLabel="Fetching NSE and BSE stocks…"
+            itemLabel="NSE and BSE stocks"
             progress={progress}
             counts={counts}
           />
         ) : rows.length === 0 ? (
           <PanelEmpty
             title="No turtle breakouts right now"
-            hint="Nothing in the Indian catalog is breaking a Donchian high right now."
+            hint="Nothing priced above ₹150 and the 200-day EMA, with positive trailing earnings, is breaking a Donchian high right now."
           />
         ) : (
           <TurtleSetupTable rows={rows} onOpen={openStock} />

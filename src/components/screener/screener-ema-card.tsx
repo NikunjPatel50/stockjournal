@@ -10,6 +10,10 @@ import {
   ScreenerPlanHeads,
 } from "@/components/screener/screener-trade-plan";
 import { ScreenerLoadProgress } from "@/components/screener/screener-load-progress";
+import {
+  ScreenerTablePagination,
+  useScreenerPage,
+} from "@/components/screener/screener-table-pagination";
 import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { Input } from "@/components/ui/input";
 import {
@@ -118,7 +122,10 @@ const EmaSetupTable = memo(function EmaSetupTable({
     setSort((current) => toggleColumnSort(current, key, firstDirection));
   }
 
+  const page = useScreenerPage(sortedRows, (row) => row.ticker);
+
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
@@ -169,7 +176,7 @@ const EmaSetupTable = memo(function EmaSetupTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sortedRows.map((row, index) => {
+        {page.pageRows.map((row, index) => {
           const dist = nearestDist200(row, timeframe);
           return (
             <TableRow
@@ -220,6 +227,8 @@ const EmaSetupTable = memo(function EmaSetupTable({
         })}
       </TableBody>
     </Table>
+    <ScreenerTablePagination page={page} noun="names" />
+    </>
   );
 });
 
@@ -255,7 +264,7 @@ export function ScreenerEmaCard() {
   const [timeframe, setTimeframe] = useState<EmaTimeframe>("daily");
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, counts, reload } = useScreenerStream<EmaPayload>(
-    "/api/screener/ema-setups?v=plan-1"
+    "/api/screener/ema-setups?v=qualified-1"
   );
 
   const openStock = useCallback(
@@ -283,13 +292,11 @@ export function ScreenerEmaCard() {
   return (
     <DataPanel
       title="EMA support"
-      subtitle="Names sitting on 200 EMA support. Price is above the 200 EMA and no more than 3% away, on daily and/or weekly. Plan is the entry, stop, and target from the candles, RSI, and moving averages. Strength is how many of those checks line up."
+      subtitle="NSE and BSE stocks across large, mid, small, and micro caps, priced above ₹150, with positive trailing twelve-month earnings. A name listed on both exchanges is kept once, on NSE. Price is above the 200 EMA and no more than 3% away, on daily and/or weekly. Plan is the entry, stop, and target from the candles, RSI, and moving averages. Strength is how many of those checks line up."
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`
-          : loading && progress != null
-            ? `Loading EMA support · ${progress}%`
-            : undefined
+          : undefined
       }
       flush
     >
@@ -335,15 +342,15 @@ export function ScreenerEmaCard() {
           <PanelEmpty title="Could not load EMA setups" hint={error} />
         ) : loading && !data ? (
           <ScreenerLoadProgress
-            fetchingLabel="Fetching stocks for EMA support…"
-            itemLabel="stocks for EMA support"
+            fetchingLabel="Fetching NSE and BSE stocks…"
+            itemLabel="NSE and BSE stocks"
             progress={progress}
             counts={counts}
           />
         ) : rows.length === 0 ? (
           <PanelEmpty
             title="No names passing the filters"
-            hint="Nothing in the Indian catalog is within 3% of 200 EMA support on this timeframe."
+            hint="Nothing priced above ₹150 with positive trailing earnings is within 3% of 200 EMA support on this timeframe."
           />
         ) : (
           <EmaSetupTable rows={rows} timeframe={timeframe} onOpen={openStock} />

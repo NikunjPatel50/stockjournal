@@ -10,6 +10,10 @@ import {
   ScreenerPlanHeads,
 } from "@/components/screener/screener-trade-plan";
 import { ScreenerLoadProgress } from "@/components/screener/screener-load-progress";
+import {
+  ScreenerTablePagination,
+  useScreenerPage,
+} from "@/components/screener/screener-table-pagination";
 import { ScreenerRefreshButton } from "@/components/screener/screener-refresh-button";
 import { Input } from "@/components/ui/input";
 import {
@@ -155,7 +159,14 @@ const MomentumTable = memo(function MomentumTable({
     setSort((current) => toggleColumnSort(current, key, firstDirection));
   }
 
+  const listedRows = useMemo(
+    () => sortedRows.filter((row) => visibleSetup(row, timeframe) != null),
+    [sortedRows, timeframe]
+  );
+  const page = useScreenerPage(listedRows, (row) => row.ticker);
+
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
@@ -226,7 +237,7 @@ const MomentumTable = memo(function MomentumTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sortedRows.map((row) => {
+        {page.pageRows.map((row) => {
           const visible = visibleSetup(row, timeframe);
           if (!visible) return null;
           return (
@@ -262,7 +273,9 @@ const MomentumTable = memo(function MomentumTable({
             <TableCell
               className={cn("px-2.5 py-2.5 text-right text-sm", NUMERIC_CLASS)}
             >
-              {formatCrore(row.marketCapCrore)}
+              {row.marketCapCrore != null
+                ? formatCrore(row.marketCapCrore)
+                : "—"}
             </TableCell>
             <TableCell className="px-2.5 py-2.5 text-sm">
               {formatBreakoutDate(visible.setup.breakoutDate)}
@@ -292,6 +305,8 @@ const MomentumTable = memo(function MomentumTable({
         })}
       </TableBody>
     </Table>
+    <ScreenerTablePagination page={page} noun="names" />
+    </>
   );
 });
 
@@ -300,7 +315,7 @@ export function ScreenerMomentumCard() {
   const [timeframe, setTimeframe] = useState<MomentumTimeframe>("either");
   const [query, setQuery] = useState("");
   const { data, error, loading, progress, counts, reload } =
-    useScreenerStream<MomentumSetupsPayload>("/api/screener/momentum?v=plan-1");
+    useScreenerStream<MomentumSetupsPayload>("/api/screener/momentum?v=v9");
 
   const openStock = useCallback(
     (ticker: string) => {
@@ -326,13 +341,11 @@ export function ScreenerMomentumCard() {
   return (
     <DataPanel
       title="Momentum"
-      subtitle="NSE-listed stocks only, above ₹10,000 Cr, checked live. Above the 50 and 200 EMA on the daily chart, the weekly chart, or both. A green candle closed through 20-bar resistance with an upper wick of 10% or less and at least 1.5× average volume, then held that break in a tight base on lighter volume. Plan is the entry, stop, and target from the candles, RSI, and moving averages. Strength is how many of those checks line up."
+      subtitle="NSE and BSE stocks across large, mid, small, and micro caps, priced above ₹150 and the 200-day EMA, with positive trailing twelve-month earnings. A name listed on both exchanges is kept once, on NSE. Above the 50 and 200 EMA on the daily chart, the weekly chart, or both. A green candle closed through 20-bar resistance with an upper wick of 10% or less and at least 1.5× average volume, then held that break in a tight base on lighter volume. Plan is the entry, stop, and target from the candles, RSI, and moving averages. Strength is how many of those checks line up."
       meta={
         data
           ? `${rows.length} names · scanned ${data.scanned} · ${formatScreenerStamp(null, data.asOf)}`
-          : loading && progress != null
-            ? `Loading momentum · ${progress}%`
-            : undefined
+          : undefined
       }
       flush
     >
@@ -378,15 +391,15 @@ export function ScreenerMomentumCard() {
           <PanelEmpty title="Could not load momentum setups" hint={error} />
         ) : loading && !data ? (
           <ScreenerLoadProgress
-            fetchingLabel="Fetching NSE stocks above ₹10,000 Cr…"
-            itemLabel="NSE stocks above ₹10,000 Cr"
+            fetchingLabel="Fetching NSE and BSE stocks…"
+            itemLabel="NSE and BSE stocks"
             progress={progress}
             counts={counts}
           />
         ) : rows.length === 0 ? (
           <PanelEmpty
             title="No momentum bases right now"
-            hint="Nothing above ₹10,000 Cr is above the 50 and 200 EMA on this timeframe, fresh off a tight high-volume breakout, and consolidating on lighter volume."
+            hint="Nothing priced above ₹150 and the 200-day EMA, with positive trailing earnings, is above the 50 and 200 EMA on this timeframe, fresh off a tight high-volume breakout, and consolidating on lighter volume."
           />
         ) : (
           <MomentumTable rows={rows} timeframe={timeframe} onOpen={openStock} />

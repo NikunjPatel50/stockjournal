@@ -4,7 +4,7 @@ import { loadAllEmaSetups } from "@/lib/screener/load-ema-setups";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();

@@ -35,6 +35,11 @@ export function emaSeries(
   return series;
 }
 
+export function priceAboveEma200(closes: number[], price: number): boolean {
+  const ema200 = lastEma(closes, 200);
+  return ema200 != null && price > ema200;
+}
+
 function lastEma(values: number[], period: number): number | null {
   const series = emaSeries(values, period);
   for (let index = series.length - 1; index >= 0; index -= 1) {

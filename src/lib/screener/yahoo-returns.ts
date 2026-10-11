@@ -9,7 +9,10 @@ import {
   type ScreenerChartPoint,
 } from "@/lib/screener/types";
 
-const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
+const YAHOO_CHART_HOSTS = [
+  "query1.finance.yahoo.com",
+  "query2.finance.yahoo.com",
+] as const;
 const YAHOO_USER_AGENT = "Mozilla/5.0 (compatible; SwingTradingLog/1.0)";
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -143,7 +146,7 @@ function mapBars(result: {
   return bars.sort((a, b) => a.ts - b.ts);
 }
 
-const YAHOO_FETCH_SLOTS = 16;
+const YAHOO_FETCH_SLOTS = 48;
 let yahooFetchActive = 0;
 const yahooFetchWaiters: Array<() => void> = [];
 
@@ -168,6 +171,74 @@ async function withYahooFetchSlot<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
+type YahooChartPayload = {
+  chart?: {
+    result?: Array<{
+      meta?: {
+        regularMarketPrice?: number;
+        chartPreviousClose?: number;
+        previousClose?: number;
+      };
+      timestamp?: number[];
+      indicators?: {
+        quote?: Array<{
+          open?: Array<number | null>;
+          close?: Array<number | null>;
+          high?: Array<number | null>;
+          low?: Array<number | null>;
+          volume?: Array<number | null>;
+        }>;
+      };
+    }>;
+  };
+};
+
+function chartHostForSymbol(symbol: string) {
+  let hash = 0;
+  for (let index = 0; index < symbol.length; index += 1) {
+    hash = (hash + symbol.charCodeAt(index)) % YAHOO_CHART_HOSTS.length;
+  }
+  return YAHOO_CHART_HOSTS[hash] ?? YAHOO_CHART_HOSTS[0];
+}
+
+function chartUrl(symbol: string, host: string) {
+  const url = new URL(
+    `https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}`
+  );
+  url.searchParams.set("interval", "1d");
+  url.searchParams.set("range", "5y");
+  url.searchParams.set("includePrePost", "false");
+  url.searchParams.set("includeAdjustedClose", "false");
+  url.searchParams.set("events", "div,split");
+  return url.toString();
+}
+
+async function readChartPayload(
+  symbol: string,
+  host: string
+): Promise<{ status: number; payload: YahooChartPayload | null }> {
+  try {
+    const res = await fetchWithTimeout(
+      chartUrl(symbol, host),
+      {
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": YAHOO_USER_AGENT,
+        },
+      },
+      FETCH_TIMEOUT_MS
+    );
+    if (!res.ok) return { status: res.status, payload: null };
+    return {
+      status: res.status,
+      payload: (await res.json()) as YahooChartPayload,
+    };
+  } catch {
+    return { status: 0, payload: null };
+  }
+}
+
 export async function fetchYahooReturnSnapshot(
   symbol: string,
   options?: { fresh?: boolean; includeChart?: boolean }
@@ -180,55 +251,25 @@ export async function fetchYahooReturnSnapshot(
   };
   if (!symbol) return empty;
 
-  const url = new URL(`${YAHOO_CHART}/${encodeURIComponent(symbol)}`);
-  url.searchParams.set("interval", "1d");
-  url.searchParams.set("range", "5y");
-  url.searchParams.set("includePrePost", "false");
-  url.searchParams.set("events", "div,split");
-
   try {
-    const res = await withYahooFetchSlot(() => fetchWithTimeout(
-      url.toString(),
-      options?.fresh
-        ? {
-            cache: "no-store",
-            headers: {
-              Accept: "application/json",
-              "User-Agent": YAHOO_USER_AGENT,
-            },
-          }
-        : {
-            headers: {
-              Accept: "application/json",
-              "User-Agent": YAHOO_USER_AGENT,
-            },
-            next: { revalidate: 30 * 60, tags: ["screener-yahoo"] },
-          },
-      FETCH_TIMEOUT_MS
-    ));
-    if (!res.ok) return empty;
-
-    const payload = (await res.json()) as {
-      chart?: {
-        result?: Array<{
-          meta?: {
-            regularMarketPrice?: number;
-            chartPreviousClose?: number;
-            previousClose?: number;
-          };
-          timestamp?: number[];
-          indicators?: {
-            quote?: Array<{
-              open?: Array<number | null>;
-              close?: Array<number | null>;
-              high?: Array<number | null>;
-              low?: Array<number | null>;
-              volume?: Array<number | null>;
-            }>;
-          };
-        }>;
-      };
-    };
+    const primary = chartHostForSymbol(symbol);
+    const fallback =
+      primary === YAHOO_CHART_HOSTS[0]
+        ? YAHOO_CHART_HOSTS[1]
+        : YAHOO_CHART_HOSTS[0];
+    let loaded = await withYahooFetchSlot(() =>
+      readChartPayload(symbol, primary)
+    );
+    if (
+      loaded.payload == null &&
+      (loaded.status === 0 || loaded.status === 429 || loaded.status >= 500)
+    ) {
+      loaded = await withYahooFetchSlot(() =>
+        readChartPayload(symbol, fallback)
+      );
+    }
+    const payload = loaded.payload;
+    if (!payload) return empty;
 
     const result = payload.chart?.result?.[0];
     if (!result) return empty;

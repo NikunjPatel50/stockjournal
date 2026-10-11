@@ -131,6 +131,7 @@ export function ScreenerSectorsPage({
         ) : (
           <ScreenerPeriodTable
             stickyLabel="Sector"
+            noun="sectors"
             rows={rows.map((row) => ({
               id: row.id,
               label: row.label,
