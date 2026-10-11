@@ -111,7 +111,10 @@ const TurtleSetupTable = memo(function TurtleSetupTable({
   rows: TurtleRow[];
   onOpen: (ticker: string) => void;
 }) {
-  const [sort, setSort] = useState<ColumnSort<TurtleSortKey> | null>(null);
+  const [sort, setSort] = useState<ColumnSort<TurtleSortKey>>({
+    key: "strength",
+    direction: "desc",
+  });
   const sortedRows = useMemo(() => {
     if (!sort) return rows;
     return [...rows].sort((left, right) =>

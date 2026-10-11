@@ -106,7 +106,10 @@ const EmaSetupTable = memo(function EmaSetupTable({
   timeframe: EmaTimeframe;
   onOpen: (ticker: string) => void;
 }) {
-  const [sort, setSort] = useState<ColumnSort<EmaSortKey> | null>(null);
+  const [sort, setSort] = useState<ColumnSort<EmaSortKey>>({
+    key: "strength",
+    direction: "desc",
+  });
   const sortedRows = useMemo(() => {
     if (!sort) return rows;
     return [...rows].sort((left, right) =>

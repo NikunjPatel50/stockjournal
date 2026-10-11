@@ -143,7 +143,10 @@ const MomentumTable = memo(function MomentumTable({
   timeframe: MomentumTimeframe;
   onOpen: (ticker: string) => void;
 }) {
-  const [sort, setSort] = useState<ColumnSort<MomentumSortKey> | null>(null);
+  const [sort, setSort] = useState<ColumnSort<MomentumSortKey>>({
+    key: "strength",
+    direction: "desc",
+  });
   const sortedRows = useMemo(() => {
     if (!sort) return rows;
     return [...rows].sort((left, right) =>
