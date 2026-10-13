@@ -97,7 +97,7 @@ function TickerSequence({
   );
 }
 
-const MARQUEE_LOOP_MS = 42_000;
+const MARQUEE_LOOP_MS = 58_000;
 
 export function JournalTickerMarquee() {
   const { quotes, loading } = useJournalTicker();
