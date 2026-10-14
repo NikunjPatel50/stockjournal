@@ -3,7 +3,7 @@ import { searchEodhdSymbols } from "@/lib/eodhd-symbol-search";
 import { normalizeListingMarket, type ListingMarketId } from "@/lib/equity-listing-markets";
 import {
   filterNseSymbolDirectory,
-  getNseSymbolDirectory,
+  getNseSymbolDirectoryForSearch,
 } from "@/lib/nse-symbol-directory";
 import {
   filterSymbolSearchResultsForMarket,
@@ -31,6 +31,22 @@ async function withTimeout<T>(
   } catch {
     return null;
   }
+}
+
+function mergeSymbolHits(
+  groups: EodhdSymbolSearchHit[][]
+): EodhdSymbolSearchHit[] {
+  const seen = new Set<string>();
+  const merged: EodhdSymbolSearchHit[] = [];
+  for (const group of groups) {
+    for (const hit of group) {
+      const code = hit.code.trim().toUpperCase();
+      if (!code || seen.has(code)) continue;
+      seen.add(code);
+      merged.push(hit);
+    }
+  }
+  return merged;
 }
 
 function finalizeHits(
@@ -93,8 +109,14 @@ export async function GET(request: Request) {
   let hits: EodhdSymbolSearchHit[] = [];
 
   if (listingMarket === "IN_NSE") {
-    const directory = await getNseSymbolDirectory();
-    hits = filterNseSymbolDirectory(directory, query, RESULT_LIMIT, "NSE");
+    const [directory, remote] = await Promise.all([
+      getNseSymbolDirectoryForSearch(),
+      searchRemoteSymbols(query, listingMarket),
+    ]);
+    hits = mergeSymbolHits([
+      filterNseSymbolDirectory(directory, query, RESULT_LIMIT, "NSE"),
+      remote,
+    ]);
 
     return NextResponse.json({
       results: finalizeHits(hits, listingMarket, query),

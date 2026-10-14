@@ -12,11 +12,14 @@ export { filterNseSymbolDirectory } from "@/lib/nse-symbol-directory-shared";
 let directoryCache: {
   symbols: NseDirectorySymbol[];
   expiresAt: number;
+  source: "live";
 } | null = null;
 let directoryLoadPromise: Promise<NseDirectorySymbol[]> | null = null;
 
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+/** Short enough that a listing from earlier today is picked up on the next search. */
+const LIVE_CACHE_TTL_MS = 60 * 60 * 1000;
 const NSE_FETCH_TIMEOUT_MS = 20_000;
+const SEARCH_LIVE_TIMEOUT_MS = 2_000;
 const NSE_EQUITY_CSV_URL =
   "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv";
 const BUNDLED_SYMBOLS_PATH = path.join(
@@ -39,7 +42,9 @@ async function loadBundledNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
   }
 }
 
-async function loadNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
+async function loadNseSymbolDirectory(
+  timeoutMs = NSE_FETCH_TIMEOUT_MS
+): Promise<NseDirectorySymbol[]> {
   try {
     const url = new URL(NSE_EQUITY_CSV_URL);
     url.searchParams.set("_", String(Date.now()));
@@ -52,7 +57,7 @@ async function loadNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
           Accept: "text/csv,*/*",
         },
       },
-      NSE_FETCH_TIMEOUT_MS
+      timeoutMs
     );
     if (!res.ok) return [];
 
@@ -62,7 +67,8 @@ async function loadNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
 
     directoryCache = {
       symbols,
-      expiresAt: Date.now() + CACHE_TTL_MS,
+      expiresAt: Date.now() + LIVE_CACHE_TTL_MS,
+      source: "live",
     };
     return symbols;
   } catch {
@@ -70,10 +76,14 @@ async function loadNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
   }
 }
 
-/** Live NSE CSV first, bundled file as fallback. */
+function liveCacheIsFresh(): boolean {
+  return directoryCache != null && Date.now() < directoryCache.expiresAt;
+}
+
+/** Live NSE CSV first, bundled file as fallback. A bundled fallback is not cached as live. */
 export async function getFreshNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
-  if (directoryCache && Date.now() < directoryCache.expiresAt) {
-    return directoryCache.symbols;
+  if (liveCacheIsFresh()) {
+    return directoryCache!.symbols;
   }
 
   if (!directoryLoadPromise) {
@@ -82,15 +92,7 @@ export async function getFreshNseSymbolDirectory(): Promise<NseDirectorySymbol[]
       if (live.length > 0) return live;
 
       const bundled = await loadBundledNseSymbolDirectory();
-      if (bundled.length > 0) {
-        directoryCache = {
-          symbols: bundled,
-          expiresAt: Date.now() + CACHE_TTL_MS,
-        };
-        return bundled;
-      }
-
-      return directoryCache?.symbols ?? [];
+      return bundled.length > 0 ? bundled : (directoryCache?.symbols ?? []);
     })().finally(() => {
       directoryLoadPromise = null;
     });
@@ -99,26 +101,42 @@ export async function getFreshNseSymbolDirectory(): Promise<NseDirectorySymbol[]
   return directoryLoadPromise;
 }
 
-/** Bundled file first for fast cold starts; live CSV only if bundle missing. */
-export async function getNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
-  if (directoryCache && Date.now() < directoryCache.expiresAt) {
-    return directoryCache.symbols;
+/**
+ * Directory for symbol search. Uses a recent live list when one is cached,
+ * otherwise waits briefly for the NSE CSV and falls back to the bundled file.
+ * The live fetch keeps running after the wait so the next search can use it.
+ */
+export async function getNseSymbolDirectoryForSearch(): Promise<
+  NseDirectorySymbol[]
+> {
+  if (liveCacheIsFresh()) {
+    return directoryCache!.symbols;
+  }
+
+  const livePromise = getFreshNseSymbolDirectory();
+  const live = await Promise.race([
+    livePromise,
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), SEARCH_LIVE_TIMEOUT_MS);
+    }),
+  ]);
+  if (live && live.length > 0 && directoryCache?.source === "live") {
+    return live;
   }
 
   const bundled = await loadBundledNseSymbolDirectory();
-  if (bundled.length > 0) {
-    directoryCache = {
-      symbols: bundled,
-      expiresAt: Date.now() + CACHE_TTL_MS,
-    };
-    return bundled;
+  if (bundled.length > 0) return bundled;
+  return live ?? [];
+}
+
+/** Bundled file first for fast cold starts; live CSV only if bundle missing. */
+export async function getNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
+  if (liveCacheIsFresh()) {
+    return directoryCache!.symbols;
   }
 
-  if (!directoryLoadPromise) {
-    directoryLoadPromise = loadNseSymbolDirectory().finally(() => {
-      directoryLoadPromise = null;
-    });
-  }
+  const bundled = await loadBundledNseSymbolDirectory();
+  if (bundled.length > 0) return bundled;
 
-  return directoryLoadPromise;
+  return getFreshNseSymbolDirectory();
 }

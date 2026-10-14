@@ -62,19 +62,51 @@ async function searchLocalNseSymbols(
   );
 }
 
+function mergeNseSymbolResults(
+  local: SymbolSearchResult[],
+  remote: SymbolSearchResult[],
+  listingMarket: ListingMarketId,
+  query: string
+): SymbolSearchResult[] {
+  const hits = [...local, ...remote].map((row) => ({
+    code: row.code,
+    name: row.name,
+    exchange: row.exchange || "NSE",
+    type: "Equity",
+    currency: "INR",
+  }));
+  const ranked = rankSymbolSearchResults(hits, listingMarket, query);
+  const filtered = filterSymbolSearchResultsForMarket(ranked, listingMarket);
+  return finalizeSymbolSearchResults(filtered, listingMarket, query).slice(
+    0,
+    20
+  );
+}
+
 async function searchSymbols(
   query: string,
   listingMarket: ListingMarketId,
   signal?: AbortSignal
 ): Promise<SymbolSearchResult[]> {
-  if (listingMarket === "IN_NSE") {
-    if (signal?.aborted) {
-      throw new DOMException("Aborted", "AbortError");
-    }
-    return searchLocalNseSymbols(query, listingMarket);
+  if (listingMarket !== "IN_NSE") {
+    return fetchSymbolSuggestions(query, listingMarket, signal);
   }
 
-  return fetchSymbolSuggestions(query, listingMarket, signal);
+  if (signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+
+  const localPromise = searchLocalNseSymbols(query, listingMarket);
+  const remotePromise = fetchSymbolSuggestions(
+    query,
+    listingMarket,
+    signal
+  ).catch((error: unknown) => {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    return [] as SymbolSearchResult[];
+  });
+  const [local, remote] = await Promise.all([localPromise, remotePromise]);
+  return mergeNseSymbolResults(local, remote, listingMarket, query);
 }
 
 async function fetchSymbolSuggestions(

@@ -32,7 +32,7 @@ function markRefreshedFromApi(): void {
 
 async function loadBundledNseSymbolDirectory(): Promise<NseDirectorySymbol[]> {
   const res = await fetch("/data/nse-equity-symbols.json", {
-    cache: "force-cache",
+    cache: "no-cache",
   });
   if (!res.ok) throw new Error("nse_directory_unavailable");
   const data = (await res.json()) as BundledNseSymbol[];
