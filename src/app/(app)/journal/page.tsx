@@ -448,6 +448,7 @@ export default function JournalPage() {
         {closedPoolCount > 0 ? (
           <JournalTable
             title="Closed trades"
+            collapsible
             trades={closedTrades}
             totalTradeCount={closedPoolCount}
             displayCurrency={activeCurrency}

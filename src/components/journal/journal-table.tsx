@@ -1643,6 +1643,8 @@ interface JournalTableProps {
   showColumnsMenu?: boolean;
   /** Poll live quotes for active rows (default true). */
   enableLiveQuotes?: boolean;
+  /** Collapse the card body until the header is opened. Starts closed. */
+  collapsible?: boolean;
   /** Pre-fetched earnings lookup (avoids duplicate API calls when multiple tables mount). */
   getEarningsDate?: (trade: JournalTrade) => EarningsDateInfo | null;
   earningsLoading?: boolean;
@@ -1693,6 +1695,7 @@ function journalTableInnerPropsEqual(
     prev.onPartialExit === next.onPartialExit &&
     prev.showColumnsMenu === next.showColumnsMenu &&
     prev.enableLiveQuotes === next.enableLiveQuotes &&
+    prev.collapsible === next.collapsible &&
     prev.getEarningsDate === next.getEarningsDate &&
     prev.earningsLoading === next.earningsLoading &&
     prev.quoteSlice === next.quoteSlice &&
@@ -1710,6 +1713,9 @@ const JournalTableHeader = memo(function JournalTableHeader({
   staticRowLegendCounts,
   showColumnsMenu,
   isCompact,
+  collapsible,
+  expanded,
+  onToggle,
   columnPrefs,
   onColumnPrefsChange,
   highlightedRowCategory,
@@ -1728,6 +1734,9 @@ const JournalTableHeader = memo(function JournalTableHeader({
   } | null;
   showColumnsMenu: boolean;
   isCompact: boolean;
+  collapsible: boolean;
+  expanded: boolean;
+  onToggle: () => void;
   columnPrefs: JournalColumnPrefs;
   onColumnPrefsChange: (prefs: JournalColumnPrefs) => void;
   highlightedRowCategory: RowAccentCategory | null;
@@ -1758,17 +1767,48 @@ const JournalTableHeader = memo(function JournalTableHeader({
     ) : null;
 
   return (
-    <header className="flex flex-col gap-3 border-b border-border/70 px-4 py-3.5 sm:px-5">
+    <header
+      className={cn(
+        "flex flex-col gap-3 px-4 py-3.5 sm:px-5",
+        expanded && "border-b border-border/70"
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-          <h2 className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
-            {title}
-          </h2>
-          {totalRows > 0 ? (
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {totalRows} {totalRows === 1 ? "trade" : "trades"}
-            </span>
-          ) : null}
+          {collapsible ? (
+            <button
+              type="button"
+              className="inline-flex min-w-0 items-center gap-2 rounded-md text-left"
+              aria-expanded={expanded}
+              onClick={onToggle}
+            >
+              <ChevronRight
+                className={cn(
+                  "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                  expanded && "rotate-90"
+                )}
+              />
+              <span className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
+                {title}
+              </span>
+              {totalRows > 0 ? (
+                <span className="text-xs font-normal tabular-nums text-muted-foreground">
+                  {totalRows} {totalRows === 1 ? "trade" : "trades"}
+                </span>
+              ) : null}
+            </button>
+          ) : (
+            <>
+              <h2 className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
+                {title}
+              </h2>
+              {totalRows > 0 ? (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {totalRows} {totalRows === 1 ? "trade" : "trades"}
+                </span>
+              ) : null}
+            </>
+          )}
           {quotesDelayed && quotesSessionOpen && !quotesError && totalRows > 0 ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
               <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
@@ -1886,6 +1926,7 @@ function JournalTableInner({
   onPartialExit,
   showColumnsMenu = true,
   enableLiveQuotes = true,
+  collapsible = false,
   getEarningsDate: getEarningsDateProp,
   earningsLoading: earningsLoadingProp,
   quoteSlice,
@@ -1899,6 +1940,9 @@ function JournalTableInner({
   const [sorting, setSorting] = useState<SortingState>([
     { id: "entryDate", desc: true },
   ]);
+  const [sectionOpen, setSectionOpen] = useState(!collapsible);
+  const isClosedTableRef = useRef(!enableLiveQuotes);
+  isClosedTableRef.current = !enableLiveQuotes;
   const [pagination, setPagination] = useState<PaginationState>(() => ({
     pageIndex: 0,
     pageSize: enableLiveQuotes
@@ -2046,15 +2090,28 @@ function JournalTableInner({
       },
       {
         accessorKey: "entryDate",
-        sortingFn: "datetime",
+        sortingFn: (rowA, rowB) => {
+          const left = isClosedTableRef.current
+            ? rowA.original.exitDate || rowA.original.entryDate
+            : rowA.original.entryDate;
+          const right = isClosedTableRef.current
+            ? rowB.original.exitDate || rowB.original.entryDate
+            : rowB.original.entryDate;
+          return new Date(left).getTime() - new Date(right).getTime();
+        },
         header: ({ column }) => (
           <SortHeader label="Date" sorted={column.getIsSorted()} />
         ),
-        cell: ({ row }) => (
-          <span className="block w-full text-center text-sm font-medium text-foreground">
-            {format(new Date(row.original.entryDate), "MMM d, yyyy")}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const raw = isClosedTableRef.current
+            ? row.original.exitDate || row.original.entryDate
+            : row.original.entryDate;
+          return (
+            <span className="block w-full text-center text-sm font-medium text-foreground">
+              {format(new Date(raw), "MMM d, yyyy")}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "ticker",
@@ -2482,13 +2539,16 @@ function JournalTableInner({
         staticRowLegendCounts={staticRowLegendCounts}
         showColumnsMenu={showColumnsMenu}
         isCompact={isCompact}
+        collapsible={collapsible}
+        expanded={sectionOpen}
+        onToggle={() => setSectionOpen((open) => !open)}
         columnPrefs={columnPrefs}
         onColumnPrefsChange={setColumnPrefs}
         highlightedRowCategory={highlightedRowCategory}
         onCategoryHover={setHighlightedRowCategory}
       />
 
-      {totalRows === 0 ? (
+      {!sectionOpen ? null : totalRows === 0 ? (
         <div className="flex min-h-[10rem] items-center justify-center px-4 py-10 text-center text-sm text-muted-foreground">
           {(totalTradeCount ?? 0) > 0
             ? "No trades match your filters."
@@ -2600,7 +2660,7 @@ function JournalTableInner({
         </div>
       )}
 
-      {paginationBar}
+      {sectionOpen ? paginationBar : null}
     </section>
   );
 }
