@@ -1,5 +1,6 @@
 import { differenceInDays, format, startOfDay } from "date-fns";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import type { JournalMarketRegionId } from "@/lib/journal-market-regions";
 import { MAJOR_MARKET_INDICES } from "@/lib/major-market-indices";
 import {
   getPortfolioTimeframeRange,
@@ -105,15 +106,70 @@ function annualizedReturnPercent(
   return Math.round(annualized * 100) / 100;
 }
 
+/** Main indexes that are not part of the sidebar index list. */
+const EXTRA_BENCHMARK_SYMBOLS: Record<string, string> = {
+  tsx: "^GSPTSE",
+  aex: "^AEX",
+  smi: "^SSMI",
+  ipc: "^MXX",
+};
+
+function yahooSymbolForIndex(indexId: string): string | null {
+  const listed = MAJOR_MARKET_INDICES.find((item) => item.id === indexId);
+  if (listed) return listed.yahooSymbol;
+  return EXTRA_BENCHMARK_SYMBOLS[indexId] ?? null;
+}
+
+/** Benchmark for the journal country selector. India is the Nifty 50; the US is SPY. */
+export function benchmarkForRegion(regionId: JournalMarketRegionId): {
+  id: string;
+  label: string;
+} {
+  switch (regionId) {
+    case "IN":
+      return { id: "nifty50", label: "Nifty 50" };
+    case "US":
+      return { id: "spy", label: "SPY" };
+    case "UK":
+      return { id: "ftse", label: "FTSE 100" };
+    case "CA":
+      return { id: "tsx", label: "S&P/TSX" };
+    case "DE":
+      return { id: "dax", label: "DAX" };
+    case "FR":
+      return { id: "cac", label: "CAC 40" };
+    case "NL":
+      return { id: "aex", label: "AEX" };
+    case "CH":
+      return { id: "smi", label: "SMI" };
+    case "HK":
+      return { id: "hsi", label: "Hang Seng" };
+    case "AU":
+      return { id: "asx", label: "ASX 200" };
+    case "JP":
+      return { id: "nikkei", label: "Nikkei 225" };
+    case "KR":
+      return { id: "kospi", label: "KOSPI" };
+    case "SG":
+      return { id: "sti", label: "STI" };
+    case "BR":
+      return { id: "bovespa", label: "Bovespa" };
+    case "MX":
+      return { id: "ipc", label: "IPC" };
+    default:
+      return { id: "spy", label: "SPY" };
+  }
+}
+
 async function fetchBenchmarkBars(
   indexId: string,
   timeframe: PortfolioChartTimeframe
 ): Promise<PriceBar[]> {
-  const index = MAJOR_MARKET_INDICES.find((item) => item.id === indexId);
-  if (!index) return [];
+  const yahooSymbol = yahooSymbolForIndex(indexId);
+  if (!yahooSymbol) return [];
 
   const url = new URL(
-    `${YAHOO_CHART}/${encodeURIComponent(index.yahooSymbol)}`
+    `${YAHOO_CHART}/${encodeURIComponent(yahooSymbol)}`
   );
   url.searchParams.set("interval", "1d");
   url.searchParams.set("range", timeframeToYahooRange(timeframe));

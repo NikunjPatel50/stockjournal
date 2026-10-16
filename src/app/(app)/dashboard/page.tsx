@@ -80,6 +80,14 @@ const PortfolioOverviewCard = dynamic(
   { loading: () => <div className="min-h-[18rem] animate-pulse rounded-2xl bg-muted/40" /> }
 );
 
+const BenchmarkComparisonCard = dynamic(
+  () =>
+    import("@/components/analytics/benchmark-comparison-card").then((mod) => ({
+      default: mod.BenchmarkComparisonCard,
+    })),
+  { loading: () => <div className="min-h-[18rem] animate-pulse rounded-2xl bg-muted/40" /> }
+);
+
 export default function DashboardPage() {
   const router = useRouter();
   const { trades: allTrades, setTrades } = useJournalTrades();
@@ -145,6 +153,8 @@ export default function DashboardPage() {
       <PortfolioSummaryStrip trades={trades} currency={currency} />
 
       <PortfolioOverviewCard trades={trades} currency={currency} />
+
+      <BenchmarkComparisonCard trades={trades} currency={currency} />
 
       <LazySection minHeight="8rem">
         <TradePulseSection />
