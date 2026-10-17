@@ -29,7 +29,8 @@ function sanitizeDecimalInput(value: string) {
 }
 
 function selectAllOnFocus(event: React.FocusEvent<HTMLInputElement>) {
-  requestAnimationFrame(() => event.target.select());
+  const input = event.currentTarget;
+  requestAnimationFrame(() => input.select());
 }
 
 type SmartAtrLevelsProps = {

@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 import { useIsAdmin } from "@/components/admin/admin-access-provider";
 import { BrandLogo } from "@/components/brand-logo";
+import { useInstrumentMode } from "@/components/instrument-mode-provider";
 import { MarketIndicesPanel } from "@/components/sidebar/market-indices-panel";
 import { useOptimisticPathname } from "@/hooks/use-optimistic-pathname";
+import { STOCKS_ONLY_HREFS } from "@/lib/instrument-mode";
 import { cn } from "@/lib/utils";
 
 const tradingNav = [
@@ -34,10 +36,10 @@ const SIDEBAR_INSET_SHELL =
   "rounded-xl border border-border bg-card/60 shadow-sm ring-1 ring-border/50 dark:bg-card/35 dark:ring-border/70";
 
 function isActiveRoute(pathname: string, href: string) {
-  return (
-    pathname === href ||
-    (href !== "/dashboard" && pathname.startsWith(href))
-  );
+  if (pathname === href) return true;
+  const dashboardRoot = href === "/dashboard" || href === "/options/dashboard";
+  if (dashboardRoot) return false;
+  return pathname.startsWith(`${href}/`);
 }
 
 function SidebarSectionLabel({ children }: { children: ReactNode }) {
@@ -51,6 +53,7 @@ function SidebarSectionLabel({ children }: { children: ReactNode }) {
 function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
   const { activePathname: pathname, onNavigate } =
     useOptimisticPathname(pathnameOverride);
+  const { hrefFor, mode } = useInstrumentMode();
   const isAdmin = useIsAdmin();
   const listRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{
@@ -82,7 +85,9 @@ function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
     {
       label: "Trading",
       items: tradingNav.filter(
-        (item) => !("adminOnly" in item && item.adminOnly) || isAdmin
+        (item) =>
+          (!("adminOnly" in item && item.adminOnly) || isAdmin) &&
+          !(mode === "options" && STOCKS_ONLY_HREFS.has(item.href))
       ),
     },
     { label: "Account", items: accountNav },
@@ -92,7 +97,7 @@ function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
     <div className="flex h-full min-h-0 flex-col bg-sidebar">
       <div className="shrink-0 px-4 pb-3 pt-5">
         <Link
-          href="/dashboard"
+          href={hrefFor("/dashboard")}
           className="flex items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <BrandLogo
@@ -136,13 +141,14 @@ function NavContent({ pathnameOverride }: { pathnameOverride?: string }) {
                 <nav className="space-y-1">
                   {group.items.map((item) => {
                     const Icon = item.icon;
-                    const active = isActiveRoute(pathname, item.href);
+                    const href = hrefFor(item.href);
+                    const active = isActiveRoute(pathname, href);
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={href}
                         onPointerDown={(event) => {
-                          onNavigate(item.href)(event);
+                          onNavigate(href)(event);
                           if (event.button === 0) placeIndicator(event.currentTarget);
                         }}
                         aria-current={active ? "page" : undefined}

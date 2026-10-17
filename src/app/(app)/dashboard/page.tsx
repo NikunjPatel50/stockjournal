@@ -150,7 +150,11 @@ export default function DashboardPage() {
       />
       <KpiRibbon kpis={kpis} capitalBase={capitalBase} />
 
-      <PortfolioSummaryStrip trades={trades} currency={currency} />
+      <PortfolioSummaryStrip
+        trades={trades}
+        currency={currency}
+        filters={filters}
+      />
 
       <PortfolioOverviewCard trades={trades} currency={currency} />
 

@@ -15,16 +15,13 @@ import { Input } from "@/components/ui/input";
 import {
   type ListingMarketId,
 } from "@/lib/equity-listing-markets";
+import { searchEquitySymbols } from "@/lib/equity-symbol-search-client";
+import { getClientNseSymbolDirectory } from "@/lib/nse-symbol-directory-client";
 import {
-  filterSymbolSearchResultsForMarket,
-  finalizeSymbolSearchResults,
   pickBestSymbolMatch,
-  rankSymbolSearchResults,
   symbolNotFoundMessage,
   type SymbolSearchResult,
 } from "@/lib/symbol-search";
-import { filterNseSymbolDirectory } from "@/lib/nse-symbol-directory-shared";
-import { getClientNseSymbolDirectory } from "@/lib/nse-symbol-directory-client";
 import {
   formatTickerDisplayLabel,
   isTickerDisplayLabel,
@@ -35,6 +32,8 @@ import { cn } from "@/lib/utils";
 
 export type TickerSearchInputHandle = {
   commit: () => Promise<boolean>;
+  commitQuery: (text: string) => Promise<boolean>;
+  applySymbol: (code: string, displayQuery?: string) => void;
 };
 
 type TickerSearchInputProps = {
@@ -46,95 +45,6 @@ type TickerSearchInputProps = {
   className?: string;
   disabled?: boolean;
 };
-
-async function searchLocalNseSymbols(
-  query: string,
-  listingMarket: ListingMarketId
-): Promise<SymbolSearchResult[]> {
-  const directory = await getClientNseSymbolDirectory();
-  const hits = filterNseSymbolDirectory(directory, query, 20, "NSE");
-  const ranked = rankSymbolSearchResults(hits, listingMarket, query);
-  const filtered = filterSymbolSearchResultsForMarket(ranked, listingMarket);
-  return finalizeSymbolSearchResults(
-    filtered.slice(0, 20),
-    listingMarket,
-    query
-  );
-}
-
-function mergeNseSymbolResults(
-  local: SymbolSearchResult[],
-  remote: SymbolSearchResult[],
-  listingMarket: ListingMarketId,
-  query: string
-): SymbolSearchResult[] {
-  const hits = [...local, ...remote].map((row) => ({
-    code: row.code,
-    name: row.name,
-    exchange: row.exchange || "NSE",
-    type: "Equity",
-    currency: "INR",
-  }));
-  const ranked = rankSymbolSearchResults(hits, listingMarket, query);
-  const filtered = filterSymbolSearchResultsForMarket(ranked, listingMarket);
-  return finalizeSymbolSearchResults(filtered, listingMarket, query).slice(
-    0,
-    20
-  );
-}
-
-async function searchSymbols(
-  query: string,
-  listingMarket: ListingMarketId,
-  signal?: AbortSignal
-): Promise<SymbolSearchResult[]> {
-  if (listingMarket !== "IN_NSE") {
-    return fetchSymbolSuggestions(query, listingMarket, signal);
-  }
-
-  if (signal?.aborted) {
-    throw new DOMException("Aborted", "AbortError");
-  }
-
-  const localPromise = searchLocalNseSymbols(query, listingMarket);
-  const remotePromise = fetchSymbolSuggestions(
-    query,
-    listingMarket,
-    signal
-  ).catch((error: unknown) => {
-    if (error instanceof Error && error.name === "AbortError") throw error;
-    return [] as SymbolSearchResult[];
-  });
-  const [local, remote] = await Promise.all([localPromise, remotePromise]);
-  return mergeNseSymbolResults(local, remote, listingMarket, query);
-}
-
-async function fetchSymbolSuggestions(
-  query: string,
-  listingMarket: ListingMarketId,
-  signal?: AbortSignal
-): Promise<SymbolSearchResult[]> {
-  const params = new URLSearchParams({ q: query, listingMarket });
-  const timeoutController = new AbortController();
-  const timeoutId = window.setTimeout(() => timeoutController.abort(), 8000);
-
-  const onAbort = () => timeoutController.abort();
-  signal?.addEventListener("abort", onAbort);
-
-  try {
-    const res = await fetch(`/api/symbol-search?${params.toString()}`, {
-      signal: timeoutController.signal,
-    });
-    if (!res.ok) {
-      throw new Error("search_failed");
-    }
-    const data = (await res.json()) as { results?: SymbolSearchResult[] };
-    return data.results ?? [];
-  } finally {
-    window.clearTimeout(timeoutId);
-    signal?.removeEventListener("abort", onAbort);
-  }
-}
 
 export const TickerSearchInput = forwardRef<
   TickerSearchInputHandle,
@@ -196,7 +106,7 @@ export const TickerSearchInput = forwardRef<
       }
 
       try {
-        const results = await searchSymbols(searchText, listingMarket);
+        const results = await searchEquitySymbols(searchText, listingMarket);
         const match = pickBestSymbolMatch(searchText, results);
         if (!match) {
           setError(symbolNotFoundMessage(listingMarket));
@@ -215,12 +125,28 @@ export const TickerSearchInput = forwardRef<
     [listingMarket, onChange, setError, value]
   );
 
+  const applySymbol = useCallback(
+    (code: string, displayQuery?: string) => {
+      const normalized = normalizeEquityTicker(code);
+      committedCodeRef.current = normalized;
+      setError(undefined);
+      onChange(normalized);
+      setQuery(displayQuery?.trim() || normalized);
+      setSuggestions([]);
+      setOpen(false);
+      setActiveIndex(-1);
+    },
+    [onChange, setError]
+  );
+
   useImperativeHandle(
     ref,
     () => ({
       commit: () => resolveAndCommit(query),
+      commitQuery: (text: string) => resolveAndCommit(text),
+      applySymbol,
     }),
-    [query, resolveAndCommit]
+    [applySymbol, query, resolveAndCommit]
   );
 
   const updateDropdownPosition = useCallback(() => {
@@ -317,7 +243,7 @@ export const TickerSearchInput = forwardRef<
     const timer = window.setTimeout(async () => {
       try {
         const searchText = isTickerDisplayLabel(trimmed) ? parsed : trimmed;
-        const results = await searchSymbols(
+        const results = await searchEquitySymbols(
           searchText,
           listingMarket,
           controller.signal

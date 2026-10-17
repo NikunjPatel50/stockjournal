@@ -62,7 +62,7 @@ export function PartialExitModal({
   const form = useForm<PartialExitFormInput, unknown, PartialExitFormValues>({
     resolver: zodResolver(partialExitSchema),
     defaultValues: {
-      exitPrice: 0,
+      exitPrice: "",
       quantity: 1,
       exitDate: formatDateTimeFieldValue(new Date()),
     },
@@ -79,7 +79,7 @@ export function PartialExitModal({
         ? Math.max(1, Math.floor(trade.quantity / 2))
         : trade.quantity;
     form.reset({
-      exitPrice: 0,
+      exitPrice: "",
       quantity: defaultQty,
       exitDate: formatDateTimeFieldValue(new Date()),
     });

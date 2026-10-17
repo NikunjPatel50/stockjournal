@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AdminAccessProvider } from "@/components/admin/admin-access-provider";
 import { JournalTradesProvider } from "@/components/journal-trades-provider";
+import { InstrumentModeProvider } from "@/components/instrument-mode-provider";
 import { JournalMarketProvider } from "@/components/journal/journal-market-provider";
 import { MarketQuotesProvider } from "@/components/market-quotes-provider";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
@@ -40,6 +41,7 @@ export default async function AppLayout({
         <JournalTradesProvider>
           <JournalMarketProvider>
             <MarketQuotesProvider>
+              <InstrumentModeProvider>
               <div className="flex h-dvh min-h-0 w-full min-w-0 overflow-hidden">
                 <Sidebar />
                 <ScrollActivityBinder />
@@ -51,6 +53,7 @@ export default async function AppLayout({
                 </main>
                 <MobileBottomNav />
               </div>
+              </InstrumentModeProvider>
             </MarketQuotesProvider>
           </JournalMarketProvider>
         </JournalTradesProvider>

@@ -2,9 +2,20 @@
 
 import { memo, useMemo, useRef, type ReactNode } from "react";
 import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-number";
-import { formatMoney, formatSignedPercent } from "@/lib/analytics";
+import {
+  analyticsPeriodBadge,
+  DASHBOARD_TIMEFRAME_OPTIONS,
+  getAnalyticsTimeframeRange,
+  formatMoney,
+  formatSignedPercent,
+  type AnalyticsFilters,
+} from "@/lib/analytics";
 import { useTodayDailyPnl } from "@/hooks/use-today-daily-pnl";
-import { computeLivePortfolioSnapshot } from "@/lib/portfolio-timeline";
+import {
+  computeLivePortfolioSnapshot,
+  computePortfolioTimeline,
+  portfolioRangeReturnPercent,
+} from "@/lib/portfolio-timeline";
 import { useMarketQuotes } from "@/hooks/use-market-quotes";
 import type { CurrencyCode } from "@/lib/settings";
 import type { JournalTrade } from "@/lib/journal-types";
@@ -13,6 +24,7 @@ import { cn, NUMERIC_DISPLAY_CLASS } from "@/lib/utils";
 type PortfolioSummaryStripProps = {
   trades: JournalTrade[];
   currency: CurrencyCode;
+  filters: AnalyticsFilters;
 };
 
 function pnlToneClass(value: number) {
@@ -51,6 +63,7 @@ function SummaryCell({
 export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
   trades,
   currency,
+  filters,
 }: PortfolioSummaryStripProps) {
   const { getQuote, quoteRevision } = useMarketQuotes();
   const todayDailyPnl = useTodayDailyPnl(trades, currency);
@@ -73,6 +86,29 @@ export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
     snapshotRef.current = next;
     return next;
   }, [trades, getQuote, currency, quoteRevision]);
+
+  const timeline = useMemo(() => computePortfolioTimeline(trades), [trades]);
+  const roi = useMemo(() => {
+    if (
+      filters.timeframe === "custom" &&
+      !filters.customFrom &&
+      !filters.customTo
+    ) {
+      return null;
+    }
+    return portfolioRangeReturnPercent(
+      timeline,
+      getAnalyticsTimeframeRange(filters),
+      new Date(),
+      snapshot
+    );
+  }, [timeline, filters, snapshot]);
+  const roiPeriodLabel =
+    filters.timeframe === "custom"
+      ? analyticsPeriodBadge(filters)
+      : (DASHBOARD_TIMEFRAME_OPTIONS.find(
+          (option) => option.value === filters.timeframe
+        )?.label ?? "YTD");
 
   const activeTrades = useMemo(
     () => trades.filter((trade) => (trade.status ?? "Closed") === "Active"),
@@ -173,6 +209,24 @@ export const PortfolioSummaryStrip = memo(function PortfolioSummaryStrip({
         valueClassName={
           todayPnl == null ? undefined : pnlToneClass(todayPnl)
         }
+      />
+      <SummaryCell
+        label={`ROI · ${roiPeriodLabel}`}
+        value={
+          roi == null ? (
+            "—"
+          ) : (
+            <span className={NUMERIC_DISPLAY_CLASS}>
+              <AnimatedPercent value={roi} decimals={2} />
+            </span>
+          )
+        }
+        valueTitle={
+          roi == null
+            ? "Select a timeframe to see ROI"
+            : `${formatSignedPercent(roi, 2)} over ${roiPeriodLabel}`
+        }
+        valueClassName={roi == null ? undefined : pnlToneClass(roi)}
       />
       <SummaryCell
         label="Total Active Trades"

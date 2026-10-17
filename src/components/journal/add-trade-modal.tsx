@@ -47,6 +47,7 @@ import {
   normalizeListingMarket,
   type ListingMarketId,
 } from "@/lib/equity-listing-markets";
+import { LogOptionsPositionModal } from "@/components/options/log-options-position-modal";
 import { normalizeEquityTicker } from "@/lib/ticker-normalize";
 import { computeCapitalBase } from "@/lib/overnight-risk";
 import { cn } from "@/lib/utils";
@@ -186,6 +187,8 @@ interface AddTradeModalProps {
   initialTrade?: JournalTrade | null;
   trades?: JournalTrade[];
   onSave: (trade: JournalTrade) => void;
+  /** Preset asset class when opening a blank form (e.g. options journal). */
+  defaultAssetClass?: AssetClass;
 }
 
 function deriveOutcome(pnl: number): JournalTrade["outcome"] {
@@ -279,6 +282,7 @@ export function AddTradeModal({
   initialTrade,
   trades = [],
   onSave,
+  defaultAssetClass = "Equities",
 }: AddTradeModalProps) {
   const { settings } = useSettings();
   const { defaultListingMarket, activeCurrency } = useJournalMarket();
@@ -309,11 +313,11 @@ export function AddTradeModal({
       status: "Active",
       entryDate: currentDateTimeValue(),
       exitDate: currentDateTimeValue(),
-      entryPrice: 0,
-      exitPrice: 0,
+      entryPrice: "",
+      exitPrice: "",
       quantity: 1,
-      stopLoss: 0,
-      profitTarget: 0,
+      stopLoss: "",
+      profitTarget: "",
       notes: "",
     },
   });
@@ -368,7 +372,7 @@ export function AddTradeModal({
         entryPrice: initialTrade.entryPrice,
         exitPrice:
           (initialTrade.status ?? "Closed") === "Active"
-            ? 0
+            ? ""
             : initialTrade.exitPrice,
         quantity: initialTrade.quantity,
         stopLoss: initialTrade.stopLoss,
@@ -377,9 +381,9 @@ export function AddTradeModal({
       });
     } else {
       setTradeMeta({
-        direction: "Long",
-        assetClass: "Equities",
-        strategy: "",
+        direction: defaultAssetClass === "Options" ? "Short" : "Long",
+        assetClass: defaultAssetClass,
+        strategy: defaultAssetClass === "Options" ? "Bull Put Spread" : "",
         tags: [],
         psychology: [],
         fees: 0,
@@ -391,15 +395,15 @@ export function AddTradeModal({
         status: "Active",
         entryDate: currentDateTimeValue(),
         exitDate: currentDateTimeValue(),
-        entryPrice: 0,
-        exitPrice: 0,
+        entryPrice: "",
+        exitPrice: "",
         quantity: 1,
-        stopLoss: 0,
-        profitTarget: 0,
+        stopLoss: "",
+        profitTarget: "",
         notes: "",
       });
     }
-  }, [open, initialTrade, form]);
+  }, [open, initialTrade, form, defaultAssetClass, defaultMarket]);
 
   const applyScreenshotBlob = useCallback(async (blob: Blob) => {
     setUploadError(null);
@@ -606,6 +610,20 @@ export function AddTradeModal({
     onOpenChange(false);
   }
 
+  const isOptionsForm =
+    defaultAssetClass === "Options" || initialTrade?.assetClass === "Options";
+
+  if (isOptionsForm) {
+    return (
+      <LogOptionsPositionModal
+        open={open}
+        onOpenChange={onOpenChange}
+        initialTrade={initialTrade}
+        onSave={onSave}
+      />
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(92dvh,860px)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden rounded-2xl border border-border/80 p-0 shadow-2xl sm:w-[min(94vw,56rem)] sm:max-w-[min(94vw,56rem)] lg:w-[min(94vw,72rem)] lg:max-w-[min(94vw,72rem)]">
@@ -708,7 +726,7 @@ export function AddTradeModal({
                           if (value === "Closed" || value === "Active") {
                             field.onChange(value);
                             if (value === "Active") {
-                              form.setValue("exitPrice", 0);
+                              form.setValue("exitPrice", "");
                               form.setValue(
                                 "exitDate",
                                 form.getValues("entryDate")

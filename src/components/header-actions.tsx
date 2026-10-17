@@ -1,4 +1,5 @@
 import { AdminPanelButton } from "@/components/admin/admin-panel-button";
+import { InstrumentModeSwitch } from "@/components/instrument-mode-switch";
 import { JournalMarketSelector } from "@/components/journal/journal-market-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserProfileBadge } from "@/components/user-profile-badge";
@@ -43,6 +44,7 @@ export function HeaderActions({
         className
       )}
     >
+      <InstrumentModeSwitch compact={compact} />
       <JournalMarketSelector
         compact={compact}
         className={cn(controlHeight, compact && controlSquare)}

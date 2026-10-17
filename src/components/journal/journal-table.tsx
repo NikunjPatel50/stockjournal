@@ -2322,6 +2322,7 @@ function JournalTableInner({
             trade={row.original}
             displayCurrency={displayCurrencyRef.current}
             quotesLoading={quotesLoadingRef.current}
+            compact
           />
         ),
       },

@@ -13,6 +13,7 @@ import {
   Target,
 } from "lucide-react";
 import { useIsAdmin } from "@/components/admin/admin-access-provider";
+import { useInstrumentMode } from "@/components/instrument-mode-provider";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +22,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useOptimisticPathname } from "@/hooks/use-optimistic-pathname";
+import { STOCKS_ONLY_HREFS } from "@/lib/instrument-mode";
 import { cn } from "@/lib/utils";
 
 const primaryTabs = [
@@ -38,20 +40,23 @@ const moreLinks = [
 ] as const;
 
 function isActiveRoute(pathname: string, href: string) {
-  return (
-    pathname === href ||
-    (href !== "/dashboard" && pathname.startsWith(href))
-  );
+  if (pathname === href) return true;
+  const dashboardRoot = href === "/dashboard" || href === "/options/dashboard";
+  if (dashboardRoot) return false;
+  return pathname.startsWith(`${href}/`);
 }
 
 export function MobileBottomNav() {
   const { activePathname: pathname, onNavigate } = useOptimisticPathname();
+  const { hrefFor, mode } = useInstrumentMode();
   const isAdmin = useIsAdmin();
   const visibleMoreLinks = moreLinks.filter(
-    (link) => !("adminOnly" in link && link.adminOnly) || isAdmin
+    (link) =>
+      (!("adminOnly" in link && link.adminOnly) || isAdmin) &&
+      !(mode === "options" && STOCKS_ONLY_HREFS.has(link.href))
   );
   const moreActive = visibleMoreLinks.some((link) =>
-    isActiveRoute(pathname ?? "", link.href)
+    isActiveRoute(pathname ?? "", hrefFor(link.href))
   );
 
   return (
@@ -63,12 +68,13 @@ export function MobileBottomNav() {
       <div className="flex h-16 items-stretch">
         {primaryTabs.map((tab) => {
           const Icon = tab.icon;
-          const active = isActiveRoute(pathname ?? "", tab.href);
+          const href = hrefFor(tab.href);
+          const active = isActiveRoute(pathname ?? "", href);
           return (
             <Link
               key={tab.href}
-              href={tab.href}
-              onClick={onNavigate(tab.href)}
+              href={href}
+              onClick={onNavigate(href)}
               className={cn(
                 "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors",
                 active ? "text-primary" : "text-muted-foreground"
@@ -99,12 +105,13 @@ export function MobileBottomNav() {
             <div className="grid grid-cols-2 gap-2 px-4 pb-2">
               {visibleMoreLinks.map((link) => {
                 const Icon = link.icon;
-                const active = isActiveRoute(pathname ?? "", link.href);
+                const href = hrefFor(link.href);
+                const active = isActiveRoute(pathname ?? "", href);
                 return (
                   <Link
                     key={link.href}
-                    href={link.href}
-                    onClick={onNavigate(link.href)}
+                    href={href}
+                    onClick={onNavigate(href)}
                     className={cn(
                       "flex min-h-14 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors",
                       active

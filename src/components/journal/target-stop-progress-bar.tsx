@@ -301,16 +301,14 @@ function TargetStopProgressBarInner({
   loading = false,
   compact = false,
 }: TargetStopProgressBarProps) {
-  if (trade.assetClass === "Options") {
-    return <span className="text-sm text-muted-foreground">—</span>;
-  }
-
   if (loading && currentPrice == null) {
     return (
       <span
         className={cn(
-          "mx-auto block w-full animate-pulse rounded-full bg-muted",
-          compact ? "h-8 max-w-[11rem]" : "h-10 max-w-[14rem]"
+          "mx-auto block w-full animate-pulse bg-muted",
+          compact
+            ? "h-[3.25rem] max-w-[11rem] rounded-lg"
+            : "h-10 max-w-[14rem] rounded-full"
         )}
       />
     );
@@ -351,6 +349,39 @@ function TargetStopProgressBarInner({
       : glow === "red"
         ? "target-stop-fill-glow-red border-t-rose-500 dark:border-t-rose-400"
         : "border-t-foreground/80 dark:border-t-white/90";
+
+  if (compact) {
+    const barClass =
+      fill.variant === "green"
+        ? "bg-emerald-500"
+        : fill.variant === "red"
+          ? "bg-rose-500"
+          : "bg-transparent";
+
+    return (
+      <div
+        className="mx-auto w-full min-w-[8rem] max-w-[11rem]"
+        title={status.text}
+        role="img"
+        aria-label={status.text}
+      >
+        <p
+          className={cn(
+            "mb-1.5 truncate text-center text-[11px] font-medium leading-none",
+            pctLabelClass
+          )}
+        >
+          {status.text}
+        </p>
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn("h-full rounded-full", barClass)}
+            style={{ width: fill.variant === "neutral" ? "0%" : `${fill.pct}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRegionTrades } from "@/components/journal/journal-market-provider";
+import { optionsBookedPnl, withCorrectedOptionsDates } from "@/lib/options-journal";
 import { MacroSummaryTable } from "@/components/calendar/macro-summary-table";
 import { CalendarDayCell } from "@/components/calendar/calendar-day-cell";
 import { YearMiniCalendarGrid } from "@/components/calendar/year-mini-calendar-grid";
@@ -82,8 +83,29 @@ function CalendarStatCard({
   );
 }
 
-export function PnlCalendarView() {
-  const { trades, currency } = useRegionTrades();
+export function PnlCalendarView({
+  book = "stocks",
+}: {
+  /** Stocks calendar ignores options. Options calendar shows only options. */
+  book?: "stocks" | "options";
+} = {}) {
+  const { trades: regionTrades, currency } = useRegionTrades();
+  const trades = useMemo(
+    () =>
+      regionTrades
+        .filter((trade) =>
+          book === "options"
+            ? trade.assetClass === "Options"
+            : trade.assetClass !== "Options"
+        )
+        .map((trade) => {
+          if (book !== "options") return trade;
+          const corrected = withCorrectedOptionsDates(trade);
+          if ((corrected.status ?? "Closed") === "Active") return corrected;
+          return { ...corrected, pnl: optionsBookedPnl(corrected) };
+        }),
+    [regionTrades, book]
+  );
 
   const closedTrades = useMemo(() => filterClosedTrades(trades), [trades]);
 
@@ -378,7 +400,7 @@ export function PnlCalendarView() {
         <p className="text-center text-sm text-muted-foreground">
           No closed trades yet.{" "}
           <Link
-            href="/journal"
+            href={book === "options" ? "/options/journal" : "/journal"}
             className="font-medium text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400"
           >
             Log and close a trade

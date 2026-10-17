@@ -208,6 +208,62 @@ function upsertPoint(
   series.push(point);
 }
 
+function stateOnOrBefore(
+  points: PortfolioTimelinePoint[],
+  at: Date
+): PortfolioTimelinePoint {
+  const limit = format(startOfDay(at), "yyyy-MM-dd");
+  let last: PortfolioTimelinePoint = { date: limit, ...EMPTY_POINT };
+  for (const point of points) {
+    if (point.date <= limit) last = point;
+    else break;
+  }
+  return last;
+}
+
+/**
+ * Percent P&L change across a date range, measured against the portfolio
+ * value at the start of the range.
+ */
+export function portfolioRangeReturnPercent(
+  points: PortfolioTimelinePoint[],
+  range: { from?: Date; to?: Date },
+  now = new Date(),
+  liveEnd?: PortfolioTimelinePoint
+): number | null {
+  if (points.length === 0) return null;
+
+  const endDate = range.to ?? now;
+  const endKey = format(startOfDay(endDate), "yyyy-MM-dd");
+  const todayKey = format(startOfDay(now), "yyyy-MM-dd");
+  let end = stateOnOrBefore(points, endDate);
+  if (liveEnd && endKey >= todayKey) end = liveEnd;
+
+  const start = range.from
+    ? baselineBefore(points, range.from)
+    : {
+        date: points[0].date,
+        invested: 0,
+        totalPnl: 0,
+        portfolioValue: 0,
+      };
+
+  const pnlChange = end.totalPnl - start.totalPnl;
+  const startKey = range.from
+    ? format(startOfDay(range.from), "yyyy-MM-dd")
+    : points[0].date;
+  const peakInvested = points.reduce((max, point) => {
+    if (point.date < startKey || point.date > endKey) return max;
+    return Math.max(max, point.invested);
+  }, 0);
+  const deployed =
+    end.invested > 0 ? end.invested : Math.max(peakInvested, start.invested, 0);
+  const base =
+    start.portfolioValue !== 0 ? Math.abs(start.portfolioValue) : deployed;
+  if (!(base > 0)) return pnlChange === 0 ? 0 : null;
+  return Math.round((pnlChange / base) * 10000) / 100;
+}
+
 /** Chart series for a timeframe — anchors period start/end so the line reshapes per range. */
 export function buildPortfolioChartSeries(
   points: PortfolioTimelinePoint[],

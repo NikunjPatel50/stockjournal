@@ -6,6 +6,7 @@ import {
   defaultListingMarketForCurrency,
   normalizeListingMarket,
 } from "@/lib/equity-listing-markets";
+import type { OptionsTradeMeta } from "@/lib/options-trade-meta";
 import type { CurrencyCode } from "@/lib/settings";
 import { DEFAULT_CURRENCY } from "@/lib/settings";
 
@@ -57,6 +58,8 @@ export interface JournalTrade {
   sector?: string;
   /** Snapshot for analytics — survives after the trade is closed. */
   marketCapBucket?: string;
+  /** Multi-leg options structure (options journal). */
+  optionsMeta?: OptionsTradeMeta;
 }
 
 export interface JournalFilters {
